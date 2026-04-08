@@ -152,6 +152,7 @@ export default function Home() {
         colors: o.totalColorCount,
         printCode: isSP ? o.printCode : undefined,
         currentPrice: o.currentPrice,
+        currentSalesGroup: o.salesGroup,
         key: groupKey
       });
       // 色数・印刷コード順にソートしておくと見やすい
@@ -162,7 +163,7 @@ export default function Home() {
       });
     }
     return acc;
-  }, {} as { [material: string]: { [weight: string]: Array<{ colors: number, key: string, printCode?: string, currentPrice: number }> } });
+  }, {} as { [material: string]: { [weight: string]: Array<{ colors: number, key: string, printCode?: string, currentPrice: number, currentSalesGroup: number }> } });
 
   const showMarginCols = activeTab === 'sp' || activeTab === 'custom';
   const showPrintingCols = activeTab === 'sp';
@@ -317,6 +318,7 @@ export default function Home() {
                           <div className={styles.groupGrid}>
                             {groups.map((group) => {
                               const manualPrice = manualSettings[group.key]?.price;
+                              const manualSalesGroup = manualSettings[group.key]?.salesGroup;
                               return (
                                 <div key={group.key} className={styles.groupInputRow}>
                                   <div className={styles.groupInfo}>
@@ -346,18 +348,26 @@ export default function Home() {
                                         ) : null}
                                       </div>
                                     </div>
-                                  {activeTab !== 'sp' && (
-                                    <div className={styles.inputWrapper}>
-                                      <span className={styles.inputLabel}>改定後営G</span>
-                                      <input 
-                                        type="number" 
-                                        placeholder="営G"
-                                        value={manualSettings[group.key]?.salesGroup || ''} 
-                                        onChange={(e) => updateManualField(group.key, 'salesGroup', Number(e.target.value))}
-                                        className={styles.manualInput}
-                                      />
-                                    </div>
-                                  )}
+                                    {activeTab !== 'sp' && (
+                                      <div className={styles.inputWrapper}>
+                                        <span className={styles.inputLabel}>改定後営G</span>
+                                        <input 
+                                          type="number" 
+                                          placeholder="営G"
+                                          value={manualSalesGroup || ''} 
+                                          onChange={(e) => updateManualField(group.key, 'salesGroup', Number(e.target.value))}
+                                          className={styles.manualInput}
+                                        />
+                                        <div className={styles.groupPriceDetail}>
+                                          <span>現行: ¥{group.currentSalesGroup.toFixed(2)}</span>
+                                          {manualSalesGroup !== undefined && manualSalesGroup !== 0 && group.currentSalesGroup !== 0 ? (
+                                            <span className={styles.priceUp} style={{ marginLeft: '8px' }}>
+                                              (+{(((manualSalesGroup - group.currentSalesGroup) / group.currentSalesGroup) * 100).toFixed(1)}%)
+                                            </span>
+                                          ) : null}
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               );
