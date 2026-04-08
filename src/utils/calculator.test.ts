@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { calculateNewPrices } from './calculator';
-import { OrderRecord, CustomPriceMatrixRow, IncreaseSimulationConditions } from '../types';
+import { OrderRecord, IncreaseSimulationConditions } from '../types';
 
 describe('Calculator Logic (Multilevel Precedence)', () => {
 

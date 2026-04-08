@@ -3,6 +3,7 @@
 import React from 'react';
 import { Page, Text, View, Document, StyleSheet, Font } from '@react-pdf/renderer';
 import { OrderRecord } from '../types';
+import { shortenProductName } from '../utils/stringUtils';
 
 // Register Japanese font (Noto Sans JP) from Google Fonts
 Font.register({
@@ -74,9 +75,13 @@ const styles = StyleSheet.create({
     padding: 5,
   },
   colSmall: { width: '7%' },
-  colCode: { width: '10%' },
-  colName: { width: '31%' },
-  colExtra: { width: '5%' },
+  colCode: { width: '8%' },
+  colName: { width: '16%' },
+  colPrintCode: { width: '7%' },
+  colShape: { width: '6%' },
+  colQty: { width: '6%' },
+  colWeight: { width: '6%' },
+  colExtra: { width: '4%' },
   colPrice: { width: '10%' },
   footer: {
     marginTop: 30,
@@ -116,7 +121,10 @@ export const QuotePDF: React.FC<QuotePDFProps> = ({ customerName, orders, date }
           <Text style={[styles.tableCol, styles.colSmall, { fontWeight: 'bold' }]}>種別</Text>
           <Text style={[styles.tableCol, styles.colCode, { fontWeight: 'bold' }]}>コード</Text>
           <Text style={[styles.tableCol, styles.colName, { fontWeight: 'bold' }]}>商品名 / 材質</Text>
-          <Text style={[styles.tableCol, styles.colSmall, { fontWeight: 'bold' }]}>重量</Text>
+          <Text style={[styles.tableCol, styles.colPrintCode, { fontWeight: 'bold' }]}>印刷コード</Text>
+          <Text style={[styles.tableCol, styles.colShape, { fontWeight: 'bold' }]}>形状</Text>
+          <Text style={[styles.tableCol, styles.colQty, { fontWeight: 'bold' }]}>受注数</Text>
+          <Text style={[styles.tableCol, styles.colWeight, { fontWeight: 'bold' }]}>重量</Text>
           <Text style={[styles.tableCol, styles.colExtra, { fontWeight: 'bold' }]}>色数</Text>
           <Text style={[styles.tableCol, styles.colPrice, { fontWeight: 'bold' }]}>印刷代</Text>
           <Text style={[styles.tableCol, styles.colPrice, { fontWeight: 'bold' }]}>現行単価</Text>
@@ -129,8 +137,16 @@ export const QuotePDF: React.FC<QuotePDFProps> = ({ customerName, orders, date }
           <View key={i} style={styles.tableRow}>
             <Text style={[styles.tableCol, styles.colSmall]}>{order.category}</Text>
             <Text style={[styles.tableCol, styles.colCode]}>{order.productCode}</Text>
-            <Text style={[styles.tableCol, styles.colName]}>{order.productName}{"\n"}{order.materialName}</Text>
-            <Text style={[styles.tableCol, styles.colSmall]}>{order.weight}</Text>
+            <Text style={[styles.tableCol, styles.colName]}>
+              {(order.category === 'SP' || order.category === 'シルク') 
+                ? shortenProductName(order.title || order.productName) 
+                : order.productName}
+              {"\n"}{order.materialName}
+            </Text>
+            <Text style={[styles.tableCol, styles.colPrintCode]}>{order.printCode}</Text>
+            <Text style={[styles.tableCol, styles.colShape]}>{order.shape}</Text>
+            <Text style={[styles.tableCol, styles.colQty]}>{order.quantity}</Text>
+            <Text style={[styles.tableCol, styles.colWeight]}>{order.weight}</Text>
             <Text style={[styles.tableCol, styles.colExtra]}>{order.totalColorCount}</Text>
             <Text style={[styles.tableCol, styles.colPrice]}>{(order.printingCost || 0).toFixed(2)}</Text>
             <Text style={[styles.tableCol, styles.colPrice]}>{order.currentPrice.toFixed(2)}</Text>

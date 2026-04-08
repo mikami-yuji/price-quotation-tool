@@ -1,0 +1,24 @@
+/**
+ * SP・シルク等の長い商品名（タイトル）から管理用コードや技術スペックを除去し、
+ * ブランド核心部のみを抽出して短縮するユーティリティ
+ */
+export const shortenProductName = (name: string): string => {
+  if (!name) return '';
+
+  // 1. 接頭辞の削除
+  // 記号類、注記、重量、材質記号（ﾎﾟﾘ, ﾗﾐ, SF, SFM等）、共通技術コード（DH, RA等）を前方一致で削除
+  // ただし「新米」「無洗米」などの重要な属性は残す
+  let cleaned = name.replace(/^([\s●◆■★]|【(?!新米|無洗米).*?】|（.*?）|\d+[Kk㎏]|[M]?[ﾎﾟﾘﾗﾐ]+|SFM?|DH|RA|RZ|V|T|ＲＡ|ＲＺ)+/g, (m) => {
+    if (m.includes('新米') || m.includes('無洗米')) return m;
+    return '';
+  });
+
+  // 2度洗いで確実に除去
+  cleaned = cleaned.replace(/^([\s●◆■★]|【(?!新米|無洗米).*?】|（.*?）|\d+[Kk㎏]|[M]?[ﾎﾟﾘﾗﾐ]+|SFM?|DH|RA|RZ|V|T|ＲＡ|ＲＺ)+/g, '');
+
+  // 2. 接尾辞の削除
+  // 管理コード (RZ, SP等) 以降をすべて削除
+  cleaned = cleaned.replace(/([\s(（]?(RZ|RA|ＳＰ|SP|ＲＡ|ＲＺ|無地).*$)|((RZ|RA|ＳＰ|SP|ＲＡ|ＲＺ|無地).*$)/, '');
+
+  return cleaned.trim();
+};

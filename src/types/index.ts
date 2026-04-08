@@ -6,6 +6,7 @@ export type OrderRecord = {
   weight: number | string; // 重量
   productCode: string; // 商品コード
   productName: string; // 商品名
+  title?: string; // タイトル
   shape: string; // 形状
   quantity: number; // 受注数
   currentPrice: number; // 単価

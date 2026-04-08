@@ -4,6 +4,7 @@ import { useState, useRef, ChangeEvent } from 'react';
 import styles from './page.module.css';
 import { parseExcelFile } from '../utils/excelUtils';
 import { calculateNewPrices } from '../utils/calculator';
+import { shortenProductName } from '../utils/stringUtils';
 import { OrderRecord, CustomPriceMatrixRow, IncreaseSimulationConditions, ManualGroupSetting, IndividualManualSetting } from '../types';
 import { QuotePDF } from '../components/QuotePDF';
 import { PDFDownloadLink } from '@react-pdf/renderer';
@@ -155,7 +156,7 @@ export default function Home() {
 
   const showMarginCols = activeTab === 'sp' || activeTab === 'custom';
   const showPrintingCols = activeTab === 'sp';
-  const displayColumnCount = 10 + (showMarginCols ? 2 : 0) + (showPrintingCols ? 2 : 0);
+  const displayColumnCount = 12 + (showMarginCols ? 2 : 0) + (showPrintingCols ? 3 : 0);
 
   return (
     <div className={styles.container}>
@@ -303,7 +304,7 @@ export default function Home() {
                         <div key={weight} className={styles.weightGroup}>
                           <h5 className={styles.weightHeader}>{weight}</h5>
                           <div className={styles.groupGrid}>
-                            {groups.map((group: any) => (
+                            {groups.map((group: { colors: number; key: string }) => (
                               <div key={group.key} className={styles.groupInputRow}>
                                 <div className={styles.groupInfo}>
                                   <span className={styles.groupColors}>{group.colors}色</span>
@@ -350,10 +351,12 @@ export default function Home() {
                   <th>受注No</th>
                   <th>商品コード</th>
                   <th>商品名</th>
+                  {showPrintingCols && <th>印刷コード</th>}
+                  <th>形状</th>
+                  <th>受注数</th>
                   <th>材質</th>
                   <th>重量</th>
                   <th>色数</th>
-                  {showPrintingCols && <th>印刷代</th>}
                   <th>現行単価</th>
                   <th className={styles.highlightHeader}>改定単価</th>
                   {showMarginCols && (
@@ -362,6 +365,7 @@ export default function Home() {
                       <th className={styles.highlightHeader}>改定後 営G</th>
                     </>
                   )}
+                  {showPrintingCols && <th>印刷代</th>}
                   {showPrintingCols && <th>印刷営G</th>}
                   <th>値上げ率 (%)</th>
                 </tr>
@@ -386,14 +390,28 @@ export default function Home() {
                       <div style={{ fontSize: '0.85rem' }}>{order.productCode}</div>
                     </td>
                     <td>
-                      <div style={{ fontWeight: 500 }}>{order.productName || '名前なし'}</div>
+                      <div style={{ fontWeight: 500 }}>
+                        {activeTab === 'sp' 
+                          ? shortenProductName(order.title || order.productName) 
+                          : (order.productName || '名前なし')}
+                      </div>
+                    </td>
+                    {showPrintingCols && (
+                      <td>
+                        <div style={{ fontSize: '0.85rem' }}>{order.printCode}</div>
+                      </td>
+                    )}
+                    <td>
+                      <div style={{ fontSize: '0.9rem' }}>{order.shape}</div>
+                    </td>
+                    <td>
+                      <div style={{ fontSize: '0.9rem' }}>{order.quantity}</div>
                     </td>
                     <td>
                       <div style={{ fontSize: '0.9rem' }}>{order.materialName}</div>
                     </td>
                     <td>{order.weight}</td>
                     <td>{order.totalColorCount}</td>
-                    {showPrintingCols && <td>¥{(order.printingCost || 0).toFixed(2)}</td>}
                     <td>¥{order.currentPrice.toFixed(2)}</td>
                     <td className={`${styles.newPriceHighlight} ${individualSettings[order.orderNumber]?.price ? styles.individualOverride : ''}`}>
                       <input 
@@ -416,6 +434,7 @@ export default function Home() {
                         </td>
                       </>
                     )}
+                    {showPrintingCols && <td>¥{(order.printingCost || 0).toFixed(2)}</td>}
                     {showPrintingCols && <td>{order.printingSalesGroup}</td>}
                     <td className={styles.priceUp}>
                       {order.newPrice !== undefined && order.currentPrice > 0 

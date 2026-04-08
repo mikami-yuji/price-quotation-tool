@@ -17,14 +17,14 @@ export const parseExcelFile = (arrayBuffer: ArrayBuffer): { orders: OrderRecord[
   if (sheetNames.includes('受注データ')) {
     const sheet = workbook.Sheets['受注データ'];
     // 最初の行をヘッダーとしてJSON化
-    const rawData = XLSX.utils.sheet_to_json<any>(sheet, { defval: '' });
+    const rawData = XLSX.utils.sheet_to_json<Record<string, string | number>>(sheet, { defval: '' });
     orders = rawData.map((row) => mapRowToOrderRecord(row));
   }
 
   // 別注単価表の読み込み
   if (sheetNames.includes('別注単価表')) {
     const sheet = workbook.Sheets['別注単価表'];
-    const rawMatrix = XLSX.utils.sheet_to_json<any>(sheet, { defval: '' });
+    const rawMatrix = XLSX.utils.sheet_to_json<Record<string, string | number>>(sheet, { defval: '' });
     priceMatrix = rawMatrix.map(row => mapRowToPriceMatrix(row)).filter(row => row !== null) as CustomPriceMatrixRow[];
   }
 
@@ -36,13 +36,14 @@ export const parseExcelFile = (arrayBuffer: ArrayBuffer): { orders: OrderRecord[
  * @param row Excelの1行分のJSONデータ
  * @returns OrderRecordオブジェクト
  */
-const mapRowToOrderRecord = (row: any): OrderRecord => {
+const mapRowToOrderRecord = (row: Record<string, string | number>): OrderRecord => {
   return {
     orderNumber: String(row['受注№'] || ''),
     category: String(row['種別'] || ''),
     weight: row['重量'] || 0,
     productCode: String(row['商品コード'] || ''),
     productName: String(row['商品名'] || ''),
+    title: String(row['タイトル'] || ''),
     shape: String(row['形状'] || ''),
     quantity: Number(row['受注数']) || 0,
     currentPrice: Number(row['単価']) || 0,
@@ -67,8 +68,8 @@ const mapRowToOrderRecord = (row: any): OrderRecord => {
  * @param row Excelの1行分のJSONデータ
  * @returns CustomPriceMatrixRowオブジェクト、または無効な行ならnull
  */
-const mapRowToPriceMatrix = (row: any): CustomPriceMatrixRow | null => {
-  const materialName = row['材質名称'];
+const mapRowToPriceMatrix = (row: Record<string, string | number>): CustomPriceMatrixRow | null => {
+  const materialName = row['材質名称'] as string;
   const weight = row['重量'];
   
   if (!materialName) return null;
