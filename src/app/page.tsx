@@ -151,6 +151,7 @@ export default function Home() {
       acc[o.materialName][weightStr].push({
         colors: o.totalColorCount,
         printCode: isSP ? o.printCode : undefined,
+        currentPrice: o.currentPrice,
         key: groupKey
       });
       // 色数・印刷コード順にソートしておくと見やすい
@@ -161,7 +162,7 @@ export default function Home() {
       });
     }
     return acc;
-  }, {} as { [material: string]: { [weight: string]: Array<{ colors: number, key: string, printCode?: string }> } });
+  }, {} as { [material: string]: { [weight: string]: Array<{ colors: number, key: string, printCode?: string, currentPrice: number }> } });
 
   const showMarginCols = activeTab === 'sp' || activeTab === 'custom';
   const showPrintingCols = activeTab === 'sp';
@@ -314,27 +315,37 @@ export default function Home() {
                         <div key={weight} className={styles.weightGroup}>
                           <h5 className={styles.weightHeader}>{weight}</h5>
                           <div className={styles.groupGrid}>
-                            {groups.map((group) => (
-                              <div key={group.key} className={styles.groupInputRow}>
-                                <div className={styles.groupInfo}>
-                                  <span className={styles.groupColors}>{group.colors}色</span>
-                                  {group.printCode && (
-                                    <span style={{ fontSize: '0.75rem', opacity: 0.7, marginLeft: '8px' }}>
-                                      [{group.printCode}]
-                                    </span>
-                                  )}
-                                </div>
-                                <div className={styles.groupInputs}>
-                                  <div className={styles.inputWrapper}>
-                                    <span className={styles.inputLabel}>改定単価</span>
-                                    <input 
-                                      type="number" 
-                                      placeholder="単価"
-                                      value={manualSettings[group.key]?.price || ''} 
-                                      onChange={(e) => updateManualField(group.key, 'price', Number(e.target.value))}
-                                      className={styles.manualInput}
-                                    />
+                            {groups.map((group) => {
+                              const manualPrice = manualSettings[group.key]?.price;
+                              return (
+                                <div key={group.key} className={styles.groupInputRow}>
+                                  <div className={styles.groupInfo}>
+                                    <span className={styles.groupColors}>{group.colors}色</span>
+                                    {group.printCode && (
+                                      <span style={{ fontSize: '0.75rem', opacity: 0.7, marginLeft: '8px' }}>
+                                        [{group.printCode}]
+                                      </span>
+                                    )}
                                   </div>
+                                  <div className={styles.groupInputs}>
+                                    <div className={styles.inputWrapper}>
+                                      <span className={styles.inputLabel}>改定単価</span>
+                                      <input 
+                                        type="number" 
+                                        placeholder="単価"
+                                        value={manualPrice || ''} 
+                                        onChange={(e) => updateManualField(group.key, 'price', Number(e.target.value))}
+                                        className={styles.manualInput}
+                                      />
+                                      <div className={styles.groupPriceDetail}>
+                                        <span>現行: ¥{group.currentPrice.toFixed(2)}</span>
+                                        {manualPrice !== undefined && manualPrice !== 0 ? (
+                                          <span className={styles.priceUp} style={{ marginLeft: '8px' }}>
+                                            (+{(((manualPrice - group.currentPrice) / group.currentPrice) * 100).toFixed(1)}%)
+                                          </span>
+                                        ) : null}
+                                      </div>
+                                    </div>
                                   {activeTab !== 'sp' && (
                                     <div className={styles.inputWrapper}>
                                       <span className={styles.inputLabel}>改定後営G</span>
@@ -347,9 +358,10 @@ export default function Home() {
                                       />
                                     </div>
                                   )}
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                       ))}

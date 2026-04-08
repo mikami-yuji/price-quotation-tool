@@ -323,6 +323,14 @@
   color: white;
 }
 
+.groupPriceDetail {
+  display: flex;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.2rem;
+}
+
 .manualInput {
   width: 100%;
   background: rgba(255, 255, 255, 0.1);
