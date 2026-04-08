@@ -335,16 +335,18 @@ export default function Home() {
                                       className={styles.manualInput}
                                     />
                                   </div>
-                                  <div className={styles.inputWrapper}>
-                                    <span className={styles.inputLabel}>改定後営G</span>
-                                    <input 
-                                      type="number" 
-                                      placeholder="営G"
-                                      value={manualSettings[group.key]?.salesGroup || ''} 
-                                      onChange={(e) => updateManualField(group.key, 'salesGroup', Number(e.target.value))}
-                                      className={styles.manualInput}
-                                    />
-                                  </div>
+                                  {activeTab !== 'sp' && (
+                                    <div className={styles.inputWrapper}>
+                                      <span className={styles.inputLabel}>改定後営G</span>
+                                      <input 
+                                        type="number" 
+                                        placeholder="営G"
+                                        value={manualSettings[group.key]?.salesGroup || ''} 
+                                        onChange={(e) => updateManualField(group.key, 'salesGroup', Number(e.target.value))}
+                                        className={styles.manualInput}
+                                      />
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             ))}
