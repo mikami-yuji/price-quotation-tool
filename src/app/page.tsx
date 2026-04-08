@@ -351,10 +351,10 @@ export default function Home() {
                   <th>受注No</th>
                   <th>商品コード</th>
                   <th>商品名</th>
-                  {showPrintingCols && <th>印刷コード</th>}
                   <th>形状</th>
                   <th>受注数</th>
                   <th>材質</th>
+                  {showPrintingCols && <th>印刷コード</th>}
                   <th>重量</th>
                   <th>色数</th>
                   <th>現行単価</th>
@@ -396,11 +396,6 @@ export default function Home() {
                           : (order.productName || '名前なし')}
                       </div>
                     </td>
-                    {showPrintingCols && (
-                      <td>
-                        <div style={{ fontSize: '0.85rem' }}>{order.printCode}</div>
-                      </td>
-                    )}
                     <td>
                       <div style={{ fontSize: '0.9rem' }}>{order.shape}</div>
                     </td>
@@ -410,6 +405,11 @@ export default function Home() {
                     <td>
                       <div style={{ fontSize: '0.9rem' }}>{order.materialName}</div>
                     </td>
+                    {showPrintingCols && (
+                      <td>
+                        <div style={{ fontSize: '0.85rem' }}>{order.printCode}</div>
+                      </td>
+                    )}
                     <td>{order.weight}</td>
                     <td>{order.totalColorCount}</td>
                     <td>¥{order.currentPrice.toFixed(2)}</td>

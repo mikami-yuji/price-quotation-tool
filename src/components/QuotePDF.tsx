@@ -121,9 +121,9 @@ export const QuotePDF: React.FC<QuotePDFProps> = ({ customerName, orders, date }
           <Text style={[styles.tableCol, styles.colSmall, { fontWeight: 'bold' }]}>種別</Text>
           <Text style={[styles.tableCol, styles.colCode, { fontWeight: 'bold' }]}>コード</Text>
           <Text style={[styles.tableCol, styles.colName, { fontWeight: 'bold' }]}>商品名 / 材質</Text>
-          <Text style={[styles.tableCol, styles.colPrintCode, { fontWeight: 'bold' }]}>印刷コード</Text>
           <Text style={[styles.tableCol, styles.colShape, { fontWeight: 'bold' }]}>形状</Text>
           <Text style={[styles.tableCol, styles.colQty, { fontWeight: 'bold' }]}>受注数</Text>
+          <Text style={[styles.tableCol, styles.colPrintCode, { fontWeight: 'bold' }]}>印刷コード</Text>
           <Text style={[styles.tableCol, styles.colWeight, { fontWeight: 'bold' }]}>重量</Text>
           <Text style={[styles.tableCol, styles.colExtra, { fontWeight: 'bold' }]}>色数</Text>
           <Text style={[styles.tableCol, styles.colPrice, { fontWeight: 'bold' }]}>印刷代</Text>
@@ -143,9 +143,9 @@ export const QuotePDF: React.FC<QuotePDFProps> = ({ customerName, orders, date }
                 : order.productName}
               {"\n"}{order.materialName}
             </Text>
-            <Text style={[styles.tableCol, styles.colPrintCode]}>{order.printCode}</Text>
             <Text style={[styles.tableCol, styles.colShape]}>{order.shape}</Text>
             <Text style={[styles.tableCol, styles.colQty]}>{order.quantity}</Text>
+            <Text style={[styles.tableCol, styles.colPrintCode]}>{order.printCode}</Text>
             <Text style={[styles.tableCol, styles.colWeight]}>{order.weight}</Text>
             <Text style={[styles.tableCol, styles.colExtra]}>{order.totalColorCount}</Text>
             <Text style={[styles.tableCol, styles.colPrice]}>{(order.printingCost || 0).toFixed(2)}</Text>
