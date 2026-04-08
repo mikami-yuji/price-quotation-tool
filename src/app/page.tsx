@@ -6,8 +6,7 @@ import { parseExcelFile } from '../utils/excelUtils';
 import { calculateNewPrices } from '../utils/calculator';
 import { shortenProductName } from '../utils/stringUtils';
 import { OrderRecord, CustomPriceMatrixRow, IncreaseSimulationConditions, ManualGroupSetting, IndividualManualSetting } from '../types';
-import { QuotePDF } from '../components/QuotePDF';
-import { PDFDownloadLink } from '@react-pdf/renderer';
+import { generateQuoteExcel } from '../utils/excelGenerator';
 
 type TabType = 'custom' | 'sp' | 'readymade';
 
@@ -96,6 +95,18 @@ export default function Home() {
     setIndividualSettings(newSettings);
     const result = calculateNewPrices(orders, priceMatrix, conditions, manualSettings, newSettings);
     setSimulatedOrders(result);
+  };
+
+  const handleExportExcel = async () => {
+    if (simulatedOrders.length === 0) return;
+    
+    await generateQuoteExcel(
+      getCustomerName(fileName),
+      filteredOrders,
+      today,
+      activeTab === 'custom' ? '別注' : activeTab === 'sp' ? 'SP' : '既製',
+      activeTab !== 'custom'
+    );
   };
 
   // ファイル名から得意先名を抽出（例: 43006_幸南食糧（株）.xlsx -> 幸南食糧（株））
@@ -258,20 +269,12 @@ export default function Home() {
             </button>
 
             {simulatedOrders.length > 0 && (
-              <PDFDownloadLink
-                document={
-                  <QuotePDF 
-                    customerName={getCustomerName(fileName)} 
-                    orders={filteredOrders} 
-                    date={today} 
-                    showProductCode={activeTab !== 'custom'}
-                  />
-                }
-                fileName={`見積書_${getCustomerName(fileName)}_${activeTab}.pdf`}
-                className={styles.pdfButton}
+              <button 
+                onClick={handleExportExcel}
+                className={styles.pdfButton} // スタイルは既存のボタン用を再利用
               >
-                {({ loading }) => (loading ? '準備中...' : `${activeTab === 'custom' ? '別注' : activeTab === 'sp' ? 'SP' : '既製'}見積書を作成`)}
-              </PDFDownloadLink>
+                {activeTab === 'custom' ? '別注' : activeTab === 'sp' ? 'SP' : '既製'}見積書を作成 (Excel)
+              </button>
             )}
           </div>
 
