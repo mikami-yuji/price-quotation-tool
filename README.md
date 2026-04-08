@@ -1,36 +1,27 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 値上げ見積書・作成ツール (Price Quotation Tool)
 
-## Getting Started
+得意先別のExcelデータを読み込み、別注商品やSP商品の値上げ価格をシミュレーションし、見積書PDFを自動生成するツールです。
 
-First, run the development server:
+## 主な機能
+- **自動計算**: 全商品の単価を％または一律金額で値上げシミュレーション。
+- **別注グループ管理**: 材質・重量・色数が同じ商品を自動でグループ化し、一括で単価設定。
+- **営Gインパクト算出**: 単価の変化に伴う営業利益（営G）の変化を自動計算。
+- **インライン編集**: 各行ごとに改定単価や営Gを個別に微調整（個別修正はハイライト表示）。
+- **PDF出力**: 表示中のカテゴリ（別注/SP/既製）に合わせて最適化された見積書を生成。
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## セットアップ手順
+1.  **Node.js のインストール**: [Node.js](https://nodejs.org/) (LTS推奨) をインストールしてください。
+2.  **依存パッケージのインストール**:
+    ```bash
+    npm install
+    ```
+3.  **起動**:
+    `起動.bat` をダブルクリック、または以下のコマンドを実行してください。
+    ```bash
+    npm run dev
+    ```
+4.  **ブラウザで開く**: [http://localhost:3000](http://localhost:3000) にアクセス。
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 開発・検証
+- **テスト**: `npm test` で単価計算ロジックの検証が可能です。
+- **CI/CD**: GitHub Actions により、プッシュ時に自動でコード品質のチェック（Lint）とテストが実行されます。
