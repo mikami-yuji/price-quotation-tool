@@ -150,6 +150,8 @@ export const generateQuoteExcel = async (
 
   // ダウンロード実行
   const buffer = await workbook.xlsx.writeBuffer();
-  const fileName = `見積書_${customerName}_${category}_${date}.xlsx`;
-  saveAs(new Blob([buffer]), fileName);
+  const safeCustomerName = customerName.replace(/[\\/:*?"<>|]/g, '_');
+  const fileName = `見積書_${safeCustomerName}_${category}_${date}.xlsx`;
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  saveAs(blob, fileName);
 };
