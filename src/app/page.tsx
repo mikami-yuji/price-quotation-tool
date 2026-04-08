@@ -135,9 +135,13 @@ export default function Home() {
     readymade: getTabOrders('readymade', simulatedOrders).length
   };
 
-  // 別注のユニークなグループ（材質、重量、色数）を抽出し、材質 > 重量 ごとに階層化
-  const customGroups = getTabOrders('custom', orders).reduce((acc, o) => {
-    const groupKey = `${o.materialName}-${o.weight}-${o.totalColorCount}`;
+  // ユニークなグループを抽出し、材質 > 重量 ごとに階層化
+  const editorGroups = getTabOrders(activeTab === 'sp' ? 'sp' : 'custom', orders).reduce((acc, o) => {
+    const isSP = activeTab === 'sp';
+    const groupKey = isSP 
+      ? `${o.materialName}-${o.weight}-${o.totalColorCount}-${o.printCode}`
+      : `${o.materialName}-${o.weight}-${o.totalColorCount}`;
+      
     const weightStr = `${o.weight} ㎏`;
     
     if (!acc[o.materialName]) acc[o.materialName] = {};
@@ -146,13 +150,18 @@ export default function Home() {
     if (!acc[o.materialName][weightStr].find(g => g.key === groupKey)) {
       acc[o.materialName][weightStr].push({
         colors: o.totalColorCount,
+        printCode: isSP ? o.printCode : undefined,
         key: groupKey
       });
-      // 色数順にソートしておくと見やすい
-      acc[o.materialName][weightStr].sort((a, b) => a.colors - b.colors);
+      // 色数・印刷コード順にソートしておくと見やすい
+      acc[o.materialName][weightStr].sort((a, b) => {
+        if (a.colors !== b.colors) return a.colors - b.colors;
+        if (a.printCode && b.printCode) return a.printCode.localeCompare(b.printCode);
+        return 0;
+      });
     }
     return acc;
-  }, {} as { [material: string]: { [weight: string]: Array<{ colors: number, key: string }> } });
+  }, {} as { [material: string]: { [weight: string]: Array<{ colors: number, key: string, printCode?: string }> } });
 
   const showMarginCols = activeTab === 'sp' || activeTab === 'custom';
   const showPrintingCols = activeTab === 'sp';
@@ -205,17 +214,18 @@ export default function Home() {
                 <option value="amount">一律金額アップ (円)</option>
               </select>
             </div>
-            
-            <div className={styles.controlGroup}>
-              <span className={styles.controlLabel}>値幅:</span>
-              <input 
-                type="number" 
-                value={conditions.customIncreaseValue}
-                style={{ width: '80px' }}
-                step="0.1"
-                onChange={(e) => setConditions({ ...conditions, customIncreaseValue: Number(e.target.value) })}
-              />
-            </div>
+            {(activeTab === 'custom' || activeTab === 'sp') && (
+              <div className={styles.controlGroup}>
+                <span className={styles.controlLabel}>値幅:</span>
+                <input 
+                  type="number" 
+                  value={conditions.customIncreaseValue}
+                  style={{ width: '80px' }}
+                  step="0.1"
+                  onChange={(e) => setConditions({ ...conditions, customIncreaseValue: Number(e.target.value) })}
+                />
+              </div>
+            )}
 
             <div className={styles.controlGroup}>
               <span className={styles.controlLabel}>端数丸め:</span>
@@ -283,20 +293,20 @@ export default function Home() {
             </button>
           </div>
 
-          {activeTab === 'custom' && Object.keys(customGroups).length > 0 && (
+          {(activeTab === 'custom' || activeTab === 'sp') && Object.keys(editorGroups).length > 0 && (
             <div className={`${styles.glassPanel} ${styles.groupPriceEditor} ${!isGroupEditorExpanded ? styles.collapsed : ''}`}>
               <header className={styles.editorHeader} onClick={() => setIsGroupEditorExpanded(!isGroupEditorExpanded)}>
                 <div className={styles.editorTitle}>
                   <span className={styles.editorIcon}>🛠</span>
-                  <h3>別注グループ単価設定</h3>
+                  <h3>{activeTab === 'custom' ? '別注' : 'SP'}グループ単価設定</h3>
                   <span className={styles.expandIcon}>{isGroupEditorExpanded ? '▼' : '▶'}</span>
                 </div>
-                <p className={styles.controlLabel}>材質・重量・色数が同じ商品をまとめて単価設定できます。入力がない場合は一律計算が適用されます。</p>
+                <p className={styles.controlLabel}>材質・重量・色数{activeTab === 'sp' ? '・印刷コード' : ''}が同じ商品をまとめて単価設定できます。入力がない場合は一律計算が適用されます。</p>
               </header>
               
               {isGroupEditorExpanded && (
                 <div className={styles.editorContent}>
-                  {Object.entries(customGroups).map(([material, weights]) => (
+                  {Object.entries(editorGroups).map(([material, weights]) => (
                     <div key={material} className={styles.materialSection}>
                       <h4 className={styles.materialHeader}>{material}</h4>
                       
@@ -304,10 +314,15 @@ export default function Home() {
                         <div key={weight} className={styles.weightGroup}>
                           <h5 className={styles.weightHeader}>{weight}</h5>
                           <div className={styles.groupGrid}>
-                            {groups.map((group: { colors: number; key: string }) => (
+                            {groups.map((group) => (
                               <div key={group.key} className={styles.groupInputRow}>
                                 <div className={styles.groupInfo}>
                                   <span className={styles.groupColors}>{group.colors}色</span>
+                                  {group.printCode && (
+                                    <span style={{ fontSize: '0.75rem', opacity: 0.7, marginLeft: '8px' }}>
+                                      [{group.printCode}]
+                                    </span>
+                                  )}
                                 </div>
                                 <div className={styles.groupInputs}>
                                   <div className={styles.inputWrapper}>

@@ -21,8 +21,14 @@ export const calculateNewPrices = (
     
     // 優先順位: 個別設定 > グループ設定 > デフォルト
     const individual = individualSettings[order.orderNumber];
-    const groupKey = `${order.materialName}-${order.weight}-${order.totalColorCount}`;
-    const group = (order.category === '別注' || order.category === 'ポリ別注') ? groupSettings[groupKey] : null;
+    
+    // SP・シルクの場合は印刷コードも含めた4項目でグルーピング
+    const isSP = order.category === 'SP' || order.category === 'シルク';
+    const groupKey = isSP 
+      ? `${order.materialName}-${order.weight}-${order.totalColorCount}-${order.printCode}`
+      : `${order.materialName}-${order.weight}-${order.totalColorCount}`;
+    
+    const group = (order.category === '別注' || order.category === 'ポリ別注' || isSP) ? groupSettings[groupKey] : null;
 
     // 1. 改定単価の決定
     if (individual?.price !== undefined && individual.price !== 0) {
