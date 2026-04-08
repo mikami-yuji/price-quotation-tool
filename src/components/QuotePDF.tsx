@@ -93,72 +93,78 @@ type QuotePDFProps = {
   customerName: string;
   orders: OrderRecord[];
   date: string;
+  showProductCode?: boolean;
 };
 
-export const QuotePDF: React.FC<QuotePDFProps> = ({ customerName, orders, date }) => (
-  <Document>
-    <Page size="A4" style={styles.page}>
-      <Text style={styles.date}>発行日：{date}</Text>
-      
-      <View style={styles.customerInfo}>
-        <Text style={styles.customerName}>{customerName} 御中</Text>
-      </View>
+export const QuotePDF: React.FC<QuotePDFProps> = ({ customerName, orders, date, showProductCode = true }) => {
+  const dynamicStyles = {
+    colName: { width: showProductCode ? '16%' : '24%' }
+  };
 
-      <Text style={styles.title}>価格改定のお願い（御見積書）</Text>
-      
-      <View style={styles.greeting}>
-        <Text>拝啓 時下益々ご清栄のこととお慶び申し上げます。平素は格別のご高配を賜り、厚く御礼申し上げます。</Text>
-        <Text>さて、既にご承知の通り、昨今の世界情勢の影響による原材料費の変動、物流コストの上昇、ならびにエネルギー価格の高騰が続いております。</Text>
-        <Text>弊社におきましても、これまでコスト削減に努めてまいりましたが、自社努力のみでは現行価格の維持が困難な状況となりました。</Text>
-        <Text>つきましては、誠に心苦しい限りではございますが、下記の通り価格改定をお願いしたく存じます。何卒諸事情をご賢察の上、ご了承賜りますようお願い申し上げます。 敬具</Text>
-      </View>
-
-      <Text style={{ fontWeight: 'bold', marginBottom: 5 }}>【改定内容一覧】</Text>
-      
-      <View style={styles.table}>
-        {/* Header */}
-        <View style={[styles.tableRow, { backgroundColor: '#f2f2f2' }]}>
-          <Text style={[styles.tableCol, styles.colSmall, { fontWeight: 'bold' }]}>種別</Text>
-          <Text style={[styles.tableCol, styles.colCode, { fontWeight: 'bold' }]}>コード</Text>
-          <Text style={[styles.tableCol, styles.colName, { fontWeight: 'bold' }]}>商品名 / 材質</Text>
-          <Text style={[styles.tableCol, styles.colShape, { fontWeight: 'bold' }]}>形状</Text>
-          <Text style={[styles.tableCol, styles.colQty, { fontWeight: 'bold' }]}>受注数</Text>
-          <Text style={[styles.tableCol, styles.colPrintCode, { fontWeight: 'bold' }]}>印刷コード</Text>
-          <Text style={[styles.tableCol, styles.colWeight, { fontWeight: 'bold' }]}>重量</Text>
-          <Text style={[styles.tableCol, styles.colExtra, { fontWeight: 'bold' }]}>色数</Text>
-          <Text style={[styles.tableCol, styles.colPrice, { fontWeight: 'bold' }]}>印刷代</Text>
-          <Text style={[styles.tableCol, styles.colPrice, { fontWeight: 'bold' }]}>現行単価</Text>
-          <Text style={[styles.tableCol, styles.colPrice, { fontWeight: 'bold' }]}>新単価</Text>
-          <Text style={[styles.tableCol, styles.colPrice, { fontWeight: 'bold' }]}>改定率</Text>
-        </View>
+  return (
+    <Document>
+      <Page size="A4" style={styles.page}>
+        <Text style={styles.date}>発行日：{date}</Text>
         
-        {/* Rows */}
-        {orders.map((order, i) => (
-          <View key={i} style={styles.tableRow}>
-            <Text style={[styles.tableCol, styles.colSmall]}>{order.category}</Text>
-            <Text style={[styles.tableCol, styles.colCode]}>{order.productCode}</Text>
-            <Text style={[styles.tableCol, styles.colName]}>
-              {(order.category === 'SP' || order.category === 'シルク' || order.category === '別注' || order.category === 'ポリ別注') 
-                ? shortenProductName(order.title || order.productName) 
-                : order.productName}
-              {"\n"}{order.materialName}
-            </Text>
-            <Text style={[styles.tableCol, styles.colShape]}>{order.shape}</Text>
-            <Text style={[styles.tableCol, styles.colQty]}>{order.quantity}</Text>
-            <Text style={[styles.tableCol, styles.colPrintCode]}>{order.printCode}</Text>
-            <Text style={[styles.tableCol, styles.colWeight]}>{order.weight}</Text>
-            <Text style={[styles.tableCol, styles.colExtra]}>{order.totalColorCount}</Text>
-            <Text style={[styles.tableCol, styles.colPrice]}>{(order.printingCost || 0).toFixed(2)}</Text>
-            <Text style={[styles.tableCol, styles.colPrice]}>{order.currentPrice.toFixed(2)}</Text>
-            <Text style={[styles.tableCol, styles.colPrice]}>{order.newPrice?.toFixed(2)}</Text>
-            <Text style={[styles.tableCol, styles.colPrice]}>
-              {order.newPrice !== undefined && order.currentPrice > 0 
-                ? `${(((order.newPrice - order.currentPrice) / order.currentPrice) * 100).toFixed(1)}%` 
-                : '-'}
-            </Text>
+        <View style={styles.customerInfo}>
+          <Text style={styles.customerName}>{customerName} 御中</Text>
+        </View>
+
+        <Text style={styles.title}>価格改定のお願い（御見積書）</Text>
+        
+        <View style={styles.greeting}>
+          <Text>拝啓 時下益々ご清栄のこととお慶び申し上げます。平素は格別のご高配を賜り、厚く御礼申し上げます。</Text>
+          <Text>さて、既にご承知の通り、昨今の世界情勢の影響による原材料費の変動、物流コストの上昇、ならびにエネルギー価格の高騰が続いております。</Text>
+          <Text>弊社におきましても、これまでコスト削減に努めてまいりましたが、自社努力のみでは現行価格の維持が困難な状況となりました。</Text>
+          <Text>つきましては、誠に心苦しい限りではございますが、下記の通り価格改定をお願いしたく存じます。何卒諸事情をご賢察の上、ご了承賜りますようお願い申し上げます。 敬具</Text>
+        </View>
+
+        <Text style={{ fontWeight: 'bold', marginBottom: 5 }}>【改定内容一覧】</Text>
+        
+        <View style={styles.table}>
+          {/* Header */}
+          <View style={[styles.tableRow, { backgroundColor: '#f2f2f2' }]}>
+            <Text style={[styles.tableCol, styles.colSmall, { fontWeight: 'bold' }]}>種別</Text>
+            {showProductCode && <Text style={[styles.tableCol, styles.colCode, { fontWeight: 'bold' }]}>コード</Text>}
+            <Text style={[styles.tableCol, dynamicStyles.colName, { fontWeight: 'bold' }]}>商品名 / 材質</Text>
+            <Text style={[styles.tableCol, styles.colShape, { fontWeight: 'bold' }]}>形状</Text>
+            <Text style={[styles.tableCol, styles.colQty, { fontWeight: 'bold' }]}>受注数</Text>
+            <Text style={[styles.tableCol, styles.colPrintCode, { fontWeight: 'bold' }]}>印刷コード</Text>
+            <Text style={[styles.tableCol, styles.colWeight, { fontWeight: 'bold' }]}>重量</Text>
+            <Text style={[styles.tableCol, styles.colExtra, { fontWeight: 'bold' }]}>色数</Text>
+            <Text style={[styles.tableCol, styles.colPrice, { fontWeight: 'bold' }]}>印刷代</Text>
+            <Text style={[styles.tableCol, styles.colPrice, { fontWeight: 'bold' }]}>現行単価</Text>
+            <Text style={[styles.tableCol, styles.colPrice, { fontWeight: 'bold' }]}>新単価</Text>
+            <Text style={[styles.tableCol, styles.colPrice, { fontWeight: 'bold' }]}>改定率</Text>
           </View>
-        ))}
-      </View>
+          
+          {/* Rows */}
+          {orders.map((order, i) => (
+            <View key={i} style={styles.tableRow}>
+              <Text style={[styles.tableCol, styles.colSmall]}>{order.category}</Text>
+              {showProductCode && <Text style={[styles.tableCol, styles.colCode]}>{order.productCode}</Text>}
+              <Text style={[styles.tableCol, dynamicStyles.colName]}>
+                {(order.category === 'SP' || order.category === 'シルク' || order.category === '別注' || order.category === 'ポリ別注') 
+                  ? shortenProductName(order.title || order.productName) 
+                  : order.productName}
+                {"\n"}{order.materialName}
+              </Text>
+              <Text style={[styles.tableCol, styles.colShape]}>{order.shape}</Text>
+              <Text style={[styles.tableCol, styles.colQty]}>{order.quantity}</Text>
+              <Text style={[styles.tableCol, styles.colPrintCode]}>{order.printCode}</Text>
+              <Text style={[styles.tableCol, styles.colWeight]}>{order.weight}</Text>
+              <Text style={[styles.tableCol, styles.colExtra]}>{order.totalColorCount}</Text>
+              <Text style={[styles.tableCol, styles.colPrice]}>{(order.printingCost || 0).toFixed(2)}</Text>
+              <Text style={[styles.tableCol, styles.colPrice]}>{order.currentPrice.toFixed(2)}</Text>
+              <Text style={[styles.tableCol, styles.colPrice]}>{order.newPrice?.toFixed(2)}</Text>
+              <Text style={[styles.tableCol, styles.colPrice]}>
+                {order.newPrice !== undefined && order.currentPrice > 0 
+                  ? `${(((order.newPrice - order.currentPrice) / order.currentPrice) * 100).toFixed(1)}%` 
+                  : '-'}
+              </Text>
+            </View>
+          ))}
+        </View>
 
       <View style={styles.footer}>
         <Text style={{ marginBottom: 5 }}>※ 実施時期：別途ご相談</Text>
@@ -169,3 +175,4 @@ export const QuotePDF: React.FC<QuotePDFProps> = ({ customerName, orders, date }
     </Page>
   </Document>
 );
+};

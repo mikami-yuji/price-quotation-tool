@@ -264,6 +264,7 @@ export default function Home() {
                     customerName={getCustomerName(fileName)} 
                     orders={filteredOrders} 
                     date={today} 
+                    showProductCode={activeTab !== 'custom'}
                   />
                 }
                 fileName={`見積書_${getCustomerName(fileName)}_${activeTab}.pdf`}
@@ -388,7 +389,7 @@ export default function Home() {
                 <tr>
                   <th>種別</th>
                   <th>受注No</th>
-                  <th>商品コード</th>
+                  {activeTab !== 'custom' && <th>商品コード</th>}
                   <th>商品名</th>
                   <th>形状</th>
                   <th>受注数</th>
@@ -425,9 +426,11 @@ export default function Home() {
                     <td>
                       <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{order.orderNumber}</div>
                     </td>
+                    {activeTab !== 'custom' && (
                     <td>
                       <div style={{ fontSize: '0.85rem' }}>{order.productCode}</div>
                     </td>
+                    )}
                     <td>
                       <div style={{ fontWeight: 500 }}>
                         {(order.category === 'SP' || order.category === 'シルク' || order.category === '別注' || order.category === 'ポリ別注') 
