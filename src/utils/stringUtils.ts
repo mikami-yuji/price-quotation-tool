@@ -6,15 +6,15 @@ export const shortenProductName = (name: string): string => {
   if (!name) return '';
 
   // 1. 接頭辞の削除
-  // 記号類、注記、重量、材質記号（ﾎﾟﾘ, ﾗﾐ, SF, SFM等）、共通技術コード（DH, RA等）を前方一致で削除
-  // ただし「新米」「無洗米」などの重要な属性は残す
-  let cleaned = name.replace(/^([\s●◆■★]|【(?!新米|無洗米).*?】|（.*?）|\d+[Kk㎏]|[M]?[ﾎﾟﾘﾗﾐ]+|SFM?|DH|RA|RZ|V|T|ＲＡ|ＲＺ)+/g, (m) => {
-    if (m.includes('新米') || m.includes('無洗米')) return m;
+  // 記号類、注記、重量、材質記号（ﾎﾟﾘ, ﾗﾐ, SF, ｿﾌｸﾗ等）、共通技術コード（DH, RA, DHT等）を前方一致で削除
+  // ただし「新米」「無洗米」「玄米」「特栽」などの重要な属性は残す
+  let cleaned = name.replace(/^([\s●◆■★]|【(?!新米|無洗米|玄米|特栽|特別栽培).*?】|（.*?）|\d+[Kk㎏]|[M]?[ﾎﾟﾘﾗﾐｿﾌｸﾗ]+|DHT?|RA|RZ|SFM?|PB|S|V|T|別注|ＲＡ|ＲＺ)+/g, (m) => {
+    if (m.includes('新米') || m.includes('無洗米') || m.includes('玄米') || m.includes('特栽') || m.includes('特別栽培')) return m;
     return '';
   });
 
   // 2度洗いで確実に除去
-  cleaned = cleaned.replace(/^([\s●◆■★]|【(?!新米|無洗米).*?】|（.*?）|\d+[Kk㎏]|[M]?[ﾎﾟﾘﾗﾐ]+|SFM?|DH|RA|RZ|V|T|ＲＡ|ＲＺ)+/g, '');
+  cleaned = cleaned.replace(/^([\s●◆■★]|【(?!新米|無洗米|玄米|特栽|特別栽培).*?】|（.*?）|\d+[Kk㎏]|[M]?[ﾎﾟﾘﾗﾐｿﾌｸﾗ]+|DHT?|RA|RZ|SFM?|PB|S|V|T|別注|ＲＡ|ＲＺ)+/g, '');
 
   // 2. 接尾辞の削除
   // 管理コード (RZ, SP等) 以降をすべて削除
