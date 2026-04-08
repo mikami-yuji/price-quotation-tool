@@ -224,7 +224,7 @@
 
 .groupGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 1rem;
   margin-top: 1rem;
 }
@@ -301,7 +301,7 @@
   flex-direction: column;
   gap: 0.4rem;
   flex: 1;
-  min-width: 0;
+  min-width: 100px;
 }
 
 .inputLabel {
@@ -453,12 +453,15 @@
 
 /* 数値入力のスピンボタン（矢印）を非表示にする */
 .inlineInput::-webkit-outer-spin-button,
-.inlineInput::-webkit-inner-spin-button {
+.inlineInput::-webkit-inner-spin-button,
+.manualInput::-webkit-outer-spin-button,
+.manualInput::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
 
-.inlineInput[type=number] {
+.inlineInput[type=number],
+.manualInput[type=number] {
   -moz-appearance: textfield;
 }
 
