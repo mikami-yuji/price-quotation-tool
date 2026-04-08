@@ -138,7 +138,7 @@ export const QuotePDF: React.FC<QuotePDFProps> = ({ customerName, orders, date }
             <Text style={[styles.tableCol, styles.colSmall]}>{order.category}</Text>
             <Text style={[styles.tableCol, styles.colCode]}>{order.productCode}</Text>
             <Text style={[styles.tableCol, styles.colName]}>
-              {(order.category === 'SP' || order.category === 'シルク') 
+              {(order.category === 'SP' || order.category === 'シルク' || order.category === '別注' || order.category === 'ポリ別注') 
                 ? shortenProductName(order.title || order.productName) 
                 : order.productName}
               {"\n"}{order.materialName}

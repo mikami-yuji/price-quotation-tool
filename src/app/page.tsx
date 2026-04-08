@@ -391,7 +391,7 @@ export default function Home() {
                     </td>
                     <td>
                       <div style={{ fontWeight: 500 }}>
-                        {activeTab === 'sp' 
+                        {(order.category === 'SP' || order.category === 'シルク' || order.category === '別注' || order.category === 'ポリ別注') 
                           ? shortenProductName(order.title || order.productName) 
                           : (order.productName || '名前なし')}
                       </div>
