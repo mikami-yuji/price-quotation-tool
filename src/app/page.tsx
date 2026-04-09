@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, ChangeEvent } from 'react';
 import styles from './page.module.css';
 import { parseExcelFile } from '../utils/excelUtils';
 import { calculateNewPrices } from '../utils/calculator';
-import { shortenProductName } from '../utils/stringUtils';
+import { shortenProductName, normalizeCustomerName } from '../utils/stringUtils';
 import { OrderRecord, CustomPriceMatrixRow, IncreaseSimulationConditions, ManualGroupSetting, IndividualManualSetting } from '../types';
 import { generateQuoteExcel } from '../utils/excelGenerator';
 
@@ -148,7 +148,8 @@ export default function Home() {
   const getCustomerName = (name: string): string => {
     const baseName = name.replace(/\.[^/.]+$/, ""); // 拡張子削除
     const match = baseName.match(/_(.+)$/);
-    return match ? match[1] : baseName;
+    const rawName = match ? match[1] : baseName;
+    return normalizeCustomerName(rawName);
   };
 
   const today = new Date().toLocaleDateString('ja-JP', {

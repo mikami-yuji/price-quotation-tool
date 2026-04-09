@@ -22,3 +22,12 @@ export const shortenProductName = (name: string): string => {
 
   return cleaned.trim();
 };
+
+/**
+ * 顧客名の正規化（（株）や（㈱）を「株式会社」に統一）
+ */
+export const normalizeCustomerName = (name: string): string => {
+  if (!name) return '';
+  // (株), （株）, (㈱), （㈱）を「株式会社」に置換
+  return name.replace(/[(\uFF08][\u682A\u3231][)\uFF09]/g, '株式会社');
+};
