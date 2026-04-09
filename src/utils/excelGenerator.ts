@@ -4,6 +4,19 @@ import { OrderRecord } from '../types';
 import { shortenProductName } from './stringUtils';
 
 /**
+ * 列インデックス(1開始)をExcelの列名(A, B, C...)に変換する
+ */
+const getColumnLetter = (colIndex: number): string => {
+  let letter = '';
+  while (colIndex > 0) {
+    const temp = (colIndex - 1) % 26;
+    letter = String.fromCharCode(temp + 65) + letter;
+    colIndex = (colIndex - temp - 1) / 26;
+  }
+  return letter;
+};
+
+/**
  * 見積書（価格改定表）をExcel形式で生成しダウンロードする
  */
 export const generateQuoteExcel = async (
@@ -126,6 +139,10 @@ export const generateQuoteExcel = async (
     }
   });
 
+  // 改定率の計算式用の列記号を取得
+  const currentPriceCol = getColumnLetter(baseCols.findIndex(c => c.key === 'currentPrice') + 1);
+  const newPriceCol = getColumnLetter(baseCols.findIndex(c => c.key === 'newPrice') + 1);
+
   // データの流し込み
   orders.forEach((order, rowIndex) => {
     const currentRowNum = startRow + 1 + rowIndex;
@@ -148,9 +165,12 @@ export const generateQuoteExcel = async (
       order.newPrice || 0,
       order.salesGroup || 0,
       order.newSalesGroup || 0,
-      (order.newPrice !== undefined && order.currentPrice > 0)
-        ? `${(((order.newPrice - order.currentPrice) / order.currentPrice) * 100).toFixed(1)}%`
-        : '-'
+      {
+        formula: `IF(${currentPriceCol}${currentRowNum}>0,(${newPriceCol}${currentRowNum}-${currentPriceCol}${currentRowNum})/${currentPriceCol}${currentRowNum},0)`,
+        result: (order.newPrice !== undefined && order.currentPrice > 0)
+          ? (order.newPrice - order.currentPrice) / order.currentPrice
+          : 0
+      }
     ];
 
     rowData.forEach((val, colIndex) => {
@@ -172,6 +192,9 @@ export const generateQuoteExcel = async (
       const colKey = baseCols[colIndex]?.key;
       if ((colKey === 'printingCost' || colKey === 'currentPrice' || colKey === 'newPrice' || colKey === 'salesGroup' || colKey === 'newSalesGroup') && typeof val === 'number') {
         cell.numFmt = '#,##0.00';
+      }
+      if (colKey === 'rate') {
+        cell.numFmt = '0.0%';
       }
     });
 
