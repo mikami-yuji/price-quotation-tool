@@ -83,6 +83,11 @@ export const generateQuoteExcel = async (
     const cell = worksheet.getCell(`A${rowNum}`);
     cell.value = text;
     cell.alignment = { wrapText: true, vertical: 'top' };
+    
+    // 折りたたみ等によって幅が狭まった際にも全文が収まるよう、行の高さを明示的に広く設定
+    // (結合セルではExcelの自動高さ調整が効かない場合が多いため)
+    worksheet.getRow(rowNum).height = (i === 3) ? 45 : 30; 
+    
     worksheet.mergeCells(`A${rowNum}:${String.fromCharCode(64 + baseCols.length)}${rowNum}`);
   });
 
