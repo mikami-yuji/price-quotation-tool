@@ -29,8 +29,8 @@ export const generateQuoteExcel = async (
     }
   };
 
-  const isCustom = category === '別注' || category === 'ポリ別注';
-  const showPrintingInfo = !isCustom;
+  const isPrintingExcluded = category === '別注' || category === 'ポリ別注' || category === '既製';
+  const showPrintingInfo = !isPrintingExcluded;
 
   // 列の定義と幅の設定
   const baseCols = [
