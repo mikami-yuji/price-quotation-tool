@@ -80,7 +80,9 @@ export const generateQuoteExcel = async (
   
   greetings.forEach((text, i) => {
     const rowNum = 7 + i;
-    worksheet.getCell(`A${rowNum}`).value = text;
+    const cell = worksheet.getCell(`A${rowNum}`);
+    cell.value = text;
+    cell.alignment = { wrapText: true, vertical: 'top' };
     worksheet.mergeCells(`A${rowNum}:${String.fromCharCode(64 + baseCols.length)}${rowNum}`);
   });
 
