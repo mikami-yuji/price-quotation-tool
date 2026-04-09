@@ -46,6 +46,8 @@ export const generateQuoteExcel = async (
     ...(showPrintingInfo ? [{ header: '印刷代', key: 'printingCost', width: 12 }] : []),
     { header: '現行単価', key: 'currentPrice', width: 12 },
     { header: '新単価', key: 'newPrice', width: 12 },
+    { header: '営G', key: 'salesGroup', width: 10 },
+    { header: '改定後 営G', key: 'newSalesGroup', width: 12 },
     { header: '改定率', key: 'rate', width: 10 },
   ];
 
@@ -104,7 +106,14 @@ export const generateQuoteExcel = async (
       bottom: { style: 'thin' },
       right: { style: 'thin' }
     };
-    worksheet.getColumn(i + 1).width = col.width;
+    
+    const column = worksheet.getColumn(i + 1);
+    column.width = col.width;
+    
+    // 営G関連の列は初期状態で折りたたむ（アウトライン設定）
+    if (col.key === 'salesGroup' || col.key === 'newSalesGroup') {
+      column.outlineLevel = 1;
+    }
   });
 
   // データの流し込み
@@ -125,6 +134,8 @@ export const generateQuoteExcel = async (
       ...(showPrintingInfo ? [order.printingCost || 0] : []),
       order.currentPrice,
       order.newPrice || 0,
+      order.salesGroup || 0,
+      order.newSalesGroup || 0,
       (order.newPrice !== undefined && order.currentPrice > 0)
         ? `${(((order.newPrice - order.currentPrice) / order.currentPrice) * 100).toFixed(1)}%`
         : '-'
@@ -147,7 +158,7 @@ export const generateQuoteExcel = async (
 
       // 数値フォーマットの適用
       const colKey = baseCols[colIndex]?.key;
-      if ((colKey === 'printingCost' || colKey === 'currentPrice' || colKey === 'newPrice') && typeof val === 'number') {
+      if ((colKey === 'printingCost' || colKey === 'currentPrice' || colKey === 'newPrice' || colKey === 'salesGroup' || colKey === 'newSalesGroup') && typeof val === 'number') {
         cell.numFmt = '#,##0.00';
       }
     });
