@@ -5,9 +5,40 @@
 }
 
 .header {
-  text-align: center;
-  margin-bottom: 3rem;
+  margin-bottom: 2.5rem;
   animation: fadeInDown 0.8s ease-out;
+}
+
+.headerTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.titleArea {
+  flex: 1;
+}
+
+.themeToggle {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  font-size: 1.2rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-main);
+}
+
+.themeToggle:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-color);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .title {
@@ -63,7 +94,7 @@
 }
 
 .pdfButton {
-  background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+  background: var(--accent-gradient);
   color: white;
   text-decoration: none;
   padding: 10px 20px;
@@ -136,15 +167,15 @@
 }
 
 .tabItem:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: white;
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--accent-color);
 }
 
 .activeTab {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--accent-color);
+  color: white; /* Accent background is dark enough for white */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--accent-color);
 }
 
 .tabBadge {
@@ -238,7 +269,7 @@
 .weightHeader {
   font-size: 0.95rem;
   font-weight: 600;
-  color: #a5b4fc; /* Indigo 300 */
+  color: var(--accent-color);
   margin-bottom: 0.8rem;
   display: flex;
   align-items: center;
@@ -320,7 +351,7 @@
 .groupColors {
   font-size: 0.85rem;
   font-weight: 600;
-  color: white;
+  color: var(--text-main);
 }
 
 .groupPriceDetail {
@@ -333,9 +364,9 @@
 
 .manualInput {
   width: 100%;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--input-bg);
   border: 1px solid var(--card-border);
-  color: white;
+  color: var(--text-main);
   padding: 0.5rem;
   border-radius: 4px;
   font-size: 0.9rem;
@@ -373,7 +404,7 @@
   font-size: 0.9rem;
   color: var(--text-muted);
   white-space: nowrap;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  border-bottom: 2px solid var(--accent-color);
 }
 
 .dataTable td {
@@ -400,16 +431,16 @@
 }
 
 .newPriceHighlight {
-  background: rgba(16, 185, 129, 0.1);
-  color: #34d399; /* Emerald 400 */
+  background: var(--highlight-price-bg);
+  color: var(--highlight-price-text);
   font-weight: 700;
   font-size: 1.05rem;
-  border-left: 2px solid #059669; /* Emerald 600 */
+  border-left: 2px solid var(--success-color);
 }
 
 .newSalesHighlight {
-  background: rgba(99, 102, 241, 0.1);
-  color: #a5b4fc; /* Indigo 300 */
+  background: var(--highlight-sales-bg);
+  color: var(--highlight-sales-text);
   font-weight: 700;
   font-size: 1.05rem;
   border-left: 2px solid var(--accent-color);
@@ -521,7 +552,7 @@
 .summaryValue {
   font-size: 1.5rem;
   font-weight: 800;
-  color: white;
+  color: var(--text-main);
 }
 
 .summaryTrend {

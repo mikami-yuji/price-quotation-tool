@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, ChangeEvent } from 'react';
+import { useState, useRef, useEffect, ChangeEvent } from 'react';
 import styles from './page.module.css';
 import { parseExcelFile } from '../utils/excelUtils';
 import { calculateNewPrices } from '../utils/calculator';
@@ -26,6 +26,22 @@ export default function Home() {
   const [manualSettings, setManualSettings] = useState<ManualGroupSetting>({});
   const [individualSettings, setIndividualSettings] = useState<IndividualManualSetting>({});
   const [isGroupEditorExpanded, setIsGroupEditorExpanded] = useState(true);
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark';
+    const initialTheme = savedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setTheme(initialTheme);
+    document.documentElement.setAttribute('data-theme', initialTheme);
+  }, []);
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -230,8 +246,19 @@ export default function Home() {
   return (
     <div className={styles.container}>
       <header className={styles.header}>
-        <h1 className={styles.title}>値上げ見積書・作成ツール</h1>
-        <p className={styles.subtitle}>得意先別のExcelを読み込み、新しい見積価格を簡単にシミュレーションできます。</p>
+        <div className={styles.headerTop}>
+          <div className={styles.titleArea}>
+            <h1 className={styles.title}>値上げ見積書・作成ツール</h1>
+            <p className={styles.subtitle}>得意先別のExcelを読み込み、新しい見積価格を簡単にシミュレーションできます。</p>
+          </div>
+          <button 
+            className={styles.themeToggle} 
+            onClick={toggleTheme}
+            title={theme === 'light' ? 'ダークモードに切り替え' : 'ライトモードに切り替え'}
+          >
+            {theme === 'light' ? '🌙' : '☀️'}
+          </button>
+        </div>
       </header>
 
       {orders.length === 0 ? (
