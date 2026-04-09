@@ -26,6 +26,7 @@ export default function Home() {
   const [manualSettings, setManualSettings] = useState<ManualGroupSetting>({});
   const [individualSettings, setIndividualSettings] = useState<IndividualManualSetting>({});
   const [isGroupEditorExpanded, setIsGroupEditorExpanded] = useState(true);
+  const [implementationDate, setImplementationDate] = useState<string>('');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
@@ -140,7 +141,8 @@ export default function Home() {
       filteredOrders,
       today,
       activeTab === 'custom' ? '別注' : activeTab === 'sp' ? 'SP' : '既製',
-      activeTab !== 'custom'
+      activeTab !== 'custom',
+      implementationDate
     );
   };
 
@@ -249,7 +251,7 @@ export default function Home() {
       <header className={styles.header}>
         <div className={styles.headerTop}>
           <div className={styles.titleArea}>
-            <h1 className={styles.title}>値上げ見積書・作成ツール</h1>
+            <h1 className={styles.title}>価格改定見積書・作成ツール</h1>
             <p className={styles.subtitle}>得意先別のExcelを読み込み、新しい見積価格を簡単にシミュレーションできます。</p>
           </div>
           <button 
@@ -338,6 +340,17 @@ export default function Home() {
                   .00 / .50
                 </label>
               </div>
+            </div>
+
+            <div className={styles.controlGroup}>
+              <span className={styles.controlLabel}>実施時期 (任意):</span>
+              <input 
+                type="date" 
+                value={implementationDate}
+                onChange={(e) => setImplementationDate(e.target.value)}
+                className={styles.manualInput} // 既存のスタイルを一部借用しつつ微調整
+                style={{ width: '150px', cursor: 'pointer' }}
+              />
             </div>
 
             <button className={styles.primaryButton} onClick={handleSimulate}>

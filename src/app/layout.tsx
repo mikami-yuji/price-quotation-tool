@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "見積書自動作成ツール",
-  description: "得意先別 値上げ見積書作成ツール",
+  title: "価格改定見積書・作成ツール",
+  description: "得意先別 価格改定見積書・作成ツール",
 };
 
 export default function RootLayout({

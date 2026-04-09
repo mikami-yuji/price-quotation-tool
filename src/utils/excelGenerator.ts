@@ -11,7 +11,8 @@ export const generateQuoteExcel = async (
   orders: OrderRecord[],
   date: string,
   category: string,
-  showProductCode: boolean
+  showProductCode: boolean,
+  implementationDate?: string
 ): Promise<void> => {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('見積書');
@@ -169,7 +170,16 @@ export const generateQuoteExcel = async (
 
   // 3. フッターセクション
   const footerStartRow = startRow + orders.length + 2;
-  worksheet.getCell(`A${footerStartRow}`).value = '※ 実施時期：別途ご相談';
+  
+  let implementationText = '※ 実施時期：別途ご相談';
+  if (implementationDate) {
+    const d = new Date(implementationDate);
+    if (!isNaN(d.getTime())) {
+      implementationText = `※ 実施時期：${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日より`;
+    }
+  }
+  
+  worksheet.getCell(`A${footerStartRow}`).value = implementationText;
   worksheet.getCell(`A${footerStartRow + 1}`).value = '※ ご不明な点がございましたら、営業担当までお問い合わせください。';
   
   worksheet.getCell(`A${footerStartRow + 3}`).value = '株式会社 アサヒパック';
