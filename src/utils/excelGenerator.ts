@@ -120,8 +120,8 @@ export const generateQuoteExcel = async (
     const column = worksheet.getColumn(i + 1);
     column.width = col.width;
     
-    // 営G関連の列は初期状態で折りたたむ（アウトライン設定）
-    if (col.key === 'salesGroup' || col.key === 'newSalesGroup') {
+    // 営Gおよび直送先関連の列は初期状態で折りたたむ（アウトライン設定）
+    if (col.key === 'salesGroup' || col.key === 'newSalesGroup' || col.key === 'directDeliveryCode' || col.key === 'directDeliveryName') {
       column.outlineLevel = 1;
     }
   });
