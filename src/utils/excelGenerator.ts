@@ -36,7 +36,9 @@ export const generateQuoteExcel = async (
   // 列の定義と幅の設定
   const baseCols = [
     { header: '種別', key: 'category', width: 10 },
-    { header: '受注No', key: 'orderNumber', width: 15 },
+    { header: '受注№', key: 'orderNumber', width: 12 },
+    { header: '直送先コード', key: 'directDeliveryCode', width: 15 },
+    { header: '直送先名称', key: 'directDeliveryName', width: 25 },
     ...(showProductCode ? [{ header: '商品コード', key: 'productCode', width: 15 }] : []),
     { header: '商品名 / 材質', key: 'productNameMaterial', width: 40 },
     { header: '形状', key: 'shape', width: 10 },
@@ -130,6 +132,8 @@ export const generateQuoteExcel = async (
     const rowData = [
       order.category,
       order.orderNumber,
+      order.directDeliveryCode,
+      order.directDeliveryName,
       ...(showProductCode ? [order.productCode] : []),
       `${(order.category === 'SP' || order.category === 'シルク' || order.category === '別注' || order.category === 'ポリ別注') 
           ? shortenProductName(order.title || order.productName) 

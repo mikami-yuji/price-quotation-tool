@@ -244,7 +244,7 @@ export default function Home() {
 
   const showMarginCols = activeTab === 'sp' || activeTab === 'custom';
   const showPrintingCols = activeTab === 'sp';
-  const displayColumnCount = 12 + (showMarginCols ? 2 : 0) + (showPrintingCols ? 3 : 0);
+  const displayColumnCount = 14 + (showMarginCols ? 2 : 0) + (showPrintingCols ? 3 : 0);
 
   return (
     <div className={styles.container}>
@@ -507,6 +507,8 @@ export default function Home() {
                 <tr>
                   <th>種別</th>
                   <th>受注No</th>
+                  <th>直送先コード</th>
+                  <th>直送先名称</th>
                   {activeTab !== 'custom' && <th>商品コード</th>}
                   <th>商品名</th>
                   <th>形状</th>
@@ -543,6 +545,12 @@ export default function Home() {
                     </td>
                     <td>
                       <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{order.orderNumber}</div>
+                    </td>
+                    <td>
+                      <div style={{ fontSize: '0.85rem' }}>{order.directDeliveryCode}</div>
+                    </td>
+                    <td>
+                      <div style={{ fontSize: '0.85rem' }}>{order.directDeliveryName}</div>
                     </td>
                     {activeTab !== 'custom' && (
                     <td>
