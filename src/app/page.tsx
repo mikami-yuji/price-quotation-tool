@@ -99,14 +99,20 @@ export default function Home() {
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, rowIndex: number, colKey: string) => {
     if (e.key === 'Enter' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault(); // デフォルトの挙動（数値の増減）を阻止
       const isDown = e.key === 'Enter' || e.key === 'ArrowDown';
       const targetIndex = isDown ? rowIndex + 1 : rowIndex - 1;
       const target = document.querySelector(`input[data-row-index="${targetIndex}"][data-col-key="${colKey}"]`) as HTMLInputElement;
       if (target) {
-        e.preventDefault();
         target.focus();
         setTimeout(() => target.select(), 0);
       }
+    }
+  };
+
+  const preventArrowKeys = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      e.preventDefault();
     }
   };
 
@@ -277,6 +283,7 @@ export default function Home() {
                   style={{ width: '80px' }}
                   step="0.1"
                   onChange={(e) => setConditions({ ...conditions, customIncreaseValue: Number(e.target.value) })}
+                  onKeyDown={preventArrowKeys}
                 />
               </div>
             )}
@@ -406,6 +413,7 @@ export default function Home() {
                                         placeholder="単価"
                                         value={manualPrice || ''} 
                                         onChange={(e) => updateManualField(group.key, 'price', Number(e.target.value))}
+                                        onKeyDown={preventArrowKeys}
                                         className={styles.manualInput}
                                       />
                                       <div className={styles.groupPriceDetail}>
@@ -425,6 +433,7 @@ export default function Home() {
                                           placeholder="営G"
                                           value={manualSalesGroup || ''} 
                                           onChange={(e) => updateManualField(group.key, 'salesGroup', Number(e.target.value))}
+                                          onKeyDown={preventArrowKeys}
                                           className={styles.manualInput}
                                         />
                                         <div className={styles.groupPriceDetail}>
@@ -570,19 +579,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* フローティングアクションボタン */}
-      {simulatedOrders.length > 0 && (
-        <div className={styles.floatingActions}>
-          <button 
-            onClick={handleExportExcel} 
-            className={`${styles.pdfButton} ${styles.floatingButton}`}
-            title="Excel形式で見積書を出力"
-          >
-            <span style={{ fontSize: '1.2rem' }}>📊</span>
-            {activeTab === 'custom' ? '別注' : activeTab === 'sp' ? 'SP' : '既製'}出力
-          </button>
-        </div>
-      )}
     </div>
   );
 }
