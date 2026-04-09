@@ -97,6 +97,19 @@ export default function Home() {
     setSimulatedOrders(result);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, rowIndex: number, colKey: string) => {
+    if (e.key === 'Enter' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      const isDown = e.key === 'Enter' || e.key === 'ArrowDown';
+      const targetIndex = isDown ? rowIndex + 1 : rowIndex - 1;
+      const target = document.querySelector(`input[data-row-index="${targetIndex}"][data-col-key="${colKey}"]`) as HTMLInputElement;
+      if (target) {
+        e.preventDefault();
+        target.focus();
+        setTimeout(() => target.select(), 0);
+      }
+    }
+  };
+
   const handleExportExcel = async () => {
     if (simulatedOrders.length === 0) return;
     
@@ -160,6 +173,19 @@ export default function Home() {
     sp: getTabOrders('sp', simulatedOrders).length,
     readymade: getTabOrders('readymade', simulatedOrders).length
   };
+
+  // サマリー計算 (現在の表示対象)
+  const summary = filteredOrders.reduce((acc, o) => {
+    const qty = o.quantity || 0;
+    acc.currentTotal += (o.currentPrice || 0) * qty;
+    acc.newTotal += (o.newPrice || 0) * qty;
+    return acc;
+  }, { currentTotal: 0, newTotal: 0 });
+
+  const revenueIncrease = summary.newTotal - summary.currentTotal;
+  const avgRevisionRate = summary.currentTotal > 0 
+    ? (summary.newTotal / summary.currentTotal - 1) * 100 
+    : 0;
 
   // ユニークなグループを抽出し、材質 > 重量 ごとに階層化
   const editorGroups = getTabOrders(activeTab === 'sp' ? 'sp' : 'custom', orders).reduce((acc, o) => {
@@ -291,6 +317,30 @@ export default function Home() {
                 {activeTab === 'custom' ? '別注' : activeTab === 'sp' ? 'SP' : '既製'}見積書を作成 (Excel)
               </button>
             )}
+          </div>
+
+          <div className={styles.summaryDashboard}>
+            <div className={`${styles.glassPanel} ${styles.summaryCard}`}>
+              <span className={styles.summaryLabel}>対象アイテム数</span>
+              <span className={styles.summaryValue}>{filteredOrders.length} <small style={{ fontSize: '0.8rem', fontWeight: 500 }}>件</small></span>
+            </div>
+            <div className={`${styles.glassPanel} ${styles.summaryCard}`}>
+              <span className={styles.summaryLabel}>現行 売上合計 (月換算等)</span>
+              <span className={styles.summaryValue}>¥{summary.currentTotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+            </div>
+            <div className={`${styles.glassPanel} ${styles.summaryCard}`}>
+              <span className={styles.summaryLabel}>改定後 予想売上</span>
+              <span className={styles.summaryValue}>¥{summary.newTotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+              <span className={`${styles.summaryTrend} ${styles.trendUp}`}>
+                +{revenueIncrease.toLocaleString()} 円増加
+              </span>
+            </div>
+            <div className={`${styles.glassPanel} ${styles.summaryCard}`}>
+              <span className={styles.summaryLabel}>平均改定率 (加重平均)</span>
+              <span className={`${styles.summaryValue} ${styles.priceUp}`}>
+                {avgRevisionRate.toFixed(1)}%
+              </span>
+            </div>
           </div>
 
           <div className={styles.tabContainer}>
@@ -430,7 +480,7 @@ export default function Home() {
               </thead>
               <tbody>
                 {filteredOrders.map((order, index) => (
-                  <tr key={index}>
+                  <tr key={index} className={(order.newPrice !== undefined && order.newPrice <= order.currentPrice) ? styles.warningRow : ''}>
                     <td>
                       <span style={{ 
                         background: (order.category === '別注' || order.category === 'ポリ別注') ? 'rgba(99, 102, 241, 0.2)' : 'rgba(16, 185, 129, 0.2)',
@@ -476,8 +526,11 @@ export default function Home() {
                     <td className={`${styles.newPriceHighlight} ${individualSettings[order.orderNumber]?.price ? styles.individualOverride : ''}`}>
                       <input 
                         type="number" 
+                        data-row-index={index}
+                        data-col-key="price"
                         value={order.newPrice?.toFixed(2) || ''}
                         onChange={(e) => updateIndividualField(order.orderNumber, 'price', Number(e.target.value))}
+                        onKeyDown={(e) => handleKeyDown(e, index, 'price')}
                         className={styles.inlineInput}
                       />
                     </td>
@@ -487,8 +540,11 @@ export default function Home() {
                         <td className={`${styles.newSalesHighlight} ${individualSettings[order.orderNumber]?.salesGroup ? styles.individualOverride : ''}`}>
                           <input 
                             type="number" 
+                            data-row-index={index}
+                            data-col-key="salesGroup"
                             value={order.newSalesGroup?.toFixed(2) || ''}
                             onChange={(e) => updateIndividualField(order.orderNumber, 'salesGroup', Number(e.target.value))}
+                            onKeyDown={(e) => handleKeyDown(e, index, 'salesGroup')}
                             className={styles.inlineInput}
                           />
                         </td>
@@ -511,6 +567,20 @@ export default function Home() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* フローティングアクションボタン */}
+      {simulatedOrders.length > 0 && (
+        <div className={styles.floatingActions}>
+          <button 
+            onClick={handleExportExcel} 
+            className={`${styles.pdfButton} ${styles.floatingButton}`}
+            title="Excel形式で見積書を出力"
+          >
+            <span style={{ fontSize: '1.2rem' }}>📊</span>
+            {activeTab === 'custom' ? '別注' : activeTab === 'sp' ? 'SP' : '既製'}出力
+          </button>
         </div>
       )}
     </div>

@@ -387,7 +387,7 @@
 }
 
 .dataTable tbody tr:nth-child(even) {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .dataTable tbody tr:hover {
@@ -493,4 +493,82 @@
 .individualOverride .inlineInput {
   color: #fcd34d !important; /* Amber 300 */
   font-weight: 800;
+}
+
+/* New UI Enhancements */
+.summaryDashboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.summaryCard {
+  padding: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.summaryLabel {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.summaryValue {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: white;
+}
+
+.summaryTrend {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.trendUp {
+  color: var(--success-color);
+}
+
+.warningRow {
+  background: rgba(239, 68, 68, 0.12) !important;
+}
+
+.warningRow:hover {
+  background: rgba(239, 68, 68, 0.18) !important;
+}
+
+.floatingActions {
+  position: fixed;
+  bottom: 2.5rem;
+  right: 2.5rem;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  animation: slideInUp 0.5s ease-out;
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translateY(100px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.floatingButton {
+  box-shadow: 0 10px 25px rgba(168, 85, 247, 0.5);
+  padding: 1rem 1.5rem;
+  border-radius: 50px;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-size: 1rem;
 }
