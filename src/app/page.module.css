@@ -1,7 +1,7 @@
 .container {
-  max-width: 1200px;
+  max-width: 98%;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1rem 1rem;
 }
 
 .header {
@@ -350,8 +350,11 @@
 
 .tableContainer {
   overflow-x: auto;
+  overflow-y: auto;
+  max-height: 70vh;
   border-radius: 12px;
   border: 1px solid var(--card-border);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
 .dataTable {
@@ -361,12 +364,16 @@
 }
 
 .dataTable th {
-  background: rgba(0, 0, 0, 0.2);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg-color); /* solid background for sticky overlap */
   padding: 1rem;
   font-weight: 600;
   font-size: 0.9rem;
   color: var(--text-muted);
   white-space: nowrap;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
 
 .dataTable td {
@@ -377,6 +384,10 @@
 
 .dataTable tbody tr {
   transition: background 0.2s;
+}
+
+.dataTable tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .dataTable tbody tr:hover {
@@ -405,10 +416,9 @@
 }
 
 .highlightHeader {
-  background: rgba(255, 255, 255, 0.05) !important;
   color: var(--accent-color) !important;
   font-weight: 800 !important;
-  box-shadow: inset 0 -2px 0 var(--accent-color);
+  box-shadow: inset 0 -3px 0 var(--accent-color), 0 2px 5px rgba(0,0,0,0.2) !important;
 }
 
 .emptyState {
@@ -465,12 +475,14 @@
 .manualInput::-webkit-outer-spin-button,
 .manualInput::-webkit-inner-spin-button {
   -webkit-appearance: none;
+  appearance: none;
   margin: 0;
 }
 
 .inlineInput[type=number],
 .manualInput[type=number] {
   -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 .individualOverride {
