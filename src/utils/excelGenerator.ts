@@ -16,6 +16,19 @@ export const generateQuoteExcel = async (
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('見積書');
 
+  // ページ設定（A4横、1枚に収める）
+  worksheet.pageSetup = {
+    orientation: 'landscape',
+    paperSize: 9, // A4
+    fitToPage: true,
+    fitToHeight: 1,
+    fitToWidth: 1,
+    margins: {
+      left: 0.5, right: 0.5, top: 0.5, bottom: 0.5,
+      header: 0.3, footer: 0.3
+    }
+  };
+
   const isCustom = category === '別注' || category === 'ポリ別注';
   const showPrintingInfo = !isCustom;
 
