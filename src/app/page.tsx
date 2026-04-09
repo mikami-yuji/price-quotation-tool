@@ -7,10 +7,11 @@ import { calculateNewPrices } from '../utils/calculator';
 import { shortenProductName, normalizeCustomerName } from '../utils/stringUtils';
 import { OrderRecord, CustomPriceMatrixRow, IncreaseSimulationConditions, ManualGroupSetting, IndividualManualSetting } from '../types';
 import { generateQuoteExcel } from '../utils/excelGenerator';
+import InlineNumericInput from '../components/InlineNumericInput';
 
 type TabType = 'custom' | 'sp' | 'readymade';
 
-export default function Home() {
+export default function Home(): React.ReactElement {
   const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [priceMatrix, setPriceMatrix] = useState<CustomPriceMatrixRow[]>([]);
   const [simulatedOrders, setSimulatedOrders] = useState<OrderRecord[]>([]);
@@ -122,6 +123,7 @@ export default function Home() {
       const target = document.querySelector(`input[data-row-index="${targetIndex}"][data-col-key="${colKey}"]`) as HTMLInputElement;
       if (target) {
         target.focus();
+        // InlineNumericInput側でonFocus時にselectされるため、ここでは省略可能だが念のため
         setTimeout(() => target.select(), 0);
       }
     }
@@ -307,13 +309,12 @@ export default function Home() {
             {(activeTab === 'custom' || activeTab === 'sp') && (
               <div className={styles.controlGroup}>
                 <span className={styles.controlLabel}>値幅:</span>
-                <input 
-                  type="number" 
+                <InlineNumericInput 
                   value={conditions.customIncreaseValue}
-                  style={{ width: '80px' }}
-                  step="0.1"
-                  onChange={(e) => setConditions({ ...conditions, customIncreaseValue: Number(e.target.value) })}
-                  onKeyDown={preventArrowKeys}
+                  onCommit={(val) => setConditions({ ...conditions, customIncreaseValue: val })}
+                  className={styles.manualInput}
+                  style={{ width: '80px' } as any}
+                  decimals={1}
                 />
               </div>
             )}
@@ -449,13 +450,13 @@ export default function Home() {
                                   <div className={styles.groupInputs}>
                                     <div className={styles.inputWrapper}>
                                       <span className={styles.inputLabel}>改定単価</span>
-                                      <input 
-                                        type="number" 
+                                      <InlineNumericInput 
                                         placeholder="単価"
-                                        value={manualPrice || ''} 
-                                        onChange={(e) => updateManualField(group.key, 'price', Number(e.target.value))}
+                                        value={manualPrice || 0} 
+                                        onCommit={(val) => updateManualField(group.key, 'price', val)}
                                         onKeyDown={preventArrowKeys}
                                         className={styles.manualInput}
+                                        decimals={2}
                                       />
                                       <div className={styles.groupPriceDetail}>
                                         <span>現行: ¥{group.currentPrice.toFixed(2)}</span>
@@ -469,13 +470,13 @@ export default function Home() {
                                     {activeTab !== 'sp' && (
                                       <div className={styles.inputWrapper}>
                                         <span className={styles.inputLabel}>改定後営G</span>
-                                        <input 
-                                          type="number" 
+                                        <InlineNumericInput 
                                           placeholder="営G"
-                                          value={manualSalesGroup || ''} 
-                                          onChange={(e) => updateManualField(group.key, 'salesGroup', Number(e.target.value))}
+                                          value={manualSalesGroup || 0} 
+                                          onCommit={(val) => updateManualField(group.key, 'salesGroup', val)}
                                           onKeyDown={preventArrowKeys}
                                           className={styles.manualInput}
+                                          decimals={2}
                                         />
                                         <div className={styles.groupPriceDetail}>
                                           <span>現行: ¥{group.currentSalesGroup.toFixed(2)}</span>
@@ -582,28 +583,28 @@ export default function Home() {
                     <td>{order.totalColorCount}</td>
                     <td>¥{order.currentPrice.toFixed(2)}</td>
                     <td className={`${styles.newPriceHighlight} ${individualSettings[order.orderNumber]?.price ? styles.individualOverride : ''}`}>
-                      <input 
-                        type="number" 
-                        data-row-index={index}
-                        data-col-key="price"
-                        value={order.newPrice?.toFixed(2) || ''}
-                        onChange={(e) => updateIndividualField(order.orderNumber, 'price', Number(e.target.value))}
+                      <InlineNumericInput 
+                        rowIndex={index}
+                        colKey="price"
+                        value={order.newPrice || 0}
+                        onCommit={(val) => updateIndividualField(order.orderNumber, 'price', val)}
                         onKeyDown={(e) => handleKeyDown(e, index, 'price')}
                         className={styles.inlineInput}
+                        decimals={2}
                       />
                     </td>
                     {showMarginCols && (
                       <>
                         <td>{order.salesGroup}</td>
                         <td className={`${styles.newSalesHighlight} ${individualSettings[order.orderNumber]?.salesGroup ? styles.individualOverride : ''}`}>
-                          <input 
-                            type="number" 
-                            data-row-index={index}
-                            data-col-key="salesGroup"
-                            value={order.newSalesGroup?.toFixed(2) || ''}
-                            onChange={(e) => updateIndividualField(order.orderNumber, 'salesGroup', Number(e.target.value))}
+                          <InlineNumericInput 
+                            rowIndex={index}
+                            colKey="salesGroup"
+                            value={order.newSalesGroup || 0}
+                            onCommit={(val) => updateIndividualField(order.orderNumber, 'salesGroup', val)}
                             onKeyDown={(e) => handleKeyDown(e, index, 'salesGroup')}
                             className={styles.inlineInput}
+                            decimals={2}
                           />
                         </td>
                       </>
