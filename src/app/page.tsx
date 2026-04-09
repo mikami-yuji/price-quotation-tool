@@ -138,7 +138,22 @@ export default function Home() {
     }
   };
 
-  const filteredOrders = getTabOrders(activeTab, simulatedOrders);
+  const filteredOrders = getTabOrders(activeTab, simulatedOrders).sort((a, b) => {
+    // 1. 材質名称 (Material Name)
+    if (a.materialName !== b.materialName) {
+      return a.materialName.localeCompare(b.materialName, 'ja');
+    }
+    
+    // 2. 重量 (Weight)
+    const weightA = typeof a.weight === 'string' ? parseFloat(a.weight.replace(/[^\d.]/g, '')) : a.weight;
+    const weightB = typeof b.weight === 'string' ? parseFloat(b.weight.replace(/[^\d.]/g, '')) : b.weight;
+    if (weightA !== weightB) {
+      return (weightA || 0) - (weightB || 0);
+    }
+    
+    // 3. 総色数 (Total Color Count)
+    return a.totalColorCount - b.totalColorCount;
+  });
   
   const counts = {
     custom: getTabOrders('custom', simulatedOrders).length,

@@ -16,6 +16,9 @@ export const generateQuoteExcel = async (
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('見積書');
 
+  const isCustom = category === '別注' || category === 'ポリ別注';
+  const showPrintingInfo = !isCustom;
+
   // 列の定義と幅の設定
   const baseCols = [
     { header: '種別', key: 'category', width: 10 },
@@ -24,10 +27,10 @@ export const generateQuoteExcel = async (
     { header: '商品名 / 材質', key: 'productNameMaterial', width: 40 },
     { header: '形状', key: 'shape', width: 10 },
     { header: '受注数', key: 'quantity', width: 10 },
-    { header: '印刷コード', key: 'printCode', width: 15 },
+    ...(showPrintingInfo ? [{ header: '印刷コード', key: 'printCode', width: 15 }] : []),
     { header: '重量', key: 'weight', width: 8 },
     { header: '色数', key: 'colors', width: 6 },
-    { header: '印刷代', key: 'printingCost', width: 12 },
+    ...(showPrintingInfo ? [{ header: '印刷代', key: 'printingCost', width: 12 }] : []),
     { header: '現行単価', key: 'currentPrice', width: 12 },
     { header: '新単価', key: 'newPrice', width: 12 },
     { header: '改定率', key: 'rate', width: 10 },
@@ -103,10 +106,10 @@ export const generateQuoteExcel = async (
           : order.productName}\n${order.materialName}`,
       order.shape,
       order.quantity,
-      order.printCode,
+      ...(showPrintingInfo ? [order.printCode] : []),
       order.weight,
       order.totalColorCount,
-      order.printingCost || 0,
+      ...(showPrintingInfo ? [order.printingCost || 0] : []),
       order.currentPrice,
       order.newPrice || 0,
       (order.newPrice !== undefined && order.currentPrice > 0)
@@ -130,7 +133,8 @@ export const generateQuoteExcel = async (
       };
 
       // 数値フォーマットの適用
-      if (colIndex >= rowData.length - 4 && colIndex < rowData.length - 1 && typeof val === 'number') {
+      const colKey = baseCols[colIndex]?.key;
+      if ((colKey === 'printingCost' || colKey === 'currentPrice' || colKey === 'newPrice') && typeof val === 'number') {
         cell.numFmt = '#,##0.00';
       }
     });
