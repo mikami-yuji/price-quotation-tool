@@ -64,6 +64,7 @@ export const generateQuoteExcel = async (
     { header: '新単価', key: 'newPrice', width: 12 },
     { header: '営G', key: 'salesGroup', width: 10 },
     { header: '改定後 営G', key: 'newSalesGroup', width: 12 },
+    { header: '営G改定率', key: 'salesGroupRate', width: 12 },
     { header: '改定率', key: 'rate', width: 10 },
   ];
 
@@ -134,7 +135,7 @@ export const generateQuoteExcel = async (
     column.width = col.width;
     
     // 営Gおよび直送先関連の列は初期状態で折りたたむ（アウトライン設定）
-    if (col.key === 'salesGroup' || col.key === 'newSalesGroup' || col.key === 'directDeliveryCode' || col.key === 'directDeliveryName') {
+    if (col.key === 'salesGroup' || col.key === 'newSalesGroup' || col.key === 'salesGroupRate' || col.key === 'directDeliveryCode' || col.key === 'directDeliveryName') {
       column.outlineLevel = 1;
     }
   });
@@ -142,6 +143,8 @@ export const generateQuoteExcel = async (
   // 改定率の計算式用の列記号を取得
   const currentPriceCol = getColumnLetter(baseCols.findIndex(c => c.key === 'currentPrice') + 1);
   const newPriceCol = getColumnLetter(baseCols.findIndex(c => c.key === 'newPrice') + 1);
+  const salesGroupCol = getColumnLetter(baseCols.findIndex(c => c.key === 'salesGroup') + 1);
+  const newSalesGroupCol = getColumnLetter(baseCols.findIndex(c => c.key === 'newSalesGroup') + 1);
 
   // データの流し込み
   orders.forEach((order, rowIndex) => {
@@ -166,9 +169,15 @@ export const generateQuoteExcel = async (
       order.salesGroup || 0,
       order.newSalesGroup || 0,
       {
+        formula: `IF(${salesGroupCol}${currentRowNum}>0,(${newSalesGroupCol}${currentRowNum}-${salesGroupCol}${currentRowNum})/${salesGroupCol}${currentRowNum},0)`,
+        result: (order.newSalesGroup !== undefined && order.salesGroup !== undefined && (order.salesGroup as number) > 0)
+          ? ((order.newSalesGroup as number) - (order.salesGroup as number)) / (order.salesGroup as number)
+          : 0
+      },
+      {
         formula: `IF(${currentPriceCol}${currentRowNum}>0,(${newPriceCol}${currentRowNum}-${currentPriceCol}${currentRowNum})/${currentPriceCol}${currentRowNum},0)`,
-        result: (order.newPrice !== undefined && order.currentPrice > 0)
-          ? (order.newPrice - order.currentPrice) / order.currentPrice
+        result: (order.newPrice !== undefined && (order.currentPrice as number) > 0)
+          ? ((order.newPrice as number) - (order.currentPrice as number)) / (order.currentPrice as number)
           : 0
       }
     ];
@@ -193,7 +202,7 @@ export const generateQuoteExcel = async (
       if ((colKey === 'printingCost' || colKey === 'currentPrice' || colKey === 'newPrice' || colKey === 'salesGroup' || colKey === 'newSalesGroup') && typeof val === 'number') {
         cell.numFmt = '#,##0.00';
       }
-      if (colKey === 'rate') {
+      if (colKey === 'rate' || colKey === 'salesGroupRate') {
         cell.numFmt = '0.0%';
       }
     });
