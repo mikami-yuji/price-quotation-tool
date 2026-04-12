@@ -8,6 +8,8 @@ import { shortenProductName, normalizeCustomerName } from '../utils/stringUtils'
 import { OrderRecord, CustomPriceMatrixRow, IncreaseSimulationConditions, ManualGroupSetting, IndividualManualSetting } from '../types';
 import { generateQuoteExcel } from '../utils/excelGenerator';
 import InlineNumericInput from '../components/InlineNumericInput';
+import ColumnFilter from '../components/ColumnFilter';
+import { useMemo } from 'react';
 
 type TabType = 'custom' | 'sp' | 'readymade';
 
@@ -29,6 +31,13 @@ export default function Home(): React.ReactElement {
   const [isGroupEditorExpanded, setIsGroupEditorExpanded] = useState(true);
   const [implementationDate, setImplementationDate] = useState<string>('');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark';
@@ -44,6 +53,35 @@ export default function Home(): React.ReactElement {
     document.documentElement.setAttribute('data-theme', newTheme);
     localStorage.setItem('theme', newTheme);
   };
+
+  // Load settings from localStorage on initial mount
+  useEffect(() => {
+    try {
+      const savedConditions = localStorage.getItem('price-quotation-conditions');
+      if (savedConditions) setConditions(JSON.parse(savedConditions));
+      
+      const savedManualSettings = localStorage.getItem('price-quotation-manual-settings');
+      if (savedManualSettings) setManualSettings(JSON.parse(savedManualSettings));
+
+      const savedIndividualSettings = localStorage.getItem('price-quotation-individual-settings');
+      if (savedIndividualSettings) setIndividualSettings(JSON.parse(savedIndividualSettings));
+    } catch (e) {
+      console.error('Failed to load settings from localStorage', e);
+    }
+  }, []);
+
+  // Save settings to localStorage when they change
+  useEffect(() => {
+    localStorage.setItem('price-quotation-conditions', JSON.stringify(conditions));
+  }, [conditions]);
+
+  useEffect(() => {
+    localStorage.setItem('price-quotation-manual-settings', JSON.stringify(manualSettings));
+  }, [manualSettings]);
+
+  useEffect(() => {
+    localStorage.setItem('price-quotation-individual-settings', JSON.stringify(individualSettings));
+  }, [individualSettings]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -87,6 +125,19 @@ export default function Home(): React.ReactElement {
   const handleSimulate = () => {
     const result = calculateNewPrices(orders, priceMatrix, conditions, manualSettings, individualSettings);
     setSimulatedOrders(result);
+  };
+
+  const handleResetSettings = () => {
+    const confirmReset = window.confirm('個別に手入力した「改定単価」と「改定後営G」をすべて初期状態（シミュレーション値）に戻しますか？');
+    if (!confirmReset) return;
+    
+    setManualSettings({});
+    setIndividualSettings({});
+    
+    if (orders.length > 0) {
+      const result = calculateNewPrices(orders, priceMatrix, conditions, {}, {});
+      setSimulatedOrders(result);
+    }
   };
 
   const updateManualField = (key: string, field: 'price' | 'salesGroup', value: number) => {
@@ -139,13 +190,38 @@ export default function Home(): React.ReactElement {
     if (simulatedOrders.length === 0) return;
     
     await generateQuoteExcel(
-      getCustomerName(fileName),
+      normalizeCustomerName(getCustomerName(fileName)),
       filteredOrders,
       today,
       activeTab === 'custom' ? '別注' : activeTab === 'sp' ? 'SP' : '既製',
       activeTab !== 'custom',
       implementationDate
     );
+  };
+
+  // 1. 各列のユニークな値リストを抽出 (フィルタ用)
+  const filterOptions = useMemo(() => {
+    const tabOrders = getTabOrders(activeTab, simulatedOrders);
+    const options: Record<string, string[]> = {
+      category: Array.from(new Set(tabOrders.map(o => o.category || ''))).sort(),
+      orderNumber: Array.from(new Set(tabOrders.map(o => o.orderNumber || ''))).sort(),
+      directDeliveryName: Array.from(new Set(tabOrders.map(o => o.directDeliveryName || ''))).sort(),
+      productCode: Array.from(new Set(tabOrders.map(o => o.productCode || ''))).sort(),
+      productName: Array.from(new Set(tabOrders.map(o => {
+        return (o.category === 'SP' || o.category === 'シルク' || o.category === '別注' || o.category === 'ポリ別注') 
+          ? shortenProductName(o.title || o.productName) 
+          : (o.productName || '');
+      }))).sort(),
+      materialName: Array.from(new Set(tabOrders.map(o => o.materialName || ''))).sort(),
+    };
+    return options;
+  }, [activeTab, simulatedOrders]);
+
+  const handleColumnFilterChange = (columnKey: string, values: string[]) => {
+    setColumnFilters(prev => ({
+      ...prev,
+      [columnKey]: values
+    }));
   };
 
   // ファイル名から得意先名を抽出（例: 43006_幸南食糧（株）.xlsx -> 幸南食糧（株））
@@ -178,7 +254,38 @@ export default function Home(): React.ReactElement {
     }
   };
 
-  const filteredOrders = getTabOrders(activeTab, simulatedOrders).sort((a, b) => {
+  const filteredOrders = getTabOrders(activeTab, simulatedOrders).filter(order => {
+    // 1. 全体検索フィルター
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const matchSearch = (
+        (order.productName || '').toLowerCase().includes(query) ||
+        (order.orderNumber || '').toLowerCase().includes(query) ||
+        (order.directDeliveryName || '').toLowerCase().includes(query) ||
+        (order.productCode || '').toLowerCase().includes(query) ||
+        (order.materialName || '').toLowerCase().includes(query)
+      );
+      if (!matchSearch) return false;
+    }
+
+    // 2. 列ごとのフィルター
+    for (const [key, selectedValues] of Object.entries(columnFilters)) {
+      if (selectedValues.length === 0) continue;
+      
+      let valToCompare = '';
+      if (key === 'productName') {
+        valToCompare = (order.category === 'SP' || order.category === 'シルク' || order.category === '別注' || order.category === 'ポリ別注') 
+          ? shortenProductName(order.title || order.productName) 
+          : (order.productName || '');
+      } else {
+        valToCompare = (order as any)[key] || '';
+      }
+
+      if (!selectedValues.includes(valToCompare)) return false;
+    }
+
+    return true;
+  }).sort((a, b) => {
     // 1. 材質名称 (Material Name)
     if (a.materialName !== b.materialName) {
       return a.materialName.localeCompare(b.materialName, 'ja');
@@ -358,6 +465,28 @@ export default function Home(): React.ReactElement {
               再計算
             </button>
 
+            <div className={styles.controlGroup}>
+              <span className={styles.controlLabel}>全体検索:</span>
+              <input 
+                type="text" 
+                placeholder="商品名、No、直送先等..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={styles.manualInput}
+                style={{ width: '200px' }}
+              />
+            </div>
+
+            <div className={styles.controlGroup}>
+              <button 
+                className={styles.resetButton} 
+                onClick={handleResetSettings}
+                title="手入力した設定をすべてクリア"
+              >
+                🔄 リセット
+              </button>
+            </div>
+
             {simulatedOrders.length > 0 && (
               <button 
                 onClick={handleExportExcel}
@@ -506,15 +635,71 @@ export default function Home(): React.ReactElement {
             <table className={styles.dataTable}>
               <thead>
                 <tr>
-                  <th>種別</th>
-                  <th>受注No</th>
+                  <th>
+                    種別
+                    <ColumnFilter 
+                      columnKey="category"
+                      options={filterOptions.category}
+                      selectedValues={columnFilters.category || []}
+                      onFilterChange={(vals) => handleColumnFilterChange('category', vals)}
+                      title="種別"
+                    />
+                  </th>
+                  <th>
+                    受注No
+                    <ColumnFilter 
+                      columnKey="orderNumber"
+                      options={filterOptions.orderNumber}
+                      selectedValues={columnFilters.orderNumber || []}
+                      onFilterChange={(vals) => handleColumnFilterChange('orderNumber', vals)}
+                      title="受注No"
+                    />
+                  </th>
                   <th>直送先コード</th>
-                  <th>直送先名称</th>
-                  {activeTab !== 'custom' && <th>商品コード</th>}
-                  <th>商品名</th>
+                  <th>
+                    直送先名称
+                    <ColumnFilter 
+                      columnKey="directDeliveryName"
+                      options={filterOptions.directDeliveryName}
+                      selectedValues={columnFilters.directDeliveryName || []}
+                      onFilterChange={(vals) => handleColumnFilterChange('directDeliveryName', vals)}
+                      title="直送先名称"
+                    />
+                  </th>
+                  {activeTab !== 'custom' && (
+                    <th>
+                      商品コード
+                      <ColumnFilter 
+                        columnKey="productCode"
+                        options={filterOptions.productCode}
+                        selectedValues={columnFilters.productCode || []}
+                        onFilterChange={(vals) => handleColumnFilterChange('productCode', vals)}
+                        title="商品コード"
+                      />
+                    </th>
+                  )}
+                  <th>
+                    商品名
+                    <ColumnFilter 
+                      columnKey="productName"
+                      options={filterOptions.productName}
+                      selectedValues={columnFilters.productName || []}
+                      onFilterChange={(vals) => handleColumnFilterChange('productName', vals)}
+                      title="商品名"
+                    />
+                  </th>
                   <th>形状</th>
                   <th>受注数</th>
-                  <th>材質</th>
+                  <th>
+                    材質
+                    <ColumnFilter 
+                      columnKey="materialName"
+                      options={filterOptions.materialName}
+                      selectedValues={columnFilters.materialName || []}
+                      onFilterChange={(vals) => handleColumnFilterChange('materialName', vals)}
+                      title="材質"
+                    />
+                  </th>
                   {showPrintingCols && <th>印刷コード</th>}
                   <th>重量</th>
                   <th>色数</th>
