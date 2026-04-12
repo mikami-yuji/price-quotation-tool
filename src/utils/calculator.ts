@@ -38,7 +38,7 @@ export const calculateNewPrices = (
     } else {
       if (order.category === '別注' || order.category === 'ポリ別注') {
         newPrice = calculateCustomIncrease(order.currentPrice, conditions);
-      } else if (order.category === '既製品' || order.category === 'SP' || order.category === 'シルク' || order.category === '') {
+      } else if (order.category === '既製品' || order.category === '') {
         const mappedPrice = findPriceFromMatrix(order, priceMatrix);
         if (mappedPrice !== null) {
           newPrice = mappedPrice;
