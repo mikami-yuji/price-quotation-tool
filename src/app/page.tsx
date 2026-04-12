@@ -28,7 +28,7 @@ export default function Home(): React.ReactElement {
   const [activeTab, setActiveTab] = useState<TabType>('custom');
   const [manualSettings, setManualSettings] = useState<ManualGroupSetting>({});
   const [individualSettings, setIndividualSettings] = useState<IndividualManualSetting>({});
-  const [isGroupEditorExpanded, setIsGroupEditorExpanded] = useState(true);
+  const [isGroupEditorExpanded, setIsGroupEditorExpanded] = useState(false);
   const [implementationDate, setImplementationDate] = useState<string>('');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [searchQuery, setSearchQuery] = useState('');
