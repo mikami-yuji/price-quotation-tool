@@ -5,10 +5,11 @@ import styles from './page.module.css';
 import { parseExcelFile } from '../utils/excelUtils';
 import { calculateNewPrices } from '../utils/calculator';
 import { shortenProductName, normalizeCustomerName } from '../utils/stringUtils';
-import { OrderRecord, CustomPriceMatrixRow, IncreaseSimulationConditions, ManualGroupSetting, IndividualManualSetting, SimulationSettings, QuoteHistoryEntry } from '../types';
+import { OrderRecord, CustomPriceMatrixRow, IncreaseSimulationConditions, ManualGroupSetting, IndividualManualSetting, SimulationSettings, QuoteHistoryEntry, ReadymadeMasterRow, ReadymadePriceType, ReadymadeSegment } from '../types';
 import { generateQuoteExcel } from '../utils/excelGenerator';
 import InlineNumericInput from '../components/InlineNumericInput';
 import ColumnFilter from '../components/ColumnFilter';
+import { parseReadymadeCSV } from '../utils/csvUtils';
 
 type TabType = 'custom' | 'sp' | 'readymade';
 
@@ -36,17 +37,19 @@ export default function Home(): React.ReactElement {
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
   const [customMaster, setCustomMaster] = useState<CustomPriceMatrixRow[]>([]);
   const [spMaster, setSpMaster] = useState<CustomPriceMatrixRow[]>([]);
-  const [readymadeMaster, setReadymadeMaster] = useState<CustomPriceMatrixRow[]>([]);
+  const [readymadeMaster, setReadymadeMaster] = useState<CustomPriceMatrixRow[] | ReadymadeMasterRow[]>([]);
   const [activeMasterTab, setActiveMasterTab] = useState<TabType>('custom');
   const [isMasterExpanded, setIsMasterExpanded] = useState(false);
+  const [readymadePriceType, setReadymadePriceType] = useState<ReadymadePriceType>('normal');
+  const [readymadeSegment, setReadymadeSegment] = useState<ReadymadeSegment>('uru');
 
   const simulatedOrders = useMemo(() => {
     return calculateNewPrices(orders, priceMatrix, conditions, manualSettings, individualSettings, {
       custom: customMaster,
       sp: spMaster,
       readymade: readymadeMaster
-    });
-  }, [orders, priceMatrix, conditions, manualSettings, individualSettings, customMaster, spMaster, readymadeMaster]);
+    }, { type: readymadePriceType, segment: readymadeSegment });
+  }, [orders, priceMatrix, conditions, manualSettings, individualSettings, customMaster, spMaster, readymadeMaster, readymadePriceType, readymadeSegment]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
@@ -81,6 +84,12 @@ export default function Home(): React.ReactElement {
 
         const savedReadyMaster = localStorage.getItem('price-quotation-ready-master');
         if (savedReadyMaster) setTimeout(() => setReadymadeMaster(JSON.parse(savedReadyMaster)), 0);
+
+        const savedReadyType = localStorage.getItem('price-quotation-ready-type') as ReadymadePriceType;
+        if (savedReadyType) setTimeout(() => setReadymadePriceType(savedReadyType), 0);
+
+        const savedReadySegment = localStorage.getItem('price-quotation-ready-segment') as ReadymadeSegment;
+        if (savedReadySegment) setTimeout(() => setReadymadeSegment(savedReadySegment), 0);
       } catch (e) {
         console.error('Failed to load settings from localStorage', e);
       }
@@ -212,20 +221,26 @@ export default function Home(): React.ReactElement {
     
     try {
       const buffer = await file.arrayBuffer();
-      const parsedData = parseExcelFile(buffer);
       
-      // もしシートが「別注単価表」という名前でなくても、最初のシートから読み込むなどの救済策は
-      // 現状の parseExcelFile のままでも「別注単価表」シートがあれば動く。
-      // なければ空になるが、ユーザーには「別注単価表シートを含めてください」と伝える運用。
+      let parsedMatrix: CustomPriceMatrixRow[] | ReadymadeMasterRow[] = [];
       
-      if (parsedData.priceMatrix.length === 0) {
-        alert('「別注単価表」シートが見つからないか、データが空です。');
+      if (file.name.toLowerCase().endsWith('.csv')) {
+        // CSVの場合は既製品用の高度な形式として処理
+        parsedMatrix = parseReadymadeCSV(buffer);
+      } else {
+        // Excelの場合は通常の材質別単価表として処理
+        const parsedData = parseExcelFile(buffer);
+        parsedMatrix = parsedData.priceMatrix;
+      }
+      
+      if (parsedMatrix.length === 0) {
+        alert('「別注単価表」シートが見つからないか、データが空です。 (CSVの場合は形式を確認してください)');
         return;
       }
 
-      if (type === 'custom') setCustomMaster(parsedData.priceMatrix);
-      if (type === 'sp') setSpMaster(parsedData.priceMatrix);
-      if (type === 'readymade') setReadymadeMaster(parsedData.priceMatrix);
+      if (type === 'custom') setCustomMaster(parsedMatrix as CustomPriceMatrixRow[]);
+      if (type === 'sp') setSpMaster(parsedMatrix as CustomPriceMatrixRow[]);
+      if (type === 'readymade') setReadymadeMaster(parsedMatrix);
       
       alert(`${type.toUpperCase()}用のマスターデータを読み込みました。`);
     } catch (err) {
@@ -250,6 +265,14 @@ export default function Home(): React.ReactElement {
   useEffect(() => {
     localStorage.setItem('price-quotation-ready-master', JSON.stringify(readymadeMaster));
   }, [readymadeMaster]);
+
+  useEffect(() => {
+    localStorage.setItem('price-quotation-ready-type', readymadePriceType);
+  }, [readymadePriceType]);
+
+  useEffect(() => {
+    localStorage.setItem('price-quotation-ready-segment', readymadeSegment);
+  }, [readymadeSegment]);
 
   const recordHistory = (customerName: string, category: string) => {
     const newEntry: QuoteHistoryEntry = {
@@ -534,6 +557,36 @@ export default function Home(): React.ReactElement {
               <span className={styles.controlLabel}>実施時期 (任意):</span>
               <input type="date" value={implementationDate} onChange={(e) => setImplementationDate(e.target.value)} className={styles.manualInput} style={{ width: '130px' }} />
             </div>
+
+            {activeTab === 'readymade' && (
+              <>
+                <div className={styles.controlGroup}>
+                  <span className={styles.controlLabel}>価格タイプ:</span>
+                  <div className={styles.radioGroup}>
+                    <label className={styles.radioLabel}>
+                      <input type="radio" checked={readymadePriceType === 'normal'} onChange={() => setReadymadePriceType('normal')} /> 通常
+                    </label>
+                    <label className={styles.radioLabel}>
+                      <input type="radio" checked={readymadePriceType === 'campaign'} onChange={() => setReadymadePriceType('campaign')} /> キャンペーン
+                    </label>
+                  </div>
+                </div>
+                <div className={styles.controlGroup}>
+                  <span className={styles.controlLabel}>客層区分:</span>
+                  <div className={styles.radioGroup}>
+                    <label className={styles.radioLabel}>
+                      <input type="radio" checked={readymadeSegment === 'uru'} onChange={() => setReadymadeSegment('uru')} /> 売
+                    </label>
+                    <label className={styles.radioLabel}>
+                      <input type="radio" checked={readymadeSegment === 'junD'} onChange={() => setReadymadeSegment('junD')} /> 準D
+                    </label>
+                    <label className={styles.radioLabel}>
+                      <input type="radio" checked={readymadeSegment === 'd'} onChange={() => setReadymadeSegment('d')} /> D
+                    </label>
+                  </div>
+                </div>
+              </>
+            )}
 
             <button className={styles.primaryButton} onClick={handleSimulate}>再計算</button>
 
@@ -871,7 +924,7 @@ export default function Home(): React.ReactElement {
                   <span role="img" aria-label="upload">📤</span> マスターをアップロード
                   <input 
                     type="file" 
-                    accept=".xlsx, .xls" 
+                    accept=".xlsx, .xls, .csv" 
                     style={{ display: 'none' }} 
                     onChange={(e) => handleMasterUpload(e, activeMasterTab)}
                   />

@@ -41,6 +41,16 @@ export type CustomPriceMatrixRow = {
   };
 };
 
+// 既製品用の高度な単価データ
+export type ReadymadeMasterRow = {
+  productCode: string;
+  campaign: { uru: number; junD: number; d: number };
+  normal: { uru: number; junD: number; d: number };
+};
+
+export type ReadymadePriceType = 'normal' | 'campaign';
+export type ReadymadeSegment = 'uru' | 'junD' | 'd';
+
 // 値上げのシミュレーション条件
 export type IncreaseSimulationConditions = {
   customIncreaseType: 'percentage' | 'amount';
@@ -79,6 +89,8 @@ export type SimulationSettings = {
   manualSettings: ManualGroupSetting;
   individualSettings: IndividualManualSetting;
   implementationDate?: string;
+  readymadePriceType?: ReadymadePriceType;
+  readymadeSegment?: ReadymadeSegment;
 };
 
 // 受注Noごとの個別設定 (リストでの直接入力)

@@ -1,14 +1,16 @@
-import { OrderRecord, CustomPriceMatrixRow, IncreaseSimulationConditions, ManualGroupSetting, IndividualManualSetting } from '../types';
+import { 
+  OrderRecord, 
+  CustomPriceMatrixRow, 
+  IncreaseSimulationConditions, 
+  ManualGroupSetting, 
+  IndividualManualSetting,
+  ReadymadeMasterRow,
+  ReadymadePriceType,
+  ReadymadeSegment
+} from '../types';
 
 /**
  * 全オーダーレコードに対してシミュレーション結果を計算する
- * @param orders 受注データ
- * @param priceMatrix 共用の別注単価表データ (Excelから抽出)
- * @param conditions 別注用の一律値上げ条件
- * @param groupSettings 別注用のグループ設定 (任意)
- * @param individualSettings 受注Noごとの個別設定 (任意)
- * @param categorizedMasters カテゴリー別に個別にアップロードされたマスターデータ (任意)
- * @returns 新しい単価と差額が設定された受注データの配列
  */
 export const calculateNewPrices = (
   orders: OrderRecord[],
@@ -16,7 +18,12 @@ export const calculateNewPrices = (
   conditions: IncreaseSimulationConditions,
   groupSettings: ManualGroupSetting = {},
   individualSettings: IndividualManualSetting = {},
-  categorizedMasters: { custom: CustomPriceMatrixRow[], sp: CustomPriceMatrixRow[], readymade: CustomPriceMatrixRow[] } = { custom: [], sp: [], readymade: [] }
+  categorizedMasters: { 
+    custom: CustomPriceMatrixRow[], 
+    sp: CustomPriceMatrixRow[], 
+    readymade: CustomPriceMatrixRow[] | ReadymadeMasterRow[]
+  } = { custom: [], sp: [], readymade: [] },
+  readymadePrefs?: { type: ReadymadePriceType; segment: ReadymadeSegment }
 ): OrderRecord[] => {
   return orders.map(order => {
     let newPrice = order.currentPrice;
@@ -27,6 +34,8 @@ export const calculateNewPrices = (
     // SP・シルクの場合は印刷コードも含めた4項目でグルーピング
     const isCustom = order.category === '別注' || order.category === 'ポリ別注';
     const isSP = order.category === 'SP' || order.category === 'シルク';
+    const isReady = order.category === '既製品' || order.category === '';
+
     const groupKey = isSP 
       ? `${order.materialName}-${order.weight}-${order.totalColorCount}-${order.printCode}`
       : `${order.materialName}-${order.weight}-${order.totalColorCount}`;
@@ -41,7 +50,7 @@ export const calculateNewPrices = (
     } else {
       if (isCustom) {
         // 先に手アップロードのマスター、なければ共用(Excel内)の単価表をチェック
-        const masterPrice = findPriceFromMatrix(order, categorizedMasters.custom);
+        const masterPrice = findPriceFromMatrix(order, categorizedMasters.custom as CustomPriceMatrixRow[]);
         if (masterPrice !== null) {
           newPrice = masterPrice;
         } else {
@@ -49,7 +58,7 @@ export const calculateNewPrices = (
         }
       } else if (isSP) {
         // SPマスターを優先チェック
-        const masterPrice = findPriceFromMatrix(order, categorizedMasters.sp);
+        const masterPrice = findPriceFromMatrix(order, categorizedMasters.sp as CustomPriceMatrixRow[]);
         if (masterPrice !== null) {
           newPrice = masterPrice;
         } else {
@@ -59,12 +68,25 @@ export const calculateNewPrices = (
             newPrice = mappedPrice;
           }
         }
-      } else if (order.category === '既製品' || order.category === '') {
-        // 既製マスターを優先チェック
-        const masterPrice = findPriceFromMatrix(order, categorizedMasters.readymade);
-        if (masterPrice !== null) {
-          newPrice = masterPrice;
+      } else if (isReady) {
+        // 既製マスター（高度な価格表含む）を優先チェック
+        const masterTable = categorizedMasters.readymade;
+        if (masterTable.length > 0) {
+          if ('campaign' in masterTable[0]) {
+            // ReadymadeMasterRow 型として処理
+            const mapped = (masterTable as ReadymadeMasterRow[]).find(m => m.productCode === order.productCode);
+            if (mapped && readymadePrefs) {
+              const priceGroup = readymadePrefs.type === 'campaign' ? mapped.campaign : mapped.normal;
+              const price = priceGroup[readymadePrefs.segment];
+              if (price > 0) newPrice = price;
+            }
+          } else {
+            // 標準の CustomPriceMatrixRow 型として処理
+            const mappedPrice = findPriceFromMatrix(order, masterTable as CustomPriceMatrixRow[]);
+            if (mappedPrice !== null) newPrice = mappedPrice;
+          }
         } else {
+          // 共用テーブル（Excel内）チェック
           const mappedPrice = findPriceFromMatrix(order, priceMatrix);
           if (mappedPrice !== null) {
             newPrice = mappedPrice;
