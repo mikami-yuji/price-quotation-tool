@@ -66,7 +66,7 @@ export const generateQuoteExcel = async (
     { header: '営G改定率', key: 'salesGroupRate', width: 12 },
     ...(showPrintingInfo ? [
       { header: '現行印刷代', key: 'printingCost', width: 12 },
-      { header: '改定印刷代単価', key: 'newPrintingCost', width: 12 },
+      { header: '改定印刷代単価', key: 'newPrintingCost', width: 14 },
       { header: '現行印刷営G', key: 'printingSalesGroup', width: 12 },
       { header: '改定印刷代営G', key: 'newPrintingSalesGroup', width: 15 }
     ] : []),
@@ -127,8 +127,8 @@ export const generateQuoteExcel = async (
       pattern: 'solid',
       fgColor: { argb: 'FFF2F2F2' }
     };
-    cell.font = { bold: true };
-    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    cell.font = { bold: true, size: 9 };
+    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
     cell.border = {
       top: { style: 'thin' },
       left: { style: 'thin' },
