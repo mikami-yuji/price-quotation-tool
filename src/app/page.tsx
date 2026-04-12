@@ -587,8 +587,8 @@ export default function Home(): React.ReactElement {
                       </>
                     )}
                     {showPrintingCols && <th>印刷代</th>}
-                    {showPrintingCols && <th>印刷営G</th>}
                     {showPrintingCols && <th className={`${styles.highlightHeader} ${styles.compactHeader}`}>改定印刷代単価</th>}
+                    {showPrintingCols && <th>印刷営G</th>}
                     {showPrintingCols && <th className={`${styles.highlightHeader} ${styles.compactHeader}`}>改定印刷代営G</th>}
                     <th>値上率</th>
                   </tr>
@@ -625,7 +625,6 @@ export default function Home(): React.ReactElement {
                           </>
                         )}
                         {showPrintingCols && <td style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>¥{(order.printingCost || 0).toFixed(2)}</td>}
-                        {showPrintingCols && <td style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>¥{(order.printingSalesGroup || 0).toFixed(2)}</td>}
                         {showPrintingCols && (
                           <td className={`${styles.highlightCell} ${styles.compactCell}`}>
                             <InlineNumericInput 
@@ -639,6 +638,7 @@ export default function Home(): React.ReactElement {
                             />
                           </td>
                         )}
+                        {showPrintingCols && <td style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>¥{(order.printingSalesGroup || 0).toFixed(2)}</td>}
                         {showPrintingCols && (
                           <td className={`${styles.highlightCell} ${styles.compactCell}`}>
                             <InlineNumericInput 
