@@ -507,12 +507,12 @@ export default function Home(): React.ReactElement {
                                     <>
                                       <div className={styles.inputWrapper}>
                                         <span className={styles.inputLabel}>印刷代</span>
-                                        <InlineNumericInput value={manualSettings[group.key]?.printingPrice || 0} onCommit={(val) => updateManualField(group.key, 'printingPrice', val)} onKeyDown={preventArrowKeys} className={styles.manualInput} decimals={2} />
+                                        <InlineNumericInput value={manualSettings[group.key]?.printingPrice ?? group.currentPrintingCost ?? 0} onCommit={(val) => updateManualField(group.key, 'printingPrice', val)} onKeyDown={preventArrowKeys} className={styles.manualInput} decimals={2} />
                                         <div className={styles.groupPriceDetail}>現行: ¥{(group.currentPrintingCost || 0).toFixed(2)}</div>
                                       </div>
                                       <div className={styles.inputWrapper}>
                                         <span className={styles.inputLabel}>印刷営G</span>
-                                        <InlineNumericInput value={manualSettings[group.key]?.printingSalesGroup || 0} onCommit={(val) => updateManualField(group.key, 'printingSalesGroup', val)} onKeyDown={preventArrowKeys} className={styles.manualInput} decimals={2} />
+                                        <InlineNumericInput value={manualSettings[group.key]?.printingSalesGroup ?? group.currentPrintingSalesGroup ?? 0} onCommit={(val) => updateManualField(group.key, 'printingSalesGroup', val)} onKeyDown={preventArrowKeys} className={styles.manualInput} decimals={2} />
                                         <div className={styles.groupPriceDetail}>現行: ¥{(group.currentPrintingSalesGroup || 0).toFixed(2)}</div>
                                       </div>
                                     </>
@@ -591,6 +591,8 @@ export default function Home(): React.ReactElement {
                   {filteredOrders.map((order, i) => {
                     const price = individualSettings[order.orderNumber]?.price ?? order.newPrice ?? order.currentPrice;
                     const salesGroup = individualSettings[order.orderNumber]?.salesGroup ?? order.newSalesGroup ?? order.salesGroup;
+                    const pCost = individualSettings[order.orderNumber]?.printingPrice ?? order.newPrintingCost ?? order.printingCost ?? 0;
+                    const pSalesGroup = individualSettings[order.orderNumber]?.printingSalesGroup ?? order.newPrintingSalesGroup ?? order.printingSalesGroup ?? 0;
                     const diff = order.currentPrice > 0 ? ((price / order.currentPrice) - 1) * 100 : 0;
                     
                     return (
@@ -622,7 +624,7 @@ export default function Home(): React.ReactElement {
                         {showPrintingCols && (
                           <td className={`${styles.highlightCell} ${styles.compactCell}`}>
                             <InlineNumericInput 
-                              value={order.newPrintingCost ?? order.printingCost} 
+                              value={pCost} 
                               onCommit={(val) => updateIndividualField(order.orderNumber, 'printingPrice', val)} 
                               onKeyDown={(e) => handleKeyDown(e, i, 'printingPrice')} 
                               className={styles.manualInput} 
@@ -636,7 +638,7 @@ export default function Home(): React.ReactElement {
                         {showPrintingCols && (
                           <td className={`${styles.highlightCell} ${styles.compactCell}`}>
                             <InlineNumericInput 
-                              value={order.newPrintingSalesGroup ?? order.printingSalesGroup} 
+                              value={pSalesGroup} 
                               onCommit={(val) => updateIndividualField(order.orderNumber, 'printingSalesGroup', val)} 
                               onKeyDown={(e) => handleKeyDown(e, i, 'printingSalesGroup')} 
                               className={styles.manualInput} 
