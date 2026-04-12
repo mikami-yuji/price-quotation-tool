@@ -21,8 +21,9 @@ export const calculateNewPrices = (
   categorizedMasters: { 
     custom: CustomPriceMatrixRow[], 
     sp: CustomPriceMatrixRow[], 
-    readymade: CustomPriceMatrixRow[] | ReadymadeMasterRow[]
-  } = { custom: [], sp: [], readymade: [] },
+    readymade: CustomPriceMatrixRow[] | ReadymadeMasterRow[],
+    sticker: CustomPriceMatrixRow[]
+  } = { custom: [], sp: [], readymade: [], sticker: [] },
   readymadePrefs?: { type: ReadymadePriceType; segment: ReadymadeSegment }
 ): OrderRecord[] => {
   return orders.map(order => {
@@ -34,13 +35,14 @@ export const calculateNewPrices = (
     // SP・シルクの場合は印刷コードも含めた4項目でグルーピング
     const isCustom = order.category === '別注' || order.category === 'ポリ別注';
     const isSP = order.category === 'SP' || order.category === 'シルク';
+    const isSticker = order.category === 'シール';
     const isReady = order.category === '既製品' || order.category === '';
 
     const groupKey = isSP 
       ? `${order.materialName}-${order.weight}-${order.totalColorCount}-${order.printCode}`
       : `${order.materialName}-${order.weight}-${order.totalColorCount}`;
     
-    const group = (isCustom || isSP) ? groupSettings[groupKey] : null;
+    const group = (isCustom || isSP || isSticker) ? groupSettings[groupKey] : null;
 
     // 1. 改定単価の決定
     if (individual?.price !== undefined && individual.price !== 0) {
@@ -63,6 +65,18 @@ export const calculateNewPrices = (
           newPrice = masterPrice;
         } else {
           // 既存の共用テーブルチェック (SP対応済み)
+          const mappedPrice = findPriceFromMatrix(order, priceMatrix);
+          if (mappedPrice !== null) {
+            newPrice = mappedPrice;
+          }
+        }
+      } else if (isSticker) {
+        // シールマスターを優先チェック
+        const masterPrice = findPriceFromMatrix(order, categorizedMasters.sticker as CustomPriceMatrixRow[]);
+        if (masterPrice !== null) {
+          newPrice = masterPrice;
+        } else {
+          // シールも基本は別注と同じ扱いで単価表をチェック
           const mappedPrice = findPriceFromMatrix(order, priceMatrix);
           if (mappedPrice !== null) {
             newPrice = mappedPrice;

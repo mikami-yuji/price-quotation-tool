@@ -11,7 +11,7 @@ import InlineNumericInput from '../components/InlineNumericInput';
 import ColumnFilter from '../components/ColumnFilter';
 import { parseReadymadeCSV } from '../utils/csvUtils';
 
-type TabType = 'custom' | 'sp' | 'readymade';
+type TabType = 'custom' | 'sp' | 'readymade' | 'sticker';
 
 export default function Home(): React.ReactElement {
   const [orders, setOrders] = useState<OrderRecord[]>([]);
@@ -38,6 +38,7 @@ export default function Home(): React.ReactElement {
   const [customMaster, setCustomMaster] = useState<CustomPriceMatrixRow[]>([]);
   const [spMaster, setSpMaster] = useState<CustomPriceMatrixRow[]>([]);
   const [readymadeMaster, setReadymadeMaster] = useState<CustomPriceMatrixRow[] | ReadymadeMasterRow[]>([]);
+  const [stickerMaster, setStickerMaster] = useState<CustomPriceMatrixRow[]>([]);
   const [activeMasterTab, setActiveMasterTab] = useState<TabType>('custom');
   const [isMasterExpanded, setIsMasterExpanded] = useState(false);
   const [readymadePriceType, setReadymadePriceType] = useState<ReadymadePriceType>('normal');
@@ -47,9 +48,10 @@ export default function Home(): React.ReactElement {
     return calculateNewPrices(orders, priceMatrix, conditions, manualSettings, individualSettings, {
       custom: customMaster,
       sp: spMaster,
-      readymade: readymadeMaster
+      readymade: readymadeMaster,
+      sticker: stickerMaster
     }, { type: readymadePriceType, segment: readymadeSegment });
-  }, [orders, priceMatrix, conditions, manualSettings, individualSettings, customMaster, spMaster, readymadeMaster, readymadePriceType, readymadeSegment]);
+  }, [orders, priceMatrix, conditions, manualSettings, individualSettings, customMaster, spMaster, readymadeMaster, stickerMaster, readymadePriceType, readymadeSegment]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
@@ -90,6 +92,9 @@ export default function Home(): React.ReactElement {
 
         const savedReadySegment = localStorage.getItem('price-quotation-ready-segment') as ReadymadeSegment;
         if (savedReadySegment) setTimeout(() => setReadymadeSegment(savedReadySegment), 0);
+
+        const savedStickerMaster = localStorage.getItem('price-quotation-sticker-master');
+        if (savedStickerMaster) setTimeout(() => setStickerMaster(JSON.parse(savedStickerMaster)), 0);
       } catch (e) {
         console.error('Failed to load settings from localStorage', e);
       }
@@ -112,9 +117,11 @@ export default function Home(): React.ReactElement {
         return allOrders.filter(o => o.category === '別注' || o.category === 'ポリ別注');
       case 'sp':
         return allOrders.filter(o => o.category === 'SP' || o.category === 'シルク');
+      case 'sticker':
+        return allOrders.filter(o => o.category === 'シール');
       case 'readymade':
         return allOrders.filter(o => 
-          o.category !== '別注' && o.category !== 'ポリ別注' && o.category !== 'SP' && o.category !== 'シルク' &&
+          o.category !== '別注' && o.category !== 'ポリ別注' && o.category !== 'SP' && o.category !== 'シルク' && o.category !== 'シール' &&
           o.productCode !== '999999999'
         );
       default:
@@ -241,6 +248,7 @@ export default function Home(): React.ReactElement {
       if (type === 'custom') setCustomMaster(parsedMatrix as CustomPriceMatrixRow[]);
       if (type === 'sp') setSpMaster(parsedMatrix as CustomPriceMatrixRow[]);
       if (type === 'readymade') setReadymadeMaster(parsedMatrix);
+      if (type === 'sticker') setStickerMaster(parsedMatrix as CustomPriceMatrixRow[]);
       
       alert(`${type.toUpperCase()}用のマスターデータを読み込みました。`);
     } catch (err) {
@@ -273,6 +281,10 @@ export default function Home(): React.ReactElement {
   useEffect(() => {
     localStorage.setItem('price-quotation-ready-segment', readymadeSegment);
   }, [readymadeSegment]);
+
+  useEffect(() => {
+    localStorage.setItem('price-quotation-sticker-master', JSON.stringify(stickerMaster));
+  }, [stickerMaster]);
 
   const recordHistory = (customerName: string, category: string) => {
     const newEntry: QuoteHistoryEntry = {
@@ -329,7 +341,9 @@ export default function Home(): React.ReactElement {
   const handleExportExcel = async () => {
     if (simulatedOrders.length === 0) return;
     const customer = normalizeCustomerName(getCustomerName(fileName));
-    const categoryName = activeTab === 'custom' ? '別注' : activeTab === 'sp' ? 'SP' : '既製';
+    const categoryName = activeTab === 'custom' ? '別注' : 
+                         activeTab === 'sp' ? 'SP' : 
+                         activeTab === 'sticker' ? 'シール' : '既製';
     
     await generateQuoteExcel(
       customer,
@@ -447,7 +461,8 @@ export default function Home(): React.ReactElement {
   const counts = {
     custom: getTabOrders('custom', simulatedOrders).length,
     sp: getTabOrders('sp', simulatedOrders).length,
-    readymade: getTabOrders('readymade', simulatedOrders).length
+    readymade: getTabOrders('readymade', simulatedOrders).length,
+    sticker: getTabOrders('sticker', simulatedOrders).length
   };
 
   const editorGroups = getTabOrders(activeTab === 'sp' ? 'sp' : 'custom', orders).reduce((acc, o) => {
@@ -662,6 +677,12 @@ export default function Home(): React.ReactElement {
               onClick={() => setActiveTab('readymade')}
             >
               既製・その他 ({counts.readymade})
+            </button>
+            <button 
+              className={`${styles.tabItem} ${activeTab === 'sticker' ? styles.tabActive : ''}`}
+              onClick={() => setActiveTab('sticker')}
+            >
+              シール (フルオーダー) ({counts.sticker})
             </button>
           </div>
 
@@ -910,16 +931,26 @@ export default function Home(): React.ReactElement {
                 既製マスター
                 {readymadeMaster.length > 0 && <span className={styles.statusBadge}>設定済</span>}
               </button>
+              <button 
+                className={`${styles.tabItem} ${activeMasterTab === 'sticker' ? styles.activeTab : ''}`}
+                onClick={() => setActiveMasterTab('sticker')}
+              >
+                シールマスター
+                {stickerMaster.length > 0 && <span className={styles.statusBadge}>設定済</span>}
+              </button>
             </div>
 
             <div className={styles.masterControlArea}>
               <div className={styles.masterInfo}>
                 <h4>
-                  {activeMasterTab === 'custom' ? '別注・ポリ別注' : activeMasterTab === 'sp' ? 'SP・シルク' : '既製品・その他'}用
+                  {activeMasterTab === 'custom' ? '別注・ポリ別注' : 
+                   activeMasterTab === 'sp' ? 'SP・シルク' : 
+                   activeMasterTab === 'sticker' ? 'シール (フルオーダー)' : '既製品・その他'}用
                 </h4>
                 <p>登録件数: {
                   activeMasterTab === 'custom' ? customMaster.length : 
-                  activeMasterTab === 'sp' ? spMaster.length : readymadeMaster.length
+                  activeMasterTab === 'sp' ? spMaster.length : 
+                  activeMasterTab === 'sticker' ? stickerMaster.length : readymadeMaster.length
                 } 件</p>
               </div>
               
@@ -942,6 +973,7 @@ export default function Home(): React.ReactElement {
                         if (activeMasterTab === 'custom') setCustomMaster([]);
                         if (activeMasterTab === 'sp') setSpMaster([]);
                         if (activeMasterTab === 'readymade') setReadymadeMaster([]);
+                        if (activeMasterTab === 'sticker') setStickerMaster([]);
                       }
                     }}
                   >
