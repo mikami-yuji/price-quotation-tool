@@ -504,7 +504,7 @@ export default function Home(): React.ReactElement {
             <p className={styles.subtitle}>得意先別のExcelを読み込み、新しい見積価格を簡単にシミュレーションできます。</p>
           </div>
           <button className={styles.themeToggle} onClick={toggleTheme}>
-            {theme === 'light' ? '🌙' : '☀️'}
+{theme === 'light' ? '🌙' : '☀️'}
           </button>
         </div>
       </header>
@@ -524,120 +524,149 @@ export default function Home(): React.ReactElement {
       ) : (
         <div className={styles.dashboard}>
           <div className={`${styles.glassPanel} ${styles.controls}`}>
-            <div>
-              <h3>📄 読み込みファイル: {fileName}</h3>
-              <p className={styles.controlLabel}>{orders.length} 件のデータが見つかりました。</p>
+            {/* 1. File & Context Zone */}
+            <div className={styles.controlTopBar}>
+              <div className={styles.fileInfo}>
+                <div className={styles.fileIcon}>📄</div>
+                <div className={styles.fileDetails}>
+                  <h3>読み込みファイル: {fileName}</h3>
+                  <p>{orders.length} 件のデータが見つかりました。</p>
+                </div>
+              </div>
+
+              <div className={styles.simulationParams}>
+                {activeTab === 'custom' && (
+                  <>
+                    <div className={styles.controlGroup}>
+                      <span className={styles.controlLabel}>値上げベース:</span>
+                      <div className={styles.segmentedControl}>
+                        <button 
+                          className={`${styles.segmentButton} ${conditions.customIncreaseType === 'percentage' ? styles.segmentActive : ''}`}
+                          onClick={() => setConditions({ ...conditions, customIncreaseType: 'percentage' })}
+                        >
+                          一律 (%)
+                        </button>
+                        <button 
+                          className={`${styles.segmentButton} ${conditions.customIncreaseType === 'amount' ? styles.segmentActive : ''}`}
+                          onClick={() => setConditions({ ...conditions, customIncreaseType: 'amount' })}
+                        >
+                          一律 (円)
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className={styles.controlGroup}>
+                      <span className={styles.controlLabel}>値幅:</span>
+                      <InlineNumericInput 
+                        value={conditions.customIncreaseValue}
+                        onCommit={(val) => setConditions({ ...conditions, customIncreaseValue: val })}
+                        className={styles.manualInput}
+                        style={{ width: '80px' }}
+                        decimals={1}
+                      />
+                    </div>
+
+                    <div className={styles.controlGroup}>
+                      <span className={styles.controlLabel}>端数丸め:</span>
+                      <div className={styles.segmentedControl}>
+                        <button 
+                          className={`${styles.segmentButton} ${conditions.roundingMode === 'none' ? styles.segmentActive : ''}`}
+                          onClick={() => setConditions({ ...conditions, roundingMode: 'none' })}
+                        >
+                          なし
+                        </button>
+                        <button 
+                          className={`${styles.segmentButton} ${conditions.roundingMode === 'half' ? styles.segmentActive : ''}`}
+                          onClick={() => setConditions({ ...conditions, roundingMode: 'half' })}
+                        >
+                          .00 / .50
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <div className={styles.controlGroup}>
+                  <span className={styles.controlLabel}>実施時期:</span>
+                  <input type="date" value={implementationDate} onChange={(e) => setImplementationDate(e.target.value)} className={styles.manualInput} style={{ width: '135px' }} />
+                </div>
+
+                {activeTab === 'readymade' && (
+                  <>
+                    <div className={styles.controlGroup}>
+                      <span className={styles.controlLabel}>価格タイプ:</span>
+                      <div className={styles.segmentedControl}>
+                        <button 
+                          className={`${styles.segmentButton} ${readymadePriceType === 'normal' ? styles.segmentActive : ''}`}
+                          onClick={() => setReadymadePriceType('normal')}
+                        >
+                          通常
+                        </button>
+                        <button 
+                          className={`${styles.segmentButton} ${readymadePriceType === 'campaign' ? styles.segmentActive : ''}`}
+                          onClick={() => setReadymadePriceType('campaign')}
+                        >
+                          CP
+                        </button>
+                      </div>
+                    </div>
+                    <div className={styles.controlGroup}>
+                      <span className={styles.controlLabel}>客層区分:</span>
+                      <div className={styles.segmentedControl}>
+                        {(['uru', 'junD', 'd'] as ReadymadeSegment[]).map(s => (
+                          <button 
+                            key={s}
+                            className={`${styles.segmentButton} ${readymadeSegment === s ? styles.segmentActive : ''}`}
+                            onClick={() => setReadymadeSegment(s)}
+                          >
+                            {s === 'uru' ? '売' : s === 'junD' ? '準D' : 'D'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
             
-            <div style={{ flex: 1 }}></div>
+            {/* 2. Global Toolbar Zone */}
+            <div className={styles.toolbar}>
+              <div className={styles.controlGroup}>
+                <span className={styles.controlLabel}>🔍 検索:</span>
+                <input 
+                  type="text" 
+                  placeholder="商品名、コードなどで絞り込み..." 
+                  value={searchQuery} 
+                  onChange={(e) => setSearchQuery(e.target.value)} 
+                  className={styles.manualInput} 
+                  style={{ width: '250px' }} 
+                />
+              </div>
 
-            {activeTab === 'custom' && (
-              <>
-                <div className={styles.controlGroup}>
-                  <span className={styles.controlLabel}>別注・値上げベース:</span>
-                  <select 
-                    value={conditions.customIncreaseType}
-                    onChange={(e) => setConditions({ ...conditions, customIncreaseType: e.target.value as 'percentage' | 'amount' })}
-                  >
-                    <option value="percentage">一律パーセント (%)</option>
-                    <option value="amount">一律金額アップ (円)</option>
-                  </select>
-                </div>
+              <div className={styles.actionButtons}>
+                <button className={styles.resetButton} onClick={handleResetSettings}>🔄 設定リセット</button>
                 
-                <div className={styles.controlGroup}>
-                  <span className={styles.controlLabel}>値幅:</span>
-                  <InlineNumericInput 
-                    value={conditions.customIncreaseValue}
-                    onCommit={(val) => setConditions({ ...conditions, customIncreaseValue: val })}
-                    className={styles.manualInput}
-                    style={{ width: '80px' }}
-                    decimals={1}
-                  />
-                </div>
+                {simulatedOrders.length > 0 && (
+                  <>
+                    <button onClick={handleSaveSettings} className={styles.secondaryButton} title="設定保存">
+                      💾 保存
+                    </button>
+                    <button onClick={() => settingsInputRef.current?.click()} className={styles.secondaryButton} title="設定読込">
+                      📂 読込
+                    </button>
+                    <input type="file" accept=".json" hidden ref={settingsInputRef} onChange={handleLoadSettings} />
+                    
+                    <button className={styles.primaryButton} onClick={handleSimulate}>
+                      ✨ 再計算
+                    </button>
 
-                <div className={styles.controlGroup}>
-                  <span className={styles.controlLabel}>端数丸め:</span>
-                  <div className={styles.radioGroup}>
-                    <label className={styles.radioLabel}>
-                      <input type="radio" checked={conditions.roundingMode === 'none'} onChange={() => setConditions({ ...conditions, roundingMode: 'none' })} /> なし
-                    </label>
-                    <label className={styles.radioLabel}>
-                      <input type="radio" checked={conditions.roundingMode === 'half'} onChange={() => setConditions({ ...conditions, roundingMode: 'half' })} /> .00 / .50
-                    </label>
-                  </div>
-                </div>
-              </>
-            )}
-
-            <div className={styles.controlGroup}>
-              <span className={styles.controlLabel}>実施時期 (任意):</span>
-              <input type="date" value={implementationDate} onChange={(e) => setImplementationDate(e.target.value)} className={styles.manualInput} style={{ width: '130px' }} />
+                    <button onClick={handleExportExcel} className={styles.pdfButton}>
+                      🚀 {activeTab === 'custom' ? '別注' : activeTab === 'sp' ? 'SP' : activeTab === 'readymade' ? '既製' : 'シール'}見積書を出力
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
-
-            {activeTab === 'readymade' && (
-              <>
-                <div className={styles.controlGroup}>
-                  <span className={styles.controlLabel}>価格タイプ:</span>
-                  <div className={styles.radioGroup}>
-                    <label className={styles.radioLabel}>
-                      <input type="radio" checked={readymadePriceType === 'normal'} onChange={() => setReadymadePriceType('normal')} /> 通常
-                    </label>
-                    <label className={styles.radioLabel}>
-                      <input type="radio" checked={readymadePriceType === 'campaign'} onChange={() => setReadymadePriceType('campaign')} /> キャンペーン
-                    </label>
-                  </div>
-                </div>
-                <div className={styles.controlGroup}>
-                  <span className={styles.controlLabel}>客層区分:</span>
-                  <div className={styles.radioGroup}>
-                    <label className={styles.radioLabel}>
-                      <input type="radio" checked={readymadeSegment === 'uru'} onChange={() => setReadymadeSegment('uru')} /> 売
-                    </label>
-                    <label className={styles.radioLabel}>
-                      <input type="radio" checked={readymadeSegment === 'junD'} onChange={() => setReadymadeSegment('junD')} /> 準D
-                    </label>
-                    <label className={styles.radioLabel}>
-                      <input type="radio" checked={readymadeSegment === 'd'} onChange={() => setReadymadeSegment('d')} /> D
-                    </label>
-                  </div>
-                </div>
-              </>
-            )}
-
-            <button className={styles.primaryButton} onClick={handleSimulate}>再計算</button>
-
-            <div className={styles.controlGroup}>
-              <span className={styles.controlLabel}>検索:</span>
-              <input type="text" placeholder="商品名など..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className={styles.manualInput} style={{ width: '150px' }} />
-            </div>
-
-            <button className={styles.resetButton} onClick={handleResetSettings}>🔄 リセット</button>
-
-            {simulatedOrders.length > 0 && (
-              <>
-                <button 
-                  onClick={handleSaveSettings} 
-                  className={styles.secondaryButton}
-                  title="現在の設定値（手入力単価など）をファイルに保存します"
-                >
-                  💾 設定保存
-                </button>
-                <button 
-                  onClick={() => settingsInputRef.current?.click()} 
-                  className={styles.secondaryButton}
-                  title="保存済みの設定ファイルを読み込みます"
-                >
-                  📂 設定読込
-                </button>
-                <input type="file" accept=".json" hidden ref={settingsInputRef} onChange={handleLoadSettings} />
-                <button 
-                  onClick={handleExportExcel} 
-                  className={styles.pdfButton}
-                >
-                  {activeTab === 'custom' ? '別注' : activeTab === 'sp' ? 'SP' : '既製'}見積書を作成
-                </button>
-              </>
-            )}
           </div>
 
           <div className={styles.summaryDashboard}>

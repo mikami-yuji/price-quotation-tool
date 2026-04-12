@@ -88,11 +88,74 @@
 
 .controls {
   display: flex;
+  flex-direction: column;
   gap: 1.5rem;
   padding: 1.5rem;
   margin-bottom: 2rem;
-  align-items: center;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-xl);
+}
+
+.controlTopBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--card-border);
+  gap: 2rem;
   flex-wrap: wrap;
+}
+
+.fileInfo {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.fileIcon {
+  font-size: 2rem;
+  background: rgba(99, 102, 241, 0.1);
+  padding: 0.8rem;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fileDetails h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--text-main);
+  white-space: nowrap;
+}
+
+.fileDetails p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.simulationParams {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.actionButtons {
+  display: flex;
+  gap: 0.8rem;
+  align-items: center;
 }
 
 .pdfButton {
@@ -125,23 +188,79 @@
   color: var(--text-muted);
 }
 
-.radioGroup {
+.segmentedControl {
   display: flex;
-  gap: 1rem;
-  align-items: center;
+  background: var(--bg-app);
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  gap: 2px;
 }
 
-.radioLabel {
+.segmentButton {
+  background: transparent;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 7px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+}
+
+.segmentButton:hover:not(.segmentActive) {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.segmentActive {
+  background: var(--accent-color);
+  color: white !important;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+}
+
+.primaryButton {
+  background: var(--accent-gradient);
+  color: white;
+  border: none;
+  padding: 0.7rem 1.5rem;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s;
   display: flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 8px;
+}
+
+.primaryButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.5);
+  filter: brightness(1.1);
+}
+
+.secondaryButton {
+  background: var(--card-bg);
+  color: var(--text-main);
+  border: 1px solid var(--card-border);
+  padding: 0.6rem 1.2rem;
+  border-radius: 10px;
+  font-weight: 600;
   font-size: 0.9rem;
   cursor: pointer;
-  color: var(--text-main);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.radioLabel input {
-  cursor: pointer;
+.secondaryButton:hover {
+  background: var(--bg-app);
+  border-color: var(--accent-color);
+  color: var(--accent-color);
 }
 
 .resetButton {
