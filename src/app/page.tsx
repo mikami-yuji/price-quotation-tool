@@ -5,7 +5,7 @@ import styles from './page.module.css';
 import { parseExcelFile } from '../utils/excelUtils';
 import { calculateNewPrices } from '../utils/calculator';
 import { shortenProductName, normalizeCustomerName } from '../utils/stringUtils';
-import { OrderRecord, CustomPriceMatrixRow, IncreaseSimulationConditions, ManualGroupSetting, IndividualManualSetting } from '../types';
+import { OrderRecord, CustomPriceMatrixRow, IncreaseSimulationConditions, ManualGroupSetting, IndividualManualSetting, SimulationSettings, QuoteHistoryEntry } from '../types';
 import { generateQuoteExcel } from '../utils/excelGenerator';
 import InlineNumericInput from '../components/InlineNumericInput';
 import ColumnFilter from '../components/ColumnFilter';
@@ -31,7 +31,9 @@ export default function Home(): React.ReactElement {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [searchQuery, setSearchQuery] = useState('');
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+  const [history, setHistory] = useState<QuoteHistoryEntry[]>([]);
   const [isMounted, setIsMounted] = useState(false);
+  const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
 
   const simulatedOrders = useMemo(() => {
     return calculateNewPrices(orders, priceMatrix, conditions, manualSettings, individualSettings);
@@ -58,6 +60,9 @@ export default function Home(): React.ReactElement {
 
         const savedIndividualSettings = localStorage.getItem('price-quotation-individual-settings');
         if (savedIndividualSettings) setTimeout(() => setIndividualSettings(JSON.parse(savedIndividualSettings)), 0);
+
+        const savedHistory = localStorage.getItem('price-quotation-history');
+        if (savedHistory) setTimeout(() => setHistory(JSON.parse(savedHistory)), 0);
       } catch (e) {
         console.error('Failed to load settings from localStorage', e);
       }
@@ -109,6 +114,7 @@ export default function Home(): React.ReactElement {
   }, [individualSettings]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const settingsInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -138,6 +144,64 @@ export default function Home(): React.ReactElement {
     if (!confirmReset) return;
     setManualSettings({});
     setIndividualSettings({});
+  };
+
+  const handleSaveSettings = () => {
+    const settings: SimulationSettings = {
+      version: '1.0',
+      savedAt: new Date().toISOString(),
+      conditions,
+      manualSettings,
+      individualSettings,
+      implementationDate
+    };
+    const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `price_settings_${getCustomerName(fileName) || 'simulation'}_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleLoadSettings = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const settings = JSON.parse(event.target?.result as string) as SimulationSettings;
+        if (settings.conditions) setConditions(settings.conditions);
+        if (settings.manualSettings) setManualSettings(settings.manualSettings);
+        if (settings.individualSettings) setIndividualSettings(settings.individualSettings);
+        if (settings.implementationDate) setImplementationDate(settings.implementationDate);
+        alert('設定を正常に読み込みました。');
+      } catch (err) {
+        console.error('Failed to load settings', err);
+        alert('設定ファイルの形式が正しくありません。');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = ''; // Reset input
+  };
+
+  useEffect(() => {
+    localStorage.setItem('price-quotation-history', JSON.stringify(history));
+  }, [history]);
+
+  const recordHistory = (customerName: string, category: string) => {
+    const newEntry: QuoteHistoryEntry = {
+      id: Math.random().toString(36).substr(2, 9),
+      timestamp: new Date().toISOString(),
+      customerName,
+      fileName,
+      category,
+      itemCount: filteredOrders.length,
+      totalBefore: summary.currentTotal,
+      totalAfter: summary.newTotal,
+      revisionRate: avgRevisionRate
+    };
+    setHistory(prev => [newEntry, ...prev.slice(0, 49)]); // Keep last 50
   };
 
   const updateManualField = (key: string, field: 'price' | 'salesGroup' | 'printingPrice' | 'printingSalesGroup', value: number) => {
@@ -179,14 +243,19 @@ export default function Home(): React.ReactElement {
 
   const handleExportExcel = async () => {
     if (simulatedOrders.length === 0) return;
+    const customer = normalizeCustomerName(getCustomerName(fileName));
+    const categoryName = activeTab === 'custom' ? '別注' : activeTab === 'sp' ? 'SP' : '既製';
+    
     await generateQuoteExcel(
-      normalizeCustomerName(getCustomerName(fileName)),
+      customer,
       filteredOrders,
       today,
-      activeTab === 'custom' ? '別注' : activeTab === 'sp' ? 'SP' : '既製',
+      categoryName,
       activeTab !== 'custom',
       implementationDate
     );
+    
+    recordHistory(customer, categoryName);
   };
 
   const today = new Date().toLocaleDateString('ja-JP', {
@@ -414,12 +483,29 @@ export default function Home(): React.ReactElement {
             <button className={styles.resetButton} onClick={handleResetSettings}>🔄 リセット</button>
 
             {simulatedOrders.length > 0 && (
-              <button 
-                onClick={handleExportExcel} 
-                className={styles.pdfButton}
-              >
-                {activeTab === 'custom' ? '別注' : activeTab === 'sp' ? 'SP' : '既製'}見積書を作成
-              </button>
+              <>
+                <button 
+                  onClick={handleSaveSettings} 
+                  className={styles.secondaryButton}
+                  title="現在の設定値（手入力単価など）をファイルに保存します"
+                >
+                  💾 設定保存
+                </button>
+                <button 
+                  onClick={() => settingsInputRef.current?.click()} 
+                  className={styles.secondaryButton}
+                  title="保存済みの設定ファイルを読み込みます"
+                >
+                  📂 設定読込
+                </button>
+                <input type="file" accept=".json" hidden ref={settingsInputRef} onChange={handleLoadSettings} />
+                <button 
+                  onClick={handleExportExcel} 
+                  className={styles.pdfButton}
+                >
+                  {activeTab === 'custom' ? '別注' : activeTab === 'sp' ? 'SP' : '既製'}見積書を作成
+                </button>
+              </>
             )}
           </div>
 
@@ -663,6 +749,48 @@ export default function Home(): React.ReactElement {
                 </tbody>
               </table>
             </div>
+          </div>
+          
+          {/* 履歴セクション */}
+          <div className={`${styles.glassPanel} ${styles.historySection}`}>
+            <div className={styles.historyHeader} onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}>
+              <h3>📜 作成履歴 ({history.length})</h3>
+              <span className={styles.expandIcon}>{isHistoryExpanded ? '▲' : '▼'}</span>
+            </div>
+            {isHistoryExpanded && (
+              <div className={styles.historyList}>
+                {history.length === 0 ? (
+                  <p className={styles.noHistory}>履歴はまだありません</p>
+                ) : (
+                  <table className={styles.historyTable}>
+                    <thead>
+                      <tr>
+                        <th>日時</th>
+                        <th>得意先</th>
+                        <th>種別</th>
+                        <th>点数</th>
+                        <th>旧売上合計</th>
+                        <th>新売上合計</th>
+                        <th>改定率</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {history.map(entry => (
+                        <tr key={entry.id}>
+                          <td>{new Date(entry.timestamp).toLocaleString('ja-JP')}</td>
+                          <td>{entry.customerName}</td>
+                          <td>{entry.category}</td>
+                          <td>{entry.itemCount}</td>
+                          <td>¥{entry.totalBefore.toLocaleString()}</td>
+                          <td>¥{entry.totalAfter.toLocaleString()}</td>
+                          <td className={styles.priceUp}>{entry.revisionRate.toFixed(1)}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

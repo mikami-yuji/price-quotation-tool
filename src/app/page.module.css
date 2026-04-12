@@ -800,3 +800,92 @@
   line-height: 1.4;
   word-break: break-all;
 }
+.secondaryButton {
+  background: white;
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+[data-theme='dark'] .secondaryButton {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.secondaryButton:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* History Section */
+.historySection {
+  margin-top: 3rem;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+}
+
+.historyHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.2rem 1.5rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.historyHeader h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--text-main);
+}
+
+.historyHeader:hover h3 {
+  color: var(--accent-color);
+}
+
+.historyList {
+  padding: 0 1.5rem 1.5rem 1.5rem;
+  animation: fadeIn 0.4s ease-out;
+}
+
+.noHistory {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.historyTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.historyTable th {
+  text-align: left;
+  padding: 12px;
+  border-bottom: 2px solid var(--card-border);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.historyTable td {
+  padding: 12px;
+  border-bottom: 1px solid var(--card-border);
+  font-size: 0.9rem;
+  color: var(--text-main);
+}
+
+.historyTable tr:last-child td {
+  border-bottom: none;
+}

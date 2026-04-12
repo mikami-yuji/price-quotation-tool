@@ -58,6 +58,29 @@ export type ManualGroupSetting = {
   };
 };
 
+// 履歴の1件分を表すデータ
+export type QuoteHistoryEntry = {
+  id: string;
+  timestamp: string;
+  customerName: string;
+  fileName: string;
+  category: string;
+  itemCount: number;
+  totalBefore: number;
+  totalAfter: number;
+  revisionRate: number;
+};
+
+// 保存・読み込み用の設定一式
+export type SimulationSettings = {
+  version: string;
+  savedAt: string;
+  conditions: IncreaseSimulationConditions;
+  manualSettings: ManualGroupSetting;
+  individualSettings: IndividualManualSetting;
+  implementationDate?: string;
+};
+
 // 受注Noごとの個別設定 (リストでの直接入力)
 export type IndividualManualSetting = {
   [orderNumber: string]: {
