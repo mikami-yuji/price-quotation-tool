@@ -30,7 +30,10 @@ export default function InlineNumericInput({
   colKey,
 }: InlineNumericInputProps): React.ReactElement {
   // 入力中の文字列を保持
-  const [localValue, setLocalValue] = useState<string>('');
+  const [localValue, setLocalValue] = useState<string>(() => {
+    if (value === 0) return '';
+    return value.toFixed(decimals);
+  });
   // 編集モードフラグ
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const inputRef = useRef<HTMLInputElement>(null);
