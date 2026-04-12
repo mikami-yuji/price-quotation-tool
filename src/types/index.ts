@@ -27,6 +27,8 @@ export type OrderRecord = {
   // シミュレーション用の追加フィールド
   newPrice?: number;
   newSalesGroup?: number;
+  newPrintingCost?: number;
+  newPrintingSalesGroup?: number;
   priceDifference?: number;
 };
 
@@ -46,11 +48,13 @@ export type IncreaseSimulationConditions = {
   roundingMode: 'none' | 'half';
 };
 
-// 別注・ポリ別注の手入力設定 (キー: "材質-重量-色数")
+// 別注・ポリ別注・SPの手入力設定 (キー: "材質-重量-色数[-印刷コード]")
 export type ManualGroupSetting = {
   [groupKey: string]: {
     price?: number;
     salesGroup?: number;
+    printingPrice?: number;
+    printingSalesGroup?: number;
   };
 };
 
@@ -59,5 +63,7 @@ export type IndividualManualSetting = {
   [orderNumber: string]: {
     price?: number;
     salesGroup?: number;
+    printingPrice?: number;
+    printingSalesGroup?: number;
   };
 };

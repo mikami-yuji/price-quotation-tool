@@ -68,10 +68,28 @@ export const calculateNewPrices = (
       resultSalesGroup = Math.round((order.salesGroup + priceDifference) * 100) / 100;
     }
 
+    // 3. 改定印刷代・改定印刷営Gの決定
+    let newPrintingCost = order.printingCost;
+    let newPrintingSalesGroup = order.printingSalesGroup;
+
+    if (individual?.printingPrice !== undefined && individual.printingPrice !== 0) {
+      newPrintingCost = individual.printingPrice;
+    } else if (group?.printingPrice !== undefined && group.printingPrice !== 0) {
+      newPrintingCost = group.printingPrice;
+    }
+
+    if (individual?.printingSalesGroup !== undefined && individual.printingSalesGroup !== 0) {
+      newPrintingSalesGroup = individual.printingSalesGroup;
+    } else if (group?.printingSalesGroup !== undefined && group.printingSalesGroup !== 0) {
+      newPrintingSalesGroup = group.printingSalesGroup;
+    }
+
     return {
       ...order,
       newPrice,
       newSalesGroup: resultSalesGroup,
+      newPrintingCost,
+      newPrintingSalesGroup,
       priceDifference
     };
   });

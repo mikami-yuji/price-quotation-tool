@@ -150,7 +150,7 @@ export default function Home(): React.ReactElement {
     }
   };
 
-  const updateManualField = (key: string, field: 'price' | 'salesGroup', value: number) => {
+  const updateManualField = (key: string, field: 'price' | 'salesGroup' | 'printingPrice' | 'printingSalesGroup', value: number) => {
     const newSettings = { 
       ...manualSettings, 
       [key]: { ...manualSettings[key], [field]: value !== 0 ? value : undefined } 
@@ -160,7 +160,7 @@ export default function Home(): React.ReactElement {
     setSimulatedOrders(result);
   };
 
-  const updateIndividualField = (orderNumber: string, field: 'price' | 'salesGroup', value: number) => {
+  const updateIndividualField = (orderNumber: string, field: 'price' | 'salesGroup' | 'printingPrice' | 'printingSalesGroup', value: number) => {
     const newSettings = {
       ...individualSettings,
       [orderNumber]: { ...individualSettings[orderNumber], [field]: value !== 0 ? value : undefined }
@@ -317,12 +317,14 @@ export default function Home(): React.ReactElement {
         printCode: isSP ? o.printCode : undefined,
         currentPrice: o.currentPrice,
         currentSalesGroup: o.salesGroup,
+        currentPrintingCost: o.printingCost,
+        currentPrintingSalesGroup: o.printingSalesGroup,
         key: groupKey
       });
       acc[o.materialName][weightStr].sort((a, b) => a.colors - b.colors);
     }
     return acc;
-  }, {} as { [material: string]: { [weight: string]: Array<{ colors: number, key: string, printCode?: string, currentPrice: number, currentSalesGroup: number }> } });
+  }, {} as { [material: string]: { [weight: string]: Array<{ colors: number, key: string, printCode?: string, currentPrice: number, currentSalesGroup: number, currentPrintingCost: number, currentPrintingSalesGroup: number }> } });
 
   const showMarginCols = activeTab === 'sp' || activeTab === 'custom';
   const showPrintingCols = activeTab === 'sp';
@@ -507,6 +509,20 @@ export default function Home(): React.ReactElement {
                                     <InlineNumericInput value={manualSettings[group.key]?.salesGroup || 0} onCommit={(val) => updateManualField(group.key, 'salesGroup', val)} onKeyDown={preventArrowKeys} className={styles.manualInput} decimals={2} />
                                     <div className={styles.groupPriceDetail}>現行: ¥{group.currentSalesGroup.toFixed(2)}</div>
                                   </div>
+                                  {activeTab === 'sp' && (
+                                    <>
+                                      <div className={styles.inputWrapper}>
+                                        <span className={styles.inputLabel}>印刷代</span>
+                                        <InlineNumericInput value={manualSettings[group.key]?.printingPrice || 0} onCommit={(val) => updateManualField(group.key, 'printingPrice', val)} onKeyDown={preventArrowKeys} className={styles.manualInput} decimals={2} />
+                                        <div className={styles.groupPriceDetail}>現行: ¥{(group.currentPrintingCost || 0).toFixed(2)}</div>
+                                      </div>
+                                      <div className={styles.inputWrapper}>
+                                        <span className={styles.inputLabel}>印刷営G</span>
+                                        <InlineNumericInput value={manualSettings[group.key]?.printingSalesGroup || 0} onCommit={(val) => updateManualField(group.key, 'printingSalesGroup', val)} onKeyDown={preventArrowKeys} className={styles.manualInput} decimals={2} />
+                                        <div className={styles.groupPriceDetail}>現行: ¥{(group.currentPrintingSalesGroup || 0).toFixed(2)}</div>
+                                      </div>
+                                    </>
+                                  )}
                                 </div>
                               </div>
                             ))}
@@ -571,6 +587,8 @@ export default function Home(): React.ReactElement {
                     )}
                     {showPrintingCols && <th>印刷代</th>}
                     {showPrintingCols && <th>印刷営G</th>}
+                    {showPrintingCols && <th className={styles.highlightHeader}>改定印刷代単価</th>}
+                    {showPrintingCols && <th className={styles.highlightHeader}>改定印刷代営G</th>}
                     <th>値上率</th>
                   </tr>
                 </thead>
@@ -602,9 +620,35 @@ export default function Home(): React.ReactElement {
                             <InlineNumericInput value={salesGroup} onCommit={(val) => updateIndividualField(order.orderNumber, 'salesGroup', val)} onKeyDown={(e) => handleKeyDown(e, i, 'salesGroup')} className={styles.manualInput} rowIndex={i} colKey="salesGroup" decimals={2} />
                           </td>
                         )}
+                        <td className={styles.priceUp}>{diff > 0 ? `${diff.toFixed(1)}%` : '-'}</td>
                         {showPrintingCols && <td>¥{(order.printingCost || 0).toFixed(2)}</td>}
                         {showPrintingCols && <td>¥{(order.printingSalesGroup || 0).toFixed(2)}</td>}
-                        <td className={styles.priceUp}>{diff > 0 ? `${diff.toFixed(1)}%` : '-'}</td>
+                        {showPrintingCols && (
+                          <td className={styles.highlightCell}>
+                            <InlineNumericInput 
+                              value={order.newPrintingCost ?? order.printingCost} 
+                              onCommit={(val) => updateIndividualField(order.orderNumber, 'printingPrice', val)} 
+                              onKeyDown={(e) => handleKeyDown(e, i, 'printingPrice')} 
+                              className={styles.manualInput} 
+                              rowIndex={i} 
+                              colKey="printingPrice" 
+                              decimals={2} 
+                            />
+                          </td>
+                        )}
+                        {showPrintingCols && (
+                          <td className={styles.highlightCell}>
+                            <InlineNumericInput 
+                              value={order.newPrintingSalesGroup ?? order.printingSalesGroup} 
+                              onCommit={(val) => updateIndividualField(order.orderNumber, 'printingSalesGroup', val)} 
+                              onKeyDown={(e) => handleKeyDown(e, i, 'printingSalesGroup')} 
+                              className={styles.manualInput} 
+                              rowIndex={i} 
+                              colKey="printingSalesGroup" 
+                              decimals={2} 
+                            />
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
