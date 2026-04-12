@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, ChangeEvent } from 'react';
+import { useState, useRef, useEffect, ChangeEvent, useMemo, useCallback } from 'react';
 import styles from './page.module.css';
 import { parseExcelFile } from '../utils/excelUtils';
 import { calculateNewPrices } from '../utils/calculator';
@@ -9,14 +9,12 @@ import { OrderRecord, CustomPriceMatrixRow, IncreaseSimulationConditions, Manual
 import { generateQuoteExcel } from '../utils/excelGenerator';
 import InlineNumericInput from '../components/InlineNumericInput';
 import ColumnFilter from '../components/ColumnFilter';
-import { useMemo } from 'react';
 
 type TabType = 'custom' | 'sp' | 'readymade';
 
 export default function Home(): React.ReactElement {
   const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [priceMatrix, setPriceMatrix] = useState<CustomPriceMatrixRow[]>([]);
-  const [simulatedOrders, setSimulatedOrders] = useState<OrderRecord[]>([]);
   const [fileName, setFileName] = useState<string>('');
   
   const [conditions, setConditions] = useState<IncreaseSimulationConditions>({
@@ -35,8 +33,35 @@ export default function Home(): React.ReactElement {
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
   const [isMounted, setIsMounted] = useState(false);
 
+  const simulatedOrders = useMemo(() => {
+    return calculateNewPrices(orders, priceMatrix, conditions, manualSettings, individualSettings);
+  }, [orders, priceMatrix, conditions, manualSettings, individualSettings]);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
-    setIsMounted(true);
+    setTimeout(() => setIsMounted(true), 0);
+    if (typeof window !== 'undefined') {
+      try {
+        const savedTheme = localStorage.getItem('theme') as 'light' | 'dark';
+        if (savedTheme) {
+          setTimeout(() => {
+            setTheme(savedTheme);
+            document.documentElement.setAttribute('data-theme', savedTheme);
+          }, 0);
+        }
+
+        const savedConditions = localStorage.getItem('price-quotation-conditions');
+        if (savedConditions) setTimeout(() => setConditions(JSON.parse(savedConditions)), 0);
+        
+        const savedManualSettings = localStorage.getItem('price-quotation-manual-settings');
+        if (savedManualSettings) setTimeout(() => setManualSettings(JSON.parse(savedManualSettings)), 0);
+
+        const savedIndividualSettings = localStorage.getItem('price-quotation-individual-settings');
+        if (savedIndividualSettings) setTimeout(() => setIndividualSettings(JSON.parse(savedIndividualSettings)), 0);
+      } catch (e) {
+        console.error('Failed to load settings from localStorage', e);
+      }
+    }
   }, []);
 
   // --- Utility Functions ---
@@ -64,34 +89,12 @@ export default function Home(): React.ReactElement {
 
   // --- Handlers ---
 
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark';
-    const initialTheme = savedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    setTheme(initialTheme);
-    document.documentElement.setAttribute('data-theme', initialTheme);
-  }, []);
-
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
     setTheme(newTheme);
     document.documentElement.setAttribute('data-theme', newTheme);
     localStorage.setItem('theme', newTheme);
   };
-
-  useEffect(() => {
-    try {
-      const savedConditions = localStorage.getItem('price-quotation-conditions');
-      if (savedConditions) setConditions(JSON.parse(savedConditions));
-      
-      const savedManualSettings = localStorage.getItem('price-quotation-manual-settings');
-      if (savedManualSettings) setManualSettings(JSON.parse(savedManualSettings));
-
-      const savedIndividualSettings = localStorage.getItem('price-quotation-individual-settings');
-      if (savedIndividualSettings) setIndividualSettings(JSON.parse(savedIndividualSettings));
-    } catch (e) {
-      console.error('Failed to load settings from localStorage', e);
-    }
-  }, []);
 
   useEffect(() => {
     localStorage.setItem('price-quotation-conditions', JSON.stringify(conditions));
@@ -115,8 +118,6 @@ export default function Home(): React.ReactElement {
     const parsedData = parseExcelFile(buffer);
     setOrders(parsedData.orders);
     setPriceMatrix(parsedData.priceMatrix);
-    const result = calculateNewPrices(parsedData.orders, parsedData.priceMatrix, conditions, manualSettings, individualSettings);
-    setSimulatedOrders(result);
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => e.preventDefault();
@@ -130,13 +131,6 @@ export default function Home(): React.ReactElement {
     const parsedData = parseExcelFile(buffer);
     setOrders(parsedData.orders);
     setPriceMatrix(parsedData.priceMatrix);
-    const result = calculateNewPrices(parsedData.orders, parsedData.priceMatrix, conditions, manualSettings, individualSettings);
-    setSimulatedOrders(result);
-  };
-
-  const handleSimulate = () => {
-    const result = calculateNewPrices(orders, priceMatrix, conditions, manualSettings, individualSettings);
-    setSimulatedOrders(result);
   };
 
   const handleResetSettings = () => {
@@ -144,10 +138,6 @@ export default function Home(): React.ReactElement {
     if (!confirmReset) return;
     setManualSettings({});
     setIndividualSettings({});
-    if (orders.length > 0) {
-      const result = calculateNewPrices(orders, priceMatrix, conditions, {}, {});
-      setSimulatedOrders(result);
-    }
   };
 
   const updateManualField = (key: string, field: 'price' | 'salesGroup' | 'printingPrice' | 'printingSalesGroup', value: number) => {
@@ -156,8 +146,6 @@ export default function Home(): React.ReactElement {
       [key]: { ...manualSettings[key], [field]: value !== 0 ? value : undefined } 
     };
     setManualSettings(newSettings);
-    const result = calculateNewPrices(orders, priceMatrix, conditions, newSettings, individualSettings);
-    setSimulatedOrders(result);
   };
 
   const updateIndividualField = (orderNumber: string, field: 'price' | 'salesGroup' | 'printingPrice' | 'printingSalesGroup', value: number) => {
@@ -166,8 +154,10 @@ export default function Home(): React.ReactElement {
       [orderNumber]: { ...individualSettings[orderNumber], [field]: value !== 0 ? value : undefined }
     };
     setIndividualSettings(newSettings);
-    const result = calculateNewPrices(orders, priceMatrix, conditions, manualSettings, newSettings);
-    setSimulatedOrders(result);
+  };
+
+  const handleSimulate = () => {
+    // simulatedOrders is now derived via useMemo, but we keep the handler for consistency if needed or just remove it if really unused
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, rowIndex: number, colKey: string) => {
@@ -205,7 +195,7 @@ export default function Home(): React.ReactElement {
     day: 'numeric'
   });
 
-  const matchesFilters = (order: OrderRecord, ignoreKey?: string) => {
+  const matchesFilters = useCallback((order: OrderRecord, ignoreKey?: string) => {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       const matchSearch = (
@@ -227,15 +217,17 @@ export default function Home(): React.ReactElement {
           ? shortenProductName(order.title || order.productName) 
           : (order.productName || '');
       } else if (key === 'weight' || key === 'totalColorCount') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         valToCompare = String((order as any)[key] || '');
       } else {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         valToCompare = (order as any)[key] || '';
       }
 
       if (!selectedValues.includes(valToCompare)) return false;
     }
     return true;
-  };
+  }, [searchQuery, columnFilters]);
 
   const filterOptions = useMemo(() => {
     const tabOrders = getTabOrders(activeTab, simulatedOrders);
@@ -249,13 +241,15 @@ export default function Home(): React.ReactElement {
             : (o.productName || '')
         ));
       } else if (columnKey === 'weight' || columnKey === 'totalColorCount') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         values = crossFiltered.map(o => String((o as any)[columnKey] || ''));
       } else {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         values = crossFiltered.map(o => (o as any)[columnKey] || '');
       }
       return Array.from(new Set(values)).sort((a, b) => {
         if (columnKey === 'weight') return parseFloat(a) - parseFloat(b);
-        if (columnKey === 'totalColorCount') return parseInt(a) - parseInt(b);
+        if (columnKey === 'totalColorCount') return parseInt(a, 10) - parseInt(b, 10);
         return a.localeCompare(b, 'ja');
       });
     };
@@ -270,7 +264,7 @@ export default function Home(): React.ReactElement {
       weight: getOptions('weight'),
       totalColorCount: getOptions('totalColorCount'),
     };
-  }, [activeTab, simulatedOrders, columnFilters, searchQuery]);
+  }, [activeTab, simulatedOrders, columnFilters, searchQuery, matchesFilters]);
 
   const handleColumnFilterChange = (columnKey: string, values: string[]) => {
     setColumnFilters(prev => ({ ...prev, [columnKey]: values }));
@@ -328,7 +322,6 @@ export default function Home(): React.ReactElement {
 
   const showMarginCols = activeTab === 'sp' || activeTab === 'custom';
   const showPrintingCols = activeTab === 'sp';
-  const displayColumnCount = 14 + (showMarginCols ? 2 : 0) + (showPrintingCols ? 3 : 0);
 
   if (!isMounted) return <div className={styles.container} />;
 
@@ -368,7 +361,6 @@ export default function Home(): React.ReactElement {
             
             <div style={{ flex: 1 }}></div>
 
-            {/* --- ユーザーリクエスト: 別注タブの時のみ表示 --- */}
             {activeTab === 'custom' && (
               <>
                 <div className={styles.controlGroup}>
@@ -388,7 +380,7 @@ export default function Home(): React.ReactElement {
                     value={conditions.customIncreaseValue}
                     onCommit={(val) => setConditions({ ...conditions, customIncreaseValue: val })}
                     className={styles.manualInput}
-                    style={{ width: '80px' } as any}
+                    style={{ width: '80px' }}
                     decimals={1}
                   />
                 </div>

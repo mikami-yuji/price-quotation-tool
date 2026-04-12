@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, ChangeEvent, FocusEvent, KeyboardEvent } from 'react';
+import { useState, useRef, ChangeEvent, FocusEvent, KeyboardEvent } from 'react';
 
 type InlineNumericInputProps = {
   value: number;
@@ -35,17 +35,18 @@ export default function InlineNumericInput({
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // 外部からの値の変更を同期（編集中でない場合のみ）
-  useEffect(() => {
+  // 外部からの値の変更を同期（レンダーフェーズでの同期）
+  const [prevValue, setPrevValue] = useState<number>(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
     if (!isEditing) {
-      // ユーザーの要望により、空欄や0はそのまま表示し、小数点以下は指定桁数で整形
       if (value === 0) {
         setLocalValue('0');
       } else {
         setLocalValue(value.toFixed(decimals));
       }
     }
-  }, [value, isEditing, decimals]);
+  }
 
   const handleFocus = (e: FocusEvent<HTMLInputElement>): void => {
     setIsEditing(true);
