@@ -3,10 +3,11 @@ import { OrderRecord, CustomPriceMatrixRow, IncreaseSimulationConditions, Manual
 /**
  * 全オーダーレコードに対してシミュレーション結果を計算する
  * @param orders 受注データ
- * @param priceMatrix 別注単価表データ
+ * @param priceMatrix 共用の別注単価表データ (Excelから抽出)
  * @param conditions 別注用の一律値上げ条件
  * @param groupSettings 別注用のグループ設定 (任意)
  * @param individualSettings 受注Noごとの個別設定 (任意)
+ * @param categorizedMasters カテゴリー別に個別にアップロードされたマスターデータ (任意)
  * @returns 新しい単価と差額が設定された受注データの配列
  */
 export const calculateNewPrices = (
@@ -14,7 +15,8 @@ export const calculateNewPrices = (
   priceMatrix: CustomPriceMatrixRow[],
   conditions: IncreaseSimulationConditions,
   groupSettings: ManualGroupSetting = {},
-  individualSettings: IndividualManualSetting = {}
+  individualSettings: IndividualManualSetting = {},
+  categorizedMasters: { custom: CustomPriceMatrixRow[], sp: CustomPriceMatrixRow[], readymade: CustomPriceMatrixRow[] } = { custom: [], sp: [], readymade: [] }
 ): OrderRecord[] => {
   return orders.map(order => {
     let newPrice = order.currentPrice;
@@ -23,12 +25,13 @@ export const calculateNewPrices = (
     const individual = individualSettings[order.orderNumber];
     
     // SP・シルクの場合は印刷コードも含めた4項目でグルーピング
+    const isCustom = order.category === '別注' || order.category === 'ポリ別注';
     const isSP = order.category === 'SP' || order.category === 'シルク';
     const groupKey = isSP 
       ? `${order.materialName}-${order.weight}-${order.totalColorCount}-${order.printCode}`
       : `${order.materialName}-${order.weight}-${order.totalColorCount}`;
     
-    const group = (order.category === '別注' || order.category === 'ポリ別注' || isSP) ? groupSettings[groupKey] : null;
+    const group = (isCustom || isSP) ? groupSettings[groupKey] : null;
 
     // 1. 改定単価の決定
     if (individual?.price !== undefined && individual.price !== 0) {
@@ -36,12 +39,36 @@ export const calculateNewPrices = (
     } else if (group?.price !== undefined && group.price !== 0) {
       newPrice = group.price;
     } else {
-      if (order.category === '別注' || order.category === 'ポリ別注') {
-        newPrice = calculateCustomIncrease(order.currentPrice, conditions);
-      } else if (order.category === '既製品' || order.category === 'SP' || order.category === 'シルク' || order.category === '') {
-        const mappedPrice = findPriceFromMatrix(order, priceMatrix);
-        if (mappedPrice !== null) {
-          newPrice = mappedPrice;
+      if (isCustom) {
+        // 先に手アップロードのマスター、なければ共用(Excel内)の単価表をチェック
+        const masterPrice = findPriceFromMatrix(order, categorizedMasters.custom);
+        if (masterPrice !== null) {
+          newPrice = masterPrice;
+        } else {
+          newPrice = calculateCustomIncrease(order.currentPrice, conditions);
+        }
+      } else if (isSP) {
+        // SPマスターを優先チェック
+        const masterPrice = findPriceFromMatrix(order, categorizedMasters.sp);
+        if (masterPrice !== null) {
+          newPrice = masterPrice;
+        } else {
+          // 既存の共用テーブルチェック (SP対応済み)
+          const mappedPrice = findPriceFromMatrix(order, priceMatrix);
+          if (mappedPrice !== null) {
+            newPrice = mappedPrice;
+          }
+        }
+      } else if (order.category === '既製品' || order.category === '') {
+        // 既製マスターを優先チェック
+        const masterPrice = findPriceFromMatrix(order, categorizedMasters.readymade);
+        if (masterPrice !== null) {
+          newPrice = masterPrice;
+        } else {
+          const mappedPrice = findPriceFromMatrix(order, priceMatrix);
+          if (mappedPrice !== null) {
+            newPrice = mappedPrice;
+          }
         }
       }
     }

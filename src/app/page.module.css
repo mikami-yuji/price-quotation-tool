@@ -851,6 +851,39 @@
   margin-top: 3rem;
   border: 1px solid var(--card-border);
   background: var(--card-bg);
+  border-radius: 16px; /* Ensure rounded corners for glass panel */
+  overflow: hidden;
+}
+
+.masterControlArea {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  border: 1px solid var(--card-border);
+}
+
+.masterInfo h4 {
+  margin: 0 0 5px 0;
+  color: var(--text-main);
+}
+
+.masterInfo p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.statusBadge {
+  background: var(--success-color);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 100px;
+  font-size: 0.7rem;
+  margin-left: 8px;
+  vertical-align: middle;
 }
 
 .historyHeader {

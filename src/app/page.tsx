@@ -34,10 +34,19 @@ export default function Home(): React.ReactElement {
   const [history, setHistory] = useState<QuoteHistoryEntry[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
+  const [customMaster, setCustomMaster] = useState<CustomPriceMatrixRow[]>([]);
+  const [spMaster, setSpMaster] = useState<CustomPriceMatrixRow[]>([]);
+  const [readymadeMaster, setReadymadeMaster] = useState<CustomPriceMatrixRow[]>([]);
+  const [activeMasterTab, setActiveMasterTab] = useState<TabType>('custom');
+  const [isMasterExpanded, setIsMasterExpanded] = useState(false);
 
   const simulatedOrders = useMemo(() => {
-    return calculateNewPrices(orders, priceMatrix, conditions, manualSettings, individualSettings);
-  }, [orders, priceMatrix, conditions, manualSettings, individualSettings]);
+    return calculateNewPrices(orders, priceMatrix, conditions, manualSettings, individualSettings, {
+      custom: customMaster,
+      sp: spMaster,
+      readymade: readymadeMaster
+    });
+  }, [orders, priceMatrix, conditions, manualSettings, individualSettings, customMaster, spMaster, readymadeMaster]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
@@ -63,6 +72,15 @@ export default function Home(): React.ReactElement {
 
         const savedHistory = localStorage.getItem('price-quotation-history');
         if (savedHistory) setTimeout(() => setHistory(JSON.parse(savedHistory)), 0);
+
+        const savedCustomMaster = localStorage.getItem('price-quotation-custom-master');
+        if (savedCustomMaster) setTimeout(() => setCustomMaster(JSON.parse(savedCustomMaster)), 0);
+
+        const savedSPMaster = localStorage.getItem('price-quotation-sp-master');
+        if (savedSPMaster) setTimeout(() => setSpMaster(JSON.parse(savedSPMaster)), 0);
+
+        const savedReadyMaster = localStorage.getItem('price-quotation-ready-master');
+        if (savedReadyMaster) setTimeout(() => setReadymadeMaster(JSON.parse(savedReadyMaster)), 0);
       } catch (e) {
         console.error('Failed to load settings from localStorage', e);
       }
@@ -188,9 +206,50 @@ export default function Home(): React.ReactElement {
     e.target.value = ''; // Reset input
   };
 
+  const handleMasterUpload = async (e: ChangeEvent<HTMLInputElement>, type: TabType) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    try {
+      const buffer = await file.arrayBuffer();
+      const parsedData = parseExcelFile(buffer);
+      
+      // もしシートが「別注単価表」という名前でなくても、最初のシートから読み込むなどの救済策は
+      // 現状の parseExcelFile のままでも「別注単価表」シートがあれば動く。
+      // なければ空になるが、ユーザーには「別注単価表シートを含めてください」と伝える運用。
+      
+      if (parsedData.priceMatrix.length === 0) {
+        alert('「別注単価表」シートが見つからないか、データが空です。');
+        return;
+      }
+
+      if (type === 'custom') setCustomMaster(parsedData.priceMatrix);
+      if (type === 'sp') setSpMaster(parsedData.priceMatrix);
+      if (type === 'readymade') setReadymadeMaster(parsedData.priceMatrix);
+      
+      alert(`${type.toUpperCase()}用のマスターデータを読み込みました。`);
+    } catch (err) {
+      console.error('Failed to parse master file', err);
+      alert('ファイルの解析に失敗しました。');
+    }
+    e.target.value = '';
+  };
+
   useEffect(() => {
     localStorage.setItem('price-quotation-history', JSON.stringify(history));
   }, [history]);
+
+  useEffect(() => {
+    localStorage.setItem('price-quotation-custom-master', JSON.stringify(customMaster));
+  }, [customMaster]);
+
+  useEffect(() => {
+    localStorage.setItem('price-quotation-sp-master', JSON.stringify(spMaster));
+  }, [spMaster]);
+
+  useEffect(() => {
+    localStorage.setItem('price-quotation-ready-master', JSON.stringify(readymadeMaster));
+  }, [readymadeMaster]);
 
   const recordHistory = (customerName: string, category: string) => {
     const newEntry: QuoteHistoryEntry = {
@@ -756,7 +815,93 @@ export default function Home(): React.ReactElement {
             </div>
           </div>
           
-          {/* 履歴セクション */}
+          {/* マスターデータ管理セクション */}
+      <section className={`${styles.glassPanel} ${styles.historySection}`} style={{ marginTop: '2rem' }}>
+        <div className={styles.historyHeader} onClick={() => setIsMasterExpanded(!isMasterExpanded)}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span role="img" aria-label="database">📊</span>
+            <h3>マスター価格表の管理（個別アップロード）</h3>
+          </div>
+          <span>{isMasterExpanded ? '▲ 閉じる' : '▼ 開く'}</span>
+        </div>
+        
+        {isMasterExpanded && (
+          <div className={styles.historyList}>
+            <p className={styles.subtitle} style={{ fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+              カテゴリーごとに固定の単価表をアップロードできます。設定したマスターはブラウザに保存され、見積作成時に自動適用されます。
+            </p>
+            
+            <div className={styles.tabContainer} style={{ background: 'rgba(0,0,0,0.1)', marginBottom: '1.5rem' }}>
+              <button 
+                className={`${styles.tabItem} ${activeMasterTab === 'custom' ? styles.activeTab : ''}`}
+                onClick={() => setActiveMasterTab('custom')}
+              >
+                別注マスター
+                {customMaster.length > 0 && <span className={styles.statusBadge}>設定済</span>}
+              </button>
+              <button 
+                className={`${styles.tabItem} ${activeMasterTab === 'sp' ? styles.activeTab : ''}`}
+                onClick={() => setActiveMasterTab('sp')}
+              >
+                SPマスター
+                {spMaster.length > 0 && <span className={styles.statusBadge}>設定済</span>}
+              </button>
+              <button 
+                className={`${styles.tabItem} ${activeMasterTab === 'readymade' ? styles.activeTab : ''}`}
+                onClick={() => setActiveMasterTab('readymade')}
+              >
+                既製マスター
+                {readymadeMaster.length > 0 && <span className={styles.statusBadge}>設定済</span>}
+              </button>
+            </div>
+
+            <div className={styles.masterControlArea}>
+              <div className={styles.masterInfo}>
+                <h4>
+                  {activeMasterTab === 'custom' ? '別注・ポリ別注' : activeMasterTab === 'sp' ? 'SP・シルク' : '既製品・その他'}用
+                </h4>
+                <p>登録件数: {
+                  activeMasterTab === 'custom' ? customMaster.length : 
+                  activeMasterTab === 'sp' ? spMaster.length : readymadeMaster.length
+                } 件</p>
+              </div>
+              
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <label className={styles.secondaryButton}>
+                  <span role="img" aria-label="upload">📤</span> マスターをアップロード
+                  <input 
+                    type="file" 
+                    accept=".xlsx, .xls" 
+                    style={{ display: 'none' }} 
+                    onChange={(e) => handleMasterUpload(e, activeMasterTab)}
+                  />
+                </label>
+                {(activeMasterTab === 'custom' ? customMaster.length : 
+                  activeMasterTab === 'sp' ? spMaster.length : readymadeMaster.length) > 0 && (
+                  <button 
+                    className={styles.resetButton}
+                    onClick={() => {
+                      if (confirm('このカテゴリーのマスターデータを削除しますか？')) {
+                        if (activeMasterTab === 'custom') setCustomMaster([]);
+                        if (activeMasterTab === 'sp') setSpMaster([]);
+                        if (activeMasterTab === 'readymade') setReadymadeMaster([]);
+                      }
+                    }}
+                  >
+                    リセット
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            <div style={{ marginTop: '1rem', padding: '15px', background: 'rgba(0,0,0,0.05)', borderRadius: '8px', fontSize: '0.85rem' }}>
+              <strong>ヒント:</strong> 「別注単価表」という名前のシートに、[材質名称, 重量, 1, 2, 3, 4, 5, 6, 7] の列を持つExcelファイルを読み込んでください。
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* 作成履歴セクション */}
           <div className={`${styles.glassPanel} ${styles.historySection}`}>
             <div className={styles.historyHeader} onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}>
               <h3>📜 作成履歴 ({history.length})</h3>
