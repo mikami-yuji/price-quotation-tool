@@ -683,7 +683,7 @@ export default function Home(): React.ReactElement {
               className={`${styles.tabItem} ${activeTab === 'sticker' ? styles.tabActive : ''}`}
               onClick={() => setActiveTab('sticker')}
             >
-              シール (フルオーダー) ({counts.sticker})
+              シール ({counts.sticker})
             </button>
           </div>
 
@@ -946,7 +946,7 @@ export default function Home(): React.ReactElement {
                 <h4>
                   {activeMasterTab === 'custom' ? '別注・ポリ別注' : 
                    activeMasterTab === 'sp' ? 'SP・シルク' : 
-                   activeMasterTab === 'sticker' ? 'シール (フルオーダー)' : '既製品・その他'}用
+                   activeMasterTab === 'sticker' ? 'シール' : '既製品・その他'}用
                 </h4>
                 <p>登録件数: {
                   activeMasterTab === 'custom' ? customMaster.length : 
