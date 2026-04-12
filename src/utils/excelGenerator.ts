@@ -59,12 +59,17 @@ export const generateQuoteExcel = async (
     ...(showPrintingInfo ? [{ header: '印刷コード', key: 'printCode', width: 15 }] : []),
     { header: '重量', key: 'weight', width: 8 },
     { header: '色数', key: 'colors', width: 6 },
-    ...(showPrintingInfo ? [{ header: '印刷代', key: 'printingCost', width: 12 }] : []),
     { header: '現行単価', key: 'currentPrice', width: 12 },
     { header: '新単価', key: 'newPrice', width: 12 },
     { header: '営G', key: 'salesGroup', width: 10 },
     { header: '改定後 営G', key: 'newSalesGroup', width: 12 },
     { header: '営G改定率', key: 'salesGroupRate', width: 12 },
+    ...(showPrintingInfo ? [
+      { header: '現行印刷代', key: 'printingCost', width: 12 },
+      { header: '改定印刷代単価', key: 'newPrintingCost', width: 12 },
+      { header: '現行印刷営G', key: 'printingSalesGroup', width: 12 },
+      { header: '改定印刷代営G', key: 'newPrintingSalesGroup', width: 15 }
+    ] : []),
     { header: '改定率', key: 'rate', width: 10 },
   ];
 
@@ -135,7 +140,12 @@ export const generateQuoteExcel = async (
     column.width = col.width;
     
     // 営Gおよび直送先関連の列は初期状態で折りたたむ（アウトライン設定）
-    if (col.key === 'salesGroup' || col.key === 'newSalesGroup' || col.key === 'salesGroupRate' || col.key === 'directDeliveryCode' || col.key === 'directDeliveryName') {
+    const outlineKeys = [
+      'salesGroup', 'newSalesGroup', 'salesGroupRate', 
+      'printingSalesGroup', 'newPrintingSalesGroup',
+      'directDeliveryCode', 'directDeliveryName'
+    ];
+    if (outlineKeys.includes(col.key)) {
       column.outlineLevel = 1;
     }
   });
@@ -163,7 +173,6 @@ export const generateQuoteExcel = async (
       ...(showPrintingInfo ? [order.printCode] : []),
       order.weight,
       order.totalColorCount,
-      ...(showPrintingInfo ? [order.printingCost || 0] : []),
       order.currentPrice,
       order.newPrice || 0,
       order.salesGroup || 0,
@@ -174,6 +183,12 @@ export const generateQuoteExcel = async (
           ? ((order.newSalesGroup as number) - (order.salesGroup as number)) / (order.salesGroup as number)
           : 0
       },
+      ...(showPrintingInfo ? [
+        order.printingCost || 0,
+        order.newPrintingCost || order.printingCost || 0,
+        order.printingSalesGroup || 0,
+        order.newPrintingSalesGroup || order.printingSalesGroup || 0
+      ] : []),
       {
         formula: `IF(${currentPriceCol}${currentRowNum}>0,(${newPriceCol}${currentRowNum}-${currentPriceCol}${currentRowNum})/${currentPriceCol}${currentRowNum},0)`,
         result: (order.newPrice !== undefined && (order.currentPrice as number) > 0)
@@ -199,7 +214,11 @@ export const generateQuoteExcel = async (
 
       // 数値フォーマットの適用
       const colKey = baseCols[colIndex]?.key;
-      if ((colKey === 'printingCost' || colKey === 'currentPrice' || colKey === 'newPrice' || colKey === 'salesGroup' || colKey === 'newSalesGroup') && typeof val === 'number') {
+      const amountKeys = [
+        'printingCost', 'newPrintingCost', 'printingSalesGroup', 'newPrintingSalesGroup',
+        'currentPrice', 'newPrice', 'salesGroup', 'newSalesGroup'
+      ];
+      if (amountKeys.includes(colKey) && typeof val === 'number') {
         cell.numFmt = '#,##0.00';
       }
       if (colKey === 'rate' || colKey === 'salesGroupRate') {
