@@ -86,7 +86,10 @@ export default function Home(): React.ReactElement {
       case 'sp':
         return allOrders.filter(o => o.category === 'SP' || o.category === 'シルク');
       case 'readymade':
-        return allOrders.filter(o => o.category !== '別注' && o.category !== 'ポリ別注' && o.category !== 'SP' && o.category !== 'シルク');
+        return allOrders.filter(o => 
+          o.category !== '別注' && o.category !== 'ポリ別注' && o.category !== 'SP' && o.category !== 'シルク' &&
+          o.productCode !== '999999999'
+        );
       default:
         return allOrders;
     }
