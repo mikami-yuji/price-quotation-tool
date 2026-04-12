@@ -11,6 +11,8 @@ import InlineNumericInput from '../components/InlineNumericInput';
 import ColumnFilter from '../components/ColumnFilter';
 import { useMemo } from 'react';
 
+type TabType = 'custom' | 'sp' | 'readymade';
+
 export default function Home(): React.ReactElement {
   const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [priceMatrix, setPriceMatrix] = useState<CustomPriceMatrixRow[]>([]);
@@ -23,6 +25,7 @@ export default function Home(): React.ReactElement {
     roundingMode: 'none',
   });
 
+  const [activeTab, setActiveTab] = useState<TabType>('custom');
   const [manualSettings, setManualSettings] = useState<ManualGroupSetting>({});
   const [individualSettings, setIndividualSettings] = useState<IndividualManualSetting>({});
   const [isGroupEditorExpanded, setIsGroupEditorExpanded] = useState(false);
@@ -45,9 +48,18 @@ export default function Home(): React.ReactElement {
     return normalizeCustomerName(rawName);
   };
 
-  const getCustomOrders = (allOrders: OrderRecord[]) => {
+  const getTabOrders = (tab: TabType, allOrders: OrderRecord[]) => {
     if (allOrders.length === 0) return [];
-    return allOrders.filter(o => o.category === '別注' || o.category === 'ポリ別注');
+    switch (tab) {
+      case 'custom':
+        return allOrders.filter(o => o.category === '別注' || o.category === 'ポリ別注');
+      case 'sp':
+        return allOrders.filter(o => o.category === 'SP' || o.category === 'シルク');
+      case 'readymade':
+        return allOrders.filter(o => o.category !== '別注' && o.category !== 'ポリ別注' && o.category !== 'SP' && o.category !== 'シルク');
+      default:
+        return allOrders;
+    }
   };
 
   // --- Handlers ---
@@ -128,7 +140,7 @@ export default function Home(): React.ReactElement {
   };
 
   const handleResetSettings = () => {
-    const confirmReset = window.confirm('各単価のカスタマイズをすべて初期状態に戻し、一律計算のみを適用します。よろしいですか？');
+    const confirmReset = window.confirm('個別に手入力した設定をすべてリセットし、一括計算の状態に戻しますか？');
     if (!confirmReset) return;
     setManualSettings({});
     setIndividualSettings({});
@@ -181,8 +193,8 @@ export default function Home(): React.ReactElement {
       normalizeCustomerName(getCustomerName(fileName)),
       filteredOrders,
       today,
-      '別注',
-      false,
+      activeTab === 'custom' ? '別注' : activeTab === 'sp' ? 'SP' : '既製',
+      activeTab !== 'custom',
       implementationDate
     );
   };
@@ -226,9 +238,9 @@ export default function Home(): React.ReactElement {
   };
 
   const filterOptions = useMemo(() => {
-    const customOrders = getCustomOrders(simulatedOrders);
+    const tabOrders = getTabOrders(activeTab, simulatedOrders);
     const getOptions = (columnKey: string) => {
-      const crossFiltered = customOrders.filter(o => matchesFilters(o, columnKey));
+      const crossFiltered = tabOrders.filter(o => matchesFilters(o, columnKey));
       let values: string[] = [];
       if (columnKey === 'productName') {
         values = crossFiltered.map(o => (
@@ -249,20 +261,22 @@ export default function Home(): React.ReactElement {
     };
 
     return {
+      category: getOptions('category'),
       orderNumber: getOptions('orderNumber'),
       directDeliveryName: getOptions('directDeliveryName'),
+      productCode: getOptions('productCode'),
       productName: getOptions('productName'),
       materialName: getOptions('materialName'),
       weight: getOptions('weight'),
       totalColorCount: getOptions('totalColorCount'),
     };
-  }, [simulatedOrders, columnFilters, searchQuery]);
+  }, [activeTab, simulatedOrders, columnFilters, searchQuery]);
 
   const handleColumnFilterChange = (columnKey: string, values: string[]) => {
     setColumnFilters(prev => ({ ...prev, [columnKey]: values }));
   };
 
-  const filteredOrders = getCustomOrders(simulatedOrders)
+  const filteredOrders = getTabOrders(activeTab, simulatedOrders)
     .filter(order => matchesFilters(order))
     .sort((a, b) => {
       if (a.materialName !== b.materialName) return a.materialName.localeCompare(b.materialName, 'ja');
@@ -282,14 +296,25 @@ export default function Home(): React.ReactElement {
   const revenueIncrease = summary.newTotal - summary.currentTotal;
   const avgRevisionRate = summary.currentTotal > 0 ? (summary.newTotal / summary.currentTotal - 1) * 100 : 0;
 
-  const editorGroups = getCustomOrders(orders).reduce((acc, o) => {
-    const groupKey = `${o.materialName}-${o.weight}-${o.totalColorCount}`;
+  const counts = {
+    custom: getTabOrders('custom', simulatedOrders).length,
+    sp: getTabOrders('sp', simulatedOrders).length,
+    readymade: getTabOrders('readymade', simulatedOrders).length
+  };
+
+  const editorGroups = getTabOrders(activeTab === 'sp' ? 'sp' : 'custom', orders).reduce((acc, o) => {
+    const isSP = activeTab === 'sp';
+    const groupKey = isSP 
+      ? `${o.materialName}-${o.weight}-${o.totalColorCount}-${o.printCode}`
+      : `${o.materialName}-${o.weight}-${o.totalColorCount}`;
+      
     const weightStr = `${o.weight} ㎏`;
     if (!acc[o.materialName]) acc[o.materialName] = {};
     if (!acc[o.materialName][weightStr]) acc[o.materialName][weightStr] = [];
     if (!acc[o.materialName][weightStr].find(g => g.key === groupKey)) {
       acc[o.materialName][weightStr].push({
         colors: o.totalColorCount,
+        printCode: isSP ? o.printCode : undefined,
         currentPrice: o.currentPrice,
         currentSalesGroup: o.salesGroup,
         key: groupKey
@@ -297,7 +322,11 @@ export default function Home(): React.ReactElement {
       acc[o.materialName][weightStr].sort((a, b) => a.colors - b.colors);
     }
     return acc;
-  }, {} as { [material: string]: { [weight: string]: Array<{ colors: number, key: string, currentPrice: number, currentSalesGroup: number }> } });
+  }, {} as { [material: string]: { [weight: string]: Array<{ colors: number, key: string, printCode?: string, currentPrice: number, currentSalesGroup: number }> } });
+
+  const showMarginCols = activeTab === 'sp' || activeTab === 'custom';
+  const showPrintingCols = activeTab === 'sp';
+  const displayColumnCount = 14 + (showMarginCols ? 2 : 0) + (showPrintingCols ? 3 : 0);
 
   if (!isMounted) return <div className={styles.container} />;
 
@@ -306,8 +335,8 @@ export default function Home(): React.ReactElement {
       <header className={styles.header}>
         <div className={styles.headerTop}>
           <div className={styles.titleArea}>
-            <h1 className={styles.title}>別注品・価格改定シミュレーター</h1>
-            <p className={styles.subtitle}>受注データから別注・ポリ別注品を自動抽出し、値上げ価格を試算します。</p>
+            <h1 className={styles.title}>価格改定見積書・作成ツール</h1>
+            <p className={styles.subtitle}>得意先別のExcelを読み込み、新しい見積価格を簡単にシミュレーションできます。</p>
           </div>
           <button className={styles.themeToggle} onClick={toggleTheme}>
             {theme === 'light' ? '🌙' : '☀️'}
@@ -324,7 +353,7 @@ export default function Home(): React.ReactElement {
         >
           <div className={styles.uploadIcon}>📄</div>
           <h2>Excelファイルをドロップ、またはクリックしてアップロード</h2>
-          <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>受注データが含まれるファイルを選択してください</p>
+          <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>受注データ等が含まれるファイルを選択してください</p>
           <input type="file" accept=".xlsx, .xls" hidden ref={fileInputRef} onChange={handleFileUpload} />
         </div>
       ) : (
@@ -332,47 +361,52 @@ export default function Home(): React.ReactElement {
           <div className={`${styles.glassPanel} ${styles.controls}`}>
             <div>
               <h3>📄 読み込みファイル: {fileName}</h3>
-              <p className={styles.controlLabel}>{getCustomOrders(orders).length} 件の別注データが見つかりました。</p>
+              <p className={styles.controlLabel}>{orders.length} 件のデータが見つかりました。</p>
             </div>
             
             <div style={{ flex: 1 }}></div>
 
-            <div className={styles.controlGroup}>
-              <span className={styles.controlLabel}>値上げベース:</span>
-              <select 
-                value={conditions.customIncreaseType}
-                onChange={(e) => setConditions({ ...conditions, customIncreaseType: e.target.value as 'percentage' | 'amount' })}
-              >
-                <option value="percentage">一律パーセント (%)</option>
-                <option value="amount">一律金額アップ (円)</option>
-              </select>
-            </div>
-            
-            <div className={styles.controlGroup}>
-              <span className={styles.controlLabel}>値幅:</span>
-              <InlineNumericInput 
-                value={conditions.customIncreaseValue}
-                onCommit={(val) => setConditions({ ...conditions, customIncreaseValue: val })}
-                className={styles.manualInput}
-                style={{ width: '80px' } as any}
-                decimals={1}
-              />
-            </div>
+            {/* --- ユーザーリクエスト: 別注タブの時のみ表示 --- */}
+            {activeTab === 'custom' && (
+              <>
+                <div className={styles.controlGroup}>
+                  <span className={styles.controlLabel}>別注・値上げベース:</span>
+                  <select 
+                    value={conditions.customIncreaseType}
+                    onChange={(e) => setConditions({ ...conditions, customIncreaseType: e.target.value as 'percentage' | 'amount' })}
+                  >
+                    <option value="percentage">一律パーセント (%)</option>
+                    <option value="amount">一律金額アップ (円)</option>
+                  </select>
+                </div>
+                
+                <div className={styles.controlGroup}>
+                  <span className={styles.controlLabel}>値幅:</span>
+                  <InlineNumericInput 
+                    value={conditions.customIncreaseValue}
+                    onCommit={(val) => setConditions({ ...conditions, customIncreaseValue: val })}
+                    className={styles.manualInput}
+                    style={{ width: '80px' } as any}
+                    decimals={1}
+                  />
+                </div>
+
+                <div className={styles.controlGroup}>
+                  <span className={styles.controlLabel}>端数丸め:</span>
+                  <div className={styles.radioGroup}>
+                    <label className={styles.radioLabel}>
+                      <input type="radio" checked={conditions.roundingMode === 'none'} onChange={() => setConditions({ ...conditions, roundingMode: 'none' })} /> なし
+                    </label>
+                    <label className={styles.radioLabel}>
+                      <input type="radio" checked={conditions.roundingMode === 'half'} onChange={() => setConditions({ ...conditions, roundingMode: 'half' })} /> .00 / .50
+                    </label>
+                  </div>
+                </div>
+              </>
+            )}
 
             <div className={styles.controlGroup}>
-              <span className={styles.controlLabel}>端数丸め:</span>
-              <div className={styles.radioGroup}>
-                <label className={styles.radioLabel}>
-                  <input type="radio" checked={conditions.roundingMode === 'none'} onChange={() => setConditions({ ...conditions, roundingMode: 'none' })} /> なし
-                </label>
-                <label className={styles.radioLabel}>
-                  <input type="radio" checked={conditions.roundingMode === 'half'} onChange={() => setConditions({ ...conditions, roundingMode: 'half' })} /> .00 / .50
-                </label>
-              </div>
-            </div>
-
-            <div className={styles.controlGroup}>
-              <span className={styles.controlLabel}>実施時期:</span>
+              <span className={styles.controlLabel}>実施時期 (任意):</span>
               <input type="date" value={implementationDate} onChange={(e) => setImplementationDate(e.target.value)} className={styles.manualInput} style={{ width: '130px' }} />
             </div>
 
@@ -383,16 +417,21 @@ export default function Home(): React.ReactElement {
               <input type="text" placeholder="商品名など..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className={styles.manualInput} style={{ width: '150px' }} />
             </div>
 
-            <button className={styles.resetButton} onClick={handleResetSettings}>🔄 クリア</button>
+            <button className={styles.resetButton} onClick={handleResetSettings}>🔄 リセット</button>
 
             {simulatedOrders.length > 0 && (
-              <button onClick={handleExportExcel} className={styles.pdfButton}>Excel作成</button>
+              <button 
+                onClick={handleExportExcel} 
+                className={styles.pdfButton}
+              >
+                {activeTab === 'custom' ? '別注' : activeTab === 'sp' ? 'SP' : '既製'}見積書を作成
+              </button>
             )}
           </div>
 
           <div className={styles.summaryDashboard}>
             <div className={`${styles.glassPanel} ${styles.summaryCard}`}>
-              <span className={styles.summaryLabel}>対象アイテム数</span>
+              <span className={styles.summaryLabel}>表示アイテム数</span>
               <span className={styles.summaryValue}>{filteredOrders.length} 件</span>
             </div>
             <div className={`${styles.glassPanel} ${styles.summaryCard}`}>
@@ -402,7 +441,7 @@ export default function Home(): React.ReactElement {
             <div className={`${styles.glassPanel} ${styles.summaryCard}`}>
               <span className={styles.summaryLabel}>改定後 予想売上</span>
               <span className={styles.summaryValue}>¥{summary.newTotal.toLocaleString()}</span>
-              <span className={`${styles.summaryTrend} ${styles.trendUp}`}>+{revenueIncrease.toLocaleString()} 円</span>
+              <span className={`${styles.summaryTrend} ${styles.trendUp}`}>+{revenueIncrease.toLocaleString()} 円増加</span>
             </div>
             <div className={`${styles.glassPanel} ${styles.summaryCard}`}>
               <span className={styles.summaryLabel}>平均改定率</span>
@@ -410,15 +449,36 @@ export default function Home(): React.ReactElement {
             </div>
           </div>
 
+          <div className={styles.tabContainer}>
+            <button 
+              className={`${styles.tabItem} ${activeTab === 'custom' ? styles.tabActive : ''}`}
+              onClick={() => setActiveTab('custom')}
+            >
+              別注・ポリ別注 ({counts.custom})
+            </button>
+            <button 
+              className={`${styles.tabItem} ${activeTab === 'sp' ? styles.tabActive : ''}`}
+              onClick={() => setActiveTab('sp')}
+            >
+              SP・シルク ({counts.sp})
+            </button>
+            <button 
+              className={`${styles.tabItem} ${activeTab === 'readymade' ? styles.tabActive : ''}`}
+              onClick={() => setActiveTab('readymade')}
+            >
+              既製・その他 ({counts.readymade})
+            </button>
+          </div>
+
           {Object.keys(editorGroups).length > 0 && (
             <div className={`${styles.glassPanel} ${styles.groupPriceEditor} ${!isGroupEditorExpanded ? styles.collapsed : ''}`}>
               <header className={styles.editorHeader} onClick={() => setIsGroupEditorExpanded(!isGroupEditorExpanded)}>
                 <div className={styles.editorTitle}>
                   <span className={styles.editorIcon}>🛠</span>
-                  <h3>グループ一括設定</h3>
+                  <h3>{activeTab === 'sp' ? 'SP' : '別注'}グループ単価設定</h3>
                   <span className={styles.expandIcon}>{isGroupEditorExpanded ? '▼' : '▶'}</span>
                 </div>
-                <p className={styles.controlLabel}>共通の規格ごとに単価・営Gをまとめて上書きできます。</p>
+                <p className={styles.controlLabel}>材質・重量・色数が同じ商品をまとめて単価設定できます。</p>
               </header>
               
               {isGroupEditorExpanded && (
@@ -432,7 +492,10 @@ export default function Home(): React.ReactElement {
                           <div className={styles.groupGrid}>
                             {groups.map((group) => (
                               <div key={group.key} className={styles.groupInputRow}>
-                                <div className={styles.groupInfo}><span className={styles.groupColors}>{group.colors}色</span></div>
+                                <div className={styles.groupInfo}>
+                                  <span className={styles.groupColors}>{group.colors}色</span>
+                                  {group.printCode && <span className={styles.badge}>{group.printCode}</span>}
+                                </div>
                                 <div className={styles.groupInputs}>
                                   <div className={styles.inputWrapper}>
                                     <span className={styles.inputLabel}>単価</span>
@@ -462,7 +525,10 @@ export default function Home(): React.ReactElement {
               <table className={styles.dataTable}>
                 <thead>
                   <tr>
-                    <th>種別</th>
+                    <th>
+                      種別
+                      <ColumnFilter columnKey="category" options={filterOptions.category} selectedValues={columnFilters.category || []} onFilterChange={(vals) => handleColumnFilterChange('category', vals)} title="種別" />
+                    </th>
                     <th>
                       受注No
                       <ColumnFilter columnKey="orderNumber" options={filterOptions.orderNumber} selectedValues={columnFilters.orderNumber || []} onFilterChange={(vals) => handleColumnFilterChange('orderNumber', vals)} title="受注No" />
@@ -471,6 +537,12 @@ export default function Home(): React.ReactElement {
                       直送先
                       <ColumnFilter columnKey="directDeliveryName" options={filterOptions.directDeliveryName} selectedValues={columnFilters.directDeliveryName || []} onFilterChange={(vals) => handleColumnFilterChange('directDeliveryName', vals)} title="直送先" />
                     </th>
+                    {activeTab !== 'custom' && (
+                      <th>
+                        商品コード
+                        <ColumnFilter columnKey="productCode" options={filterOptions.productCode} selectedValues={columnFilters.productCode || []} onFilterChange={(vals) => handleColumnFilterChange('productCode', vals)} title="コード" />
+                      </th>
+                    )}
                     <th>
                       商品名
                       <ColumnFilter columnKey="productName" options={filterOptions.productName} selectedValues={columnFilters.productName || []} onFilterChange={(vals) => handleColumnFilterChange('productName', vals)} title="商品名" />
@@ -481,6 +553,7 @@ export default function Home(): React.ReactElement {
                       材質
                       <ColumnFilter columnKey="materialName" options={filterOptions.materialName} selectedValues={columnFilters.materialName || []} onFilterChange={(vals) => handleColumnFilterChange('materialName', vals)} title="材質" />
                     </th>
+                    {showPrintingCols && <th>印刷コード</th>}
                     <th>
                       重量
                       <ColumnFilter columnKey="weight" options={filterOptions.weight} selectedValues={columnFilters.weight || []} onFilterChange={(vals) => handleColumnFilterChange('weight', vals)} title="重量" />
@@ -491,8 +564,11 @@ export default function Home(): React.ReactElement {
                     </th>
                     <th>現行単価</th>
                     <th className={styles.highlightHeader}>改定単価</th>
-                    <th>現行営G</th>
-                    <th className={styles.highlightHeader}>改定営G</th>
+                    {showMarginCols && (
+                      <>
+                        <th className={styles.highlightHeader}>改定営G</th>
+                      </>
+                    )}
                     <th>値上率</th>
                   </tr>
                 </thead>
@@ -506,25 +582,33 @@ export default function Home(): React.ReactElement {
                       <tr key={i}>
                         <td style={{ fontSize: '0.8rem', opacity: 0.7 }}>{order.category}</td>
                         <td style={{ fontSize: '0.8rem' }}>{order.orderNumber}</td>
-                        <td style={{ fontSize: '0.8rem' }}>{order.directDeliveryName}</td>
+                        <td>{order.directDeliveryName}</td>
+                        {activeTab !== 'custom' && <td>{order.productCode}</td>}
                         <td>{shortenProductName(order.title || order.productName)}</td>
                         <td>{order.shape}</td>
                         <td>{order.quantity}</td>
                         <td>{order.materialName}</td>
+                        {showPrintingCols && <td>{order.printCode}</td>}
                         <td>{order.weight}</td>
                         <td>{order.totalColorCount}</td>
                         <td>¥{order.currentPrice.toFixed(2)}</td>
                         <td className={styles.highlightCell}>
                           <InlineNumericInput value={price} onCommit={(val) => updateIndividualField(order.orderNumber, 'price', val)} onKeyDown={(e) => handleKeyDown(e, i, 'price')} className={styles.manualInput} rowIndex={i} colKey="price" decimals={2} />
                         </td>
-                        <td>¥{order.salesGroup.toFixed(2)}</td>
-                        <td className={styles.highlightCell}>
-                          <InlineNumericInput value={salesGroup} onCommit={(val) => updateIndividualField(order.orderNumber, 'salesGroup', val)} onKeyDown={(e) => handleKeyDown(e, i, 'salesGroup')} className={styles.manualInput} rowIndex={i} colKey="salesGroup" decimals={2} />
-                        </td>
-                        <td className={styles.priceUp}>{diff.toFixed(1)}%</td>
+                        {showMarginCols && (
+                          <td className={styles.highlightCell}>
+                            <InlineNumericInput value={salesGroup} onCommit={(val) => updateIndividualField(order.orderNumber, 'salesGroup', val)} onKeyDown={(e) => handleKeyDown(e, i, 'salesGroup')} className={styles.manualInput} rowIndex={i} colKey="salesGroup" decimals={2} />
+                          </td>
+                        )}
+                        <td className={styles.priceUp}>{diff > 0 ? `${diff.toFixed(1)}%` : '-'}</td>
                       </tr>
                     );
                   })}
+                  {filteredOrders.length === 0 && (
+                    <tr>
+                      <td colSpan={20} className={styles.emptyState}>該当するデータがありません</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
