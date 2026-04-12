@@ -603,7 +603,7 @@ export default function Home(): React.ReactElement {
                           </td>
                         )}
                         {showPrintingCols && <td>¥{(order.printingCost || 0).toFixed(2)}</td>}
-                        {showPrintingCols && <td>{order.printingSalesGroup}</td>}
+                        {showPrintingCols && <td>¥{(order.printingSalesGroup || 0).toFixed(2)}</td>}
                         <td className={styles.priceUp}>{diff > 0 ? `${diff.toFixed(1)}%` : '-'}</td>
                       </tr>
                     );
