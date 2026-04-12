@@ -807,7 +807,11 @@ export default function Home(): React.ReactElement {
                         <td style={{ fontSize: '0.8rem' }}>{order.orderNumber}</td>
                         <td>{order.directDeliveryName}</td>
                         {activeTab !== 'custom' && <td>{order.productCode}</td>}
-                        <td>{shortenProductName(order.title || order.productName)}</td>
+                        <td>
+                          {order.category === '既製品' || order.category === '' 
+                            ? order.productName 
+                            : shortenProductName(order.title || order.productName)}
+                        </td>
                         <td>{order.shape}</td>
                         <td>{order.quantity}</td>
                         <td>{order.materialName}</td>
