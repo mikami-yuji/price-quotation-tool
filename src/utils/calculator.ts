@@ -35,7 +35,7 @@ export const calculateNewPrices = (
     // SP・シルクの場合は印刷コードも含めた4項目でグルーピング
     const isCustom = order.category === '別注' || order.category === 'ポリ別注';
     const isSP = order.category === 'SP' || order.category === 'シルク';
-    const isSticker = order.category === 'シール';
+    const isSticker = order.category === 'シール' || order.category === 'シール（フルオーダー）' || order.category.includes('シール');
     const isReady = order.category === '既製品' || order.category === '';
 
     const groupKey = isSP 
