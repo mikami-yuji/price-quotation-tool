@@ -114,4 +114,28 @@ describe('Calculator Logic (Multilevel Precedence)', () => {
     // 80 + 0.3 = 80.3 -> 80.5 に丸まる
     expect(results[0].newPrice).toBe(80.5);
   });
+
+  describe('既製品ボリュームスライド (数量スライド) の検証', () => {
+    const readyOrders: OrderRecord[] = [
+      { orderNumber: 'R1', category: '既製品', weight: 0, productCode: 'ITEM-X', quantity: 100, currentPrice: 50, productName: '', shape: '', printingCost: 0, salesGroup: 0, printingSalesGroup: 0, materialName: '', printCode: '', frontColorCount: 0, backColorCount: 0, totalColorCount: 0, janCode: '', directDeliveryCode: '', directDeliveryName: '', lastOrderDate: '' },
+      { orderNumber: 'R2', category: '既製品', weight: 0, productCode: 'ITEM-X', quantity: 600, currentPrice: 50, productName: '', shape: '', printingCost: 0, salesGroup: 0, printingSalesGroup: 0, materialName: '', printCode: '', frontColorCount: 0, backColorCount: 0, totalColorCount: 0, janCode: '', directDeliveryCode: '', directDeliveryName: '', lastOrderDate: '' },
+    ];
+
+    const readyMaster = [
+      { productCode: 'ITEM-X', minQuantity: 0, normal: { uru: 45, junD: 40, d: 35 }, campaign: { uru: 45, junD: 40, d: 35 } },
+      { productCode: 'ITEM-X', minQuantity: 500, normal: { uru: 40, junD: 35, d: 30 }, campaign: { uru: 40, junD: 35, d: 30 } },
+    ];
+
+    it('数量に応じて適切なマスター価格が選択されること', () => {
+      const results = calculateNewPrices(readyOrders, [], defaultConditions, {}, {}, {
+        custom: [], sp: [], sticker: [], readymade: readyMaster
+      }, { type: 'normal', segment: 'uru' });
+
+      // R1 (100個) -> minQuantity: 0 の単価 45 が適用
+      expect(results[0].newPrice).toBe(45);
+      
+      // R2 (600個) -> minQuantity: 500 の単価 40 が適用
+      expect(results[1].newPrice).toBe(40);
+    });
+  });
 });

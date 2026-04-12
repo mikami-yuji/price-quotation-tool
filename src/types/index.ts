@@ -44,6 +44,7 @@ export type CustomPriceMatrixRow = {
 // 既製品用の高度な単価データ
 export type ReadymadeMasterRow = {
   productCode: string;
+  minQuantity: number; // 数量スライド用の最小数量 (備考_2から算出)
   campaign: { uru: number; junD: number; d: number };
   normal: { uru: number; junD: number; d: number };
 };

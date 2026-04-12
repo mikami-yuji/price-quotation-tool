@@ -88,7 +88,14 @@ export const calculateNewPrices = (
         if (masterTable.length > 0) {
           if ('campaign' in masterTable[0]) {
             // ReadymadeMasterRow 型として処理
-            const mapped = (masterTable as ReadymadeMasterRow[]).find(m => m.productCode === order.productCode);
+            // ReadymadeMasterRow 型として処理
+            // 同じ商品コードの中で、受注数(order.quantity)が設定された最小数量(minQuantity)を満たすもののうち、
+            // 最もしきい値が高い（＝より大口の条件に合致する）行を選択する
+            const matches = (masterTable as ReadymadeMasterRow[]).filter(m => m.productCode === order.productCode);
+            const mapped = matches
+              .filter(m => (order.quantity || 0) >= m.minQuantity)
+              .sort((a, b) => b.minQuantity - a.minQuantity)[0];
+
             if (mapped && readymadePrefs) {
               const priceGroup = readymadePrefs.type === 'campaign' ? mapped.campaign : mapped.normal;
               const price = priceGroup[readymadePrefs.segment];
