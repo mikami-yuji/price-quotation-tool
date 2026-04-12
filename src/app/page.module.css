@@ -666,16 +666,22 @@
   min-width: 200px;
   max-width: 300px;
   max-height: 400px;
-  background: var(--bg-card);
+  background: #ffffff; /* Opaque background for light mode */
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
   z-index: 1001;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  color: var(--text-color);
+  color: #333333; /* Ensuring stable text color */
 }
+
+[data-theme='dark'] .filterDropdown {
+  background: #1e293b; /* Opaque background for dark mode */
+  color: #f8fafc;
+}
+
 
 .filterHeader {
   padding: 12px;

@@ -241,6 +241,8 @@ export default function Home(): React.ReactElement {
           : (o.productName || '');
       }))).sort(),
       materialName: Array.from(new Set(tabOrders.map(o => o.materialName || ''))).sort(),
+      weight: Array.from(new Set(tabOrders.map(o => String(o.weight || '')))).sort((a, b) => parseFloat(a) - parseFloat(b)),
+      totalColorCount: Array.from(new Set(tabOrders.map(o => String(o.totalColorCount || '0')))).sort((a, b) => parseInt(a) - parseInt(b)),
     };
     return options;
   }, [activeTab, simulatedOrders]);
@@ -283,6 +285,8 @@ export default function Home(): React.ReactElement {
         valToCompare = (order.category === 'SP' || order.category === 'シルク' || order.category === '別注' || order.category === 'ポリ別注') 
           ? shortenProductName(order.title || order.productName) 
           : (order.productName || '');
+      } else if (key === 'weight' || key === 'totalColorCount') {
+        valToCompare = String((order as any)[key] || '');
       } else {
         valToCompare = (order as any)[key] || '';
       }
@@ -707,8 +711,26 @@ export default function Home(): React.ReactElement {
                     />
                   </th>
                   {showPrintingCols && <th>印刷コード</th>}
-                  <th>重量</th>
-                  <th>色数</th>
+                  <th>
+                    重量
+                    <ColumnFilter 
+                      columnKey="weight"
+                      options={filterOptions.weight}
+                      selectedValues={columnFilters.weight || []}
+                      onFilterChange={(vals) => handleColumnFilterChange('weight', vals)}
+                      title="重量"
+                    />
+                  </th>
+                  <th>
+                    色数
+                    <ColumnFilter 
+                      columnKey="totalColorCount"
+                      options={filterOptions.totalColorCount}
+                      selectedValues={columnFilters.totalColorCount || []}
+                      onFilterChange={(vals) => handleColumnFilterChange('totalColorCount', vals)}
+                      title="色数"
+                    />
+                  </th>
                   <th>現行単価</th>
                   <th className={styles.highlightHeader}>改定単価</th>
                   {showMarginCols && (
