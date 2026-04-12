@@ -620,7 +620,6 @@ export default function Home(): React.ReactElement {
                             <InlineNumericInput value={salesGroup} onCommit={(val) => updateIndividualField(order.orderNumber, 'salesGroup', val)} onKeyDown={(e) => handleKeyDown(e, i, 'salesGroup')} className={styles.manualInput} rowIndex={i} colKey="salesGroup" decimals={2} />
                           </td>
                         )}
-                        <td className={styles.priceUp}>{diff > 0 ? `${diff.toFixed(1)}%` : '-'}</td>
                         {showPrintingCols && <td>¥{(order.printingCost || 0).toFixed(2)}</td>}
                         {showPrintingCols && <td>¥{(order.printingSalesGroup || 0).toFixed(2)}</td>}
                         {showPrintingCols && (
@@ -649,6 +648,7 @@ export default function Home(): React.ReactElement {
                             />
                           </td>
                         )}
+                        <td className={styles.priceUp}>{diff > 0 ? `${diff.toFixed(1)}%` : '-'}</td>
                       </tr>
                     );
                   })}
