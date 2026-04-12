@@ -39,6 +39,34 @@ export default function Home(): React.ReactElement {
     setIsMounted(true);
   }, []);
 
+  // --- Utility Functions ---
+
+  // ファイル名から得意先名を抽出（例: 43006_幸南食糧（株）.xlsx -> 幸南食糧（株））
+  const getCustomerName = (name: string): string => {
+    const baseName = name.replace(/\.[^/.]+$/, ""); // 拡張子削除
+    const match = baseName.match(/_(.+)$/);
+    const rawName = match ? match[1] : baseName;
+    return normalizeCustomerName(rawName);
+  };
+
+  // タブごとのデータ取得ロジック
+  const getTabOrders = (tab: TabType, allOrders: OrderRecord[]) => {
+    if (allOrders.length === 0) return [];
+    
+    switch (tab) {
+      case 'custom':
+        return allOrders.filter(o => o.category === '別注' || o.category === 'ポリ別注');
+      case 'sp':
+        return allOrders.filter(o => o.category === 'SP' || o.category === 'シルク');
+      case 'readymade':
+        return allOrders.filter(o => o.category !== '別注' && o.category !== 'ポリ別注' && o.category !== 'SP' && o.category !== 'シルク');
+      default:
+        return allOrders;
+    }
+  };
+
+  // --- Handlers ---
+
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark';
     const initialTheme = savedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
@@ -224,35 +252,13 @@ export default function Home(): React.ReactElement {
     }));
   };
 
-  // ファイル名から得意先名を抽出（例: 43006_幸南食糧（株）.xlsx -> 幸南食糧（株））
-  const getCustomerName = (name: string): string => {
-    const baseName = name.replace(/\.[^/.]+$/, ""); // 拡張子削除
-    const match = baseName.match(/_(.+)$/);
-    const rawName = match ? match[1] : baseName;
-    return normalizeCustomerName(rawName);
-  };
-
   const today = new Date().toLocaleDateString('ja-JP', {
     year: 'numeric',
     month: 'long',
     day: 'numeric'
   });
 
-  // タブごとのデータ取得ロジック
-  const getTabOrders = (tab: TabType, allOrders: OrderRecord[]) => {
-    if (allOrders.length === 0) return [];
-    
-    switch (tab) {
-      case 'custom':
-        return allOrders.filter(o => o.category === '別注' || o.category === 'ポリ別注');
-      case 'sp':
-        return allOrders.filter(o => o.category === 'SP' || o.category === 'シルク');
-      case 'readymade':
-        return allOrders.filter(o => o.category !== '別注' && o.category !== 'ポリ別注' && o.category !== 'SP' && o.category !== 'シルク');
-      default:
-        return allOrders;
-    }
-  };
+
 
   const filteredOrders = getTabOrders(activeTab, simulatedOrders).filter(order => {
     // 1. 全体検索フィルター
