@@ -495,8 +495,10 @@ export default function Home(): React.ReactElement {
                             {groups.map((group) => (
                               <div key={group.key} className={styles.groupInputRow}>
                                 <div className={styles.groupInfo}>
-                                  <span className={styles.groupColors}>{group.colors}色</span>
-                                  {group.printCode && <span className={styles.badge}>{group.printCode}</span>}
+                                  <div className={styles.groupTopInfo}>
+                                    <span className={styles.groupColors}>{group.colors}色</span>
+                                    {group.printCode && <span className={styles.printCodeLabel}>{group.printCode}</span>}
+                                  </div>
                                 </div>
                                 <div className={styles.groupInputs}>
                                   <div className={styles.inputWrapper}>

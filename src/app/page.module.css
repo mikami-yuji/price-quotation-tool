@@ -338,11 +338,12 @@
 
 .groupInputRow {
   display: flex;
-  align-items: center;
-  gap: 1.5rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1rem;
   background: rgba(255, 255, 255, 0.03);
-  padding: 1rem 1.2rem;
-  border-radius: 10px;
+  padding: 1.2rem;
+  border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.05);
   transition: all 0.2s ease;
 }
@@ -354,8 +355,9 @@
 }
 
 .groupInputs {
-  display: flex;
-  gap: 1.2rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 1rem;
   flex: 1;
 }
 
@@ -376,8 +378,12 @@
 
 .groupInfo {
   display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 0.8rem;
 }
 
 .groupColors {
@@ -774,4 +780,23 @@
   padding-right: 4px !important;
   font-size: 0.75rem !important;
   width: 80px;
+}
+
+.groupTopInfo {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+}
+
+.printCodeLabel {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--accent-color);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  line-height: 1.4;
+  word-break: break-all;
 }
