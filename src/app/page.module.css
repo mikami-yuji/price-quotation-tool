@@ -203,11 +203,23 @@
   color: var(--accent-color);
 }
 
-.activeTab {
-  background: var(--accent-color);
-  color: white; /* Accent background is dark enough for white */
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  border: 1px solid var(--accent-color);
+.tabActive {
+  background: var(--accent-color) !important;
+  color: white !important;
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+  position: relative;
+}
+
+.tabActive::after {
+  content: "";
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40%;
+  height: 3px;
+  background: white;
+  border-radius: 2px;
 }
 
 .tabBadge {
@@ -218,9 +230,9 @@
   font-size: 0.8rem;
 }
 
-.activeTab .tabBadge {
-  background: var(--accent-color);
-  color: white;
+.tabActive .tabBadge {
+  background: white;
+  color: var(--accent-color);
 }
 
 .groupPriceEditor {
