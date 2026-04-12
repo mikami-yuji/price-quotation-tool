@@ -227,43 +227,16 @@ export default function Home(): React.ReactElement {
     );
   };
 
-  // 1. 各列のユニークな値リストを抽出 (フィルタ用)
-  const filterOptions = useMemo(() => {
-    const tabOrders = getTabOrders(activeTab, simulatedOrders);
-    const options: Record<string, string[]> = {
-      category: Array.from(new Set(tabOrders.map(o => o.category || ''))).sort(),
-      orderNumber: Array.from(new Set(tabOrders.map(o => o.orderNumber || ''))).sort(),
-      directDeliveryName: Array.from(new Set(tabOrders.map(o => o.directDeliveryName || ''))).sort(),
-      productCode: Array.from(new Set(tabOrders.map(o => o.productCode || ''))).sort(),
-      productName: Array.from(new Set(tabOrders.map(o => {
-        return (o.category === 'SP' || o.category === 'シルク' || o.category === '別注' || o.category === 'ポリ別注') 
-          ? shortenProductName(o.title || o.productName) 
-          : (o.productName || '');
-      }))).sort(),
-      materialName: Array.from(new Set(tabOrders.map(o => o.materialName || ''))).sort(),
-      weight: Array.from(new Set(tabOrders.map(o => String(o.weight || '')))).sort((a, b) => parseFloat(a) - parseFloat(b)),
-      totalColorCount: Array.from(new Set(tabOrders.map(o => String(o.totalColorCount || '0')))).sort((a, b) => parseInt(a) - parseInt(b)),
-    };
-    return options;
-  }, [activeTab, simulatedOrders]);
-
-  const handleColumnFilterChange = (columnKey: string, values: string[]) => {
-    setColumnFilters(prev => ({
-      ...prev,
-      [columnKey]: values
-    }));
-  };
-
   const today = new Date().toLocaleDateString('ja-JP', {
     year: 'numeric',
     month: 'long',
     day: 'numeric'
   });
 
-
-
-  const filteredOrders = getTabOrders(activeTab, simulatedOrders).filter(order => {
-    // 1. 全体検索フィルター
+  // 各行が現在のフィルターに合致するか判定する共通ロジック
+  // ignoreKeyを指定すると、その列のフィルター条件を無視して判定できる (連動フィルター用)
+  const matchesFilters = (order: OrderRecord, ignoreKey?: string) => {
+    // 1. 全体検索フィルター (これは常に適用)
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       const matchSearch = (
@@ -278,7 +251,7 @@ export default function Home(): React.ReactElement {
 
     // 2. 列ごとのフィルター
     for (const [key, selectedValues] of Object.entries(columnFilters)) {
-      if (selectedValues.length === 0) continue;
+      if (selectedValues.length === 0 || key === ignoreKey) continue;
       
       let valToCompare = '';
       if (key === 'productName') {
@@ -295,7 +268,61 @@ export default function Home(): React.ReactElement {
     }
 
     return true;
-  }).sort((a, b) => {
+  };
+
+  // 1. 各列のユニークな値リストを抽出 (フィルタ用)
+  // 連動フィルター: 他の列で絞り込まれている状態のデータからオプションを生成する
+  const filterOptions = useMemo(() => {
+    const tabOrders = getTabOrders(activeTab, simulatedOrders);
+    
+    const getOptions = (columnKey: string) => {
+      // columnKey以外のフィルターを適用した状態のデータセットを作る
+      const crossFiltered = tabOrders.filter(o => matchesFilters(o, columnKey));
+      
+      let values: string[] = [];
+      if (columnKey === 'productName') {
+        values = crossFiltered.map(o => (
+          (o.category === 'SP' || o.category === 'シルク' || o.category === '別注' || o.category === 'ポリ別注') 
+            ? shortenProductName(o.title || o.productName) 
+            : (o.productName || '')
+        ));
+      } else if (columnKey === 'weight' || columnKey === 'totalColorCount') {
+        values = crossFiltered.map(o => String((o as any)[columnKey] || ''));
+      } else {
+        values = crossFiltered.map(o => (o as any)[columnKey] || '');
+      }
+      
+      return Array.from(new Set(values)).sort((a, b) => {
+        if (columnKey === 'weight') return parseFloat(a) - parseFloat(b);
+        if (columnKey === 'totalColorCount') return parseInt(a) - parseInt(b);
+        return a.localeCompare(b, 'ja');
+      });
+    };
+
+    return {
+      category: getOptions('category'),
+      orderNumber: getOptions('orderNumber'),
+      directDeliveryName: getOptions('directDeliveryName'),
+      productCode: getOptions('productCode'),
+      productName: getOptions('productName'),
+      materialName: getOptions('materialName'),
+      weight: getOptions('weight'),
+      totalColorCount: getOptions('totalColorCount'),
+    };
+  }, [activeTab, simulatedOrders, columnFilters, searchQuery]);
+
+  const handleColumnFilterChange = (columnKey: string, values: string[]) => {
+    setColumnFilters(prev => ({
+      ...prev,
+      [columnKey]: values
+    }));
+  };
+
+
+
+  const filteredOrders = getTabOrders(activeTab, simulatedOrders)
+    .filter(order => matchesFilters(order))
+    .sort((a, b) => {
     // 1. 材質名称 (Material Name)
     if (a.materialName !== b.materialName) {
       return a.materialName.localeCompare(b.materialName, 'ja');
