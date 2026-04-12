@@ -755,3 +755,23 @@
   color: var(--text-muted);
   font-size: 0.85rem;
 }
+.compactCell {
+  padding-left: 4px !important;
+  padding-right: 4px !important;
+  font-size: 0.85rem;
+  width: 80px;
+  min-width: 80px;
+}
+
+.compactCell input {
+  padding: 4px 6px !important;
+  font-size: 0.8rem !important;
+  width: 100% !important;
+}
+
+.compactHeader {
+  padding-left: 4px !important;
+  padding-right: 4px !important;
+  font-size: 0.75rem !important;
+  width: 80px;
+}
