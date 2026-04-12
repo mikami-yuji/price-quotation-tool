@@ -155,10 +155,21 @@ export const generateQuoteExcel = async (
   const newPriceCol = getColumnLetter(baseCols.findIndex(c => c.key === 'newPrice') + 1);
   const salesGroupCol = getColumnLetter(baseCols.findIndex(c => c.key === 'salesGroup') + 1);
   const newSalesGroupCol = getColumnLetter(baseCols.findIndex(c => c.key === 'newSalesGroup') + 1);
+  const printingCostCol = getColumnLetter(baseCols.findIndex(c => c.key === 'printingCost') + 1);
+  const newPrintingCostCol = getColumnLetter(baseCols.findIndex(c => c.key === 'newPrintingCost') + 1);
 
   // データの流し込み
   orders.forEach((order, rowIndex) => {
     const currentRowNum = startRow + 1 + rowIndex;
+    
+    // 値上率の計算式（単価+印刷代の合計で比較）
+    const totalCurrentPrice = showPrintingInfo 
+      ? `(${currentPriceCol}${currentRowNum}+${printingCostCol}${currentRowNum})`
+      : `${currentPriceCol}${currentRowNum}`;
+    const totalNewPrice = showPrintingInfo 
+      ? `(${newPriceCol}${currentRowNum}+${newPrintingCostCol}${currentRowNum})`
+      : `${newPriceCol}${currentRowNum}`;
+
     const rowData = [
       order.category,
       order.orderNumber,
@@ -190,9 +201,9 @@ export const generateQuoteExcel = async (
         order.newPrintingSalesGroup || order.printingSalesGroup || 0
       ] : []),
       {
-        formula: `IF(${currentPriceCol}${currentRowNum}>0,(${newPriceCol}${currentRowNum}-${currentPriceCol}${currentRowNum})/${currentPriceCol}${currentRowNum},0)`,
-        result: (order.newPrice !== undefined && (order.currentPrice as number) > 0)
-          ? ((order.newPrice as number) - (order.currentPrice as number)) / (order.currentPrice as number)
+        formula: `IF(${totalCurrentPrice}>0,(${totalNewPrice}-${totalCurrentPrice})/${totalCurrentPrice},0)`,
+        result: (order.newPrice !== undefined && (order.currentPrice as number) + (order.printingCost || 0) > 0)
+          ? (((order.newPrice as number) + (order.newPrintingCost || order.printingCost || 0)) / ((order.currentPrice as number) + (order.printingCost || 0)) - 1)
           : 0
       }
     ];

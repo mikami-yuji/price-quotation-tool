@@ -593,7 +593,10 @@ export default function Home(): React.ReactElement {
                     const salesGroup = individualSettings[order.orderNumber]?.salesGroup ?? order.newSalesGroup ?? order.salesGroup;
                     const pCost = individualSettings[order.orderNumber]?.printingPrice ?? order.newPrintingCost ?? order.printingCost ?? 0;
                     const pSalesGroup = individualSettings[order.orderNumber]?.printingSalesGroup ?? order.newPrintingSalesGroup ?? order.printingSalesGroup ?? 0;
-                    const diff = order.currentPrice > 0 ? ((price / order.currentPrice) - 1) * 100 : 0;
+                    
+                    const currentTotal = order.currentPrice + (order.printingCost || 0);
+                    const newTotal = price + pCost;
+                    const diff = currentTotal > 0 ? ((newTotal / currentTotal) - 1) * 100 : 0;
                     
                     return (
                       <tr key={i}>
