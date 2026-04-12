@@ -654,10 +654,12 @@ export default function Home(): React.ReactElement {
                       重量
                       <ColumnFilter columnKey="weight" options={filterOptions.weight} selectedValues={columnFilters.weight || []} onFilterChange={(vals) => handleColumnFilterChange('weight', vals)} title="重量" />
                     </th>
-                    <th>
-                      色数
-                      <ColumnFilter columnKey="totalColorCount" options={filterOptions.totalColorCount} selectedValues={columnFilters.totalColorCount || []} onFilterChange={(vals) => handleColumnFilterChange('totalColorCount', vals)} title="色数" />
-                    </th>
+                    {activeTab !== 'readymade' && (
+                      <th>
+                        色数
+                        <ColumnFilter columnKey="totalColorCount" options={filterOptions.totalColorCount} selectedValues={columnFilters.totalColorCount || []} onFilterChange={(vals) => handleColumnFilterChange('totalColorCount', vals)} title="色数" />
+                      </th>
+                    )}
                     <th>現行単価</th>
                     <th className={styles.highlightHeader}>改定単価</th>
                     {showMarginCols && (
@@ -696,7 +698,7 @@ export default function Home(): React.ReactElement {
                         <td>{order.materialName}</td>
                         {showPrintingCols && <td>{order.printCode}</td>}
                         <td>{order.weight}</td>
-                        <td>{order.totalColorCount}</td>
+                        {activeTab !== 'readymade' && <td>{order.totalColorCount}</td>}
                         <td>¥{order.currentPrice.toFixed(2)}</td>
                         <td className={styles.highlightCell}>
                           <InlineNumericInput value={price} onCommit={(val) => updateIndividualField(order.orderNumber, 'price', val)} onKeyDown={(e) => handleKeyDown(e, i, 'price')} className={styles.manualInput} rowIndex={i} colKey="price" decimals={2} />
