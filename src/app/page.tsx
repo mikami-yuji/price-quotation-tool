@@ -205,6 +205,7 @@ export default function Home(): React.ReactElement {
       version: '1.0',
       savedAt: new Date().toISOString(),
       conditions,
+      manualSettings,
       individualSettings,
       implementationDate,
       lastIncreaseDate
