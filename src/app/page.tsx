@@ -53,7 +53,7 @@ export default function Home(): React.ReactElement {
     }, { type: readymadePriceType, segment: readymadeSegment });
   }, [orders, priceMatrix, conditions, manualSettings, individualSettings, customMaster, spMaster, readymadeMaster, stickerMaster, readymadePriceType, readymadeSegment]);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
+   
   useEffect(() => {
     setTimeout(() => setIsMounted(true), 0);
     if (typeof window !== 'undefined') {
@@ -184,6 +184,18 @@ export default function Home(): React.ReactElement {
     setIndividualSettings({});
   };
 
+  const handleClearFile = () => {
+    if (orders.length > 0) {
+      const confirmClear = window.confirm('読み込んだデータをクリアして最初の画面に戻りますか？');
+      if (!confirmClear) return;
+      setOrders([]);
+      setFileName('');
+      setPriceMatrix([]);
+      setColumnFilters({});
+      setSearchQuery('');
+    }
+  };
+
   const handleSaveSettings = () => {
     const settings: SimulationSettings = {
       version: '1.0',
@@ -287,6 +299,7 @@ export default function Home(): React.ReactElement {
     localStorage.setItem('price-quotation-sticker-master', JSON.stringify(stickerMaster));
   }, [stickerMaster]);
 
+  /* eslint-disable react-hooks/purity */
   const recordHistory = (customerName: string, category: string) => {
     const newEntry: QuoteHistoryEntry = {
       id: Math.random().toString(36).substr(2, 9),
@@ -301,6 +314,7 @@ export default function Home(): React.ReactElement {
     };
     setHistory(prev => [newEntry, ...prev.slice(0, 49)]); // Keep last 50
   };
+  /* eslint-enable react-hooks/purity */
 
   const updateManualField = (key: string, field: 'price' | 'salesGroup' | 'printingPrice' | 'printingSalesGroup', value: number) => {
     const newSettings = { 
@@ -433,7 +447,7 @@ export default function Home(): React.ReactElement {
       weight: getOptions('weight'),
       totalColorCount: getOptions('totalColorCount'),
     };
-  }, [activeTab, simulatedOrders, columnFilters, searchQuery, matchesFilters]);
+  }, [activeTab, simulatedOrders, matchesFilters]);
 
   const handleColumnFilterChange = (columnKey: string, values: string[]) => {
     setColumnFilters(prev => ({ ...prev, [columnKey]: values }));
@@ -529,7 +543,12 @@ export default function Home(): React.ReactElement {
               <div className={styles.fileInfo}>
                 <div className={styles.fileIcon}>📄</div>
                 <div className={styles.fileDetails}>
-                  <h3>読み込みファイル: {fileName}</h3>
+                  <div className={styles.fileTitleRow}>
+                    <h3>読み込みファイル: {fileName}</h3>
+                    <button className={styles.clearFileBtn} onClick={handleClearFile} title="ファイルを閉じる">
+                      ✕ 読み取り解除
+                    </button>
+                  </div>
                   <p>{orders.length} 件のデータが見つかりました。</p>
                 </div>
               </div>

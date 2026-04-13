@@ -137,6 +137,34 @@
   color: var(--text-muted);
 }
 
+.fileTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.clearFileBtn {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.clearFileBtn:hover {
+  background: #ef4444;
+  color: white;
+  border-color: #ef4444;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
 .simulationParams {
   display: flex;
   gap: 1.5rem;
