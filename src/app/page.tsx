@@ -342,6 +342,13 @@ export default function Home(): React.ReactElement {
     setIndividualSettings(newSettings);
   };
 
+  const updateIndividualPriceByRate = (orderNumber: string, currentPrice: number, printingCost: number, rate: number) => {
+    // 逆算: 新単価 = (1 + rate / 100) * (現行単価 + 印刷代) - 印刷代
+    const newPrice = (1 + rate / 100) * (currentPrice + (printingCost || 0)) - (printingCost || 0);
+    // 浮動小数点の誤差を考慮して少し丸める（必要に応じて）
+    updateIndividualField(orderNumber, 'price', Number(newPrice.toFixed(4)));
+  };
+
   const handleSimulate = () => {
     // simulatedOrders is now derived via useMemo, but we keep the handler for consistency if needed or just remove it if really unused
   };
@@ -947,7 +954,18 @@ export default function Home(): React.ReactElement {
                             />
                           </td>
                         )}
-                        <td className={styles.priceUp}>{diff > 0 ? `${diff.toFixed(1)}%` : '-'}</td>
+                        <td className={`${styles.highlightRateCell} ${styles.compactCell}`}>
+                          <InlineNumericInput 
+                            value={diff} 
+                            onCommit={(val) => updateIndividualPriceByRate(order.orderNumber, order.currentPrice, order.printingCost, val)} 
+                            onKeyDown={(e) => handleKeyDown(e, i, 'diff')} 
+                            className={styles.manualInput} 
+                            rowIndex={i} 
+                            colKey="diff" 
+                            decimals={1} 
+                            suffix="%"
+                          />
+                        </td>
                       </tr>
                     );
                   })}

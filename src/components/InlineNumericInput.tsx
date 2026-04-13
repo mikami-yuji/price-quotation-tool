@@ -10,6 +10,7 @@ type InlineNumericInputProps = {
   style?: React.CSSProperties;
   placeholder?: string;
   decimals?: number;
+  suffix?: string;
   rowIndex?: number;
   colKey?: string;
 };
@@ -26,13 +27,14 @@ export default function InlineNumericInput({
   style,
   placeholder,
   decimals = 2,
+  suffix = '',
   rowIndex,
   colKey,
 }: InlineNumericInputProps): React.ReactElement {
   // 入力中の文字列を保持
   const [localValue, setLocalValue] = useState<string>(() => {
     if (value === 0) return '';
-    return value.toFixed(decimals);
+    return value.toFixed(decimals) + suffix;
   });
   // 編集モードフラグ
   const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -44,17 +46,20 @@ export default function InlineNumericInput({
     setPrevValue(value);
     if (!isEditing) {
       if (value === 0) {
-        setLocalValue('0');
+        setLocalValue('0' + suffix);
       } else {
-        setLocalValue(value.toFixed(decimals));
+        setLocalValue(value.toFixed(decimals) + suffix);
       }
     }
   }
 
   const handleFocus = (e: FocusEvent<HTMLInputElement>): void => {
     setIsEditing(true);
+    // 編集時はサフィックスを除去
+    const val = value === 0 ? '' : value.toFixed(decimals);
+    setLocalValue(val);
     // 内容を全選択して上書きしやすくする
-    e.target.select();
+    setTimeout(() => e.target.select(), 0);
   };
 
   const handleBlur = (): void => {
@@ -63,6 +68,9 @@ export default function InlineNumericInput({
     const num = parseFloat(localValue);
     const finalValue = isNaN(num) ? 0 : num;
     
+    // 表示用にサフィックスを付与
+    setLocalValue(finalValue.toFixed(decimals) + suffix);
+
     // 変更があった場合のみコミット
     if (finalValue !== value) {
       onCommit(finalValue);
