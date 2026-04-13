@@ -90,6 +90,7 @@ export type SimulationSettings = {
   manualSettings: ManualGroupSetting;
   individualSettings: IndividualManualSetting;
   implementationDate?: string;
+  lastIncreaseDate?: string;
   readymadePriceType?: ReadymadePriceType;
   readymadeSegment?: ReadymadeSegment;
 };

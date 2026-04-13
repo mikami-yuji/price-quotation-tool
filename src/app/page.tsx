@@ -29,6 +29,7 @@ export default function Home(): React.ReactElement {
   const [individualSettings, setIndividualSettings] = useState<IndividualManualSetting>({});
   const [isGroupEditorExpanded, setIsGroupEditorExpanded] = useState(false);
   const [implementationDate, setImplementationDate] = useState<string>('');
+  const [lastIncreaseDate, setLastIncreaseDate] = useState<string>('');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [searchQuery, setSearchQuery] = useState('');
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
@@ -95,6 +96,9 @@ export default function Home(): React.ReactElement {
 
         const savedStickerMaster = localStorage.getItem('price-quotation-sticker-master');
         if (savedStickerMaster) setTimeout(() => setStickerMaster(JSON.parse(savedStickerMaster)), 0);
+
+        const savedLastIncreaseDate = localStorage.getItem('price-quotation-last-increase-date');
+        if (savedLastIncreaseDate) setTimeout(() => setLastIncreaseDate(savedLastIncreaseDate), 0);
       } catch (e) {
         console.error('Failed to load settings from localStorage', e);
       }
@@ -201,9 +205,9 @@ export default function Home(): React.ReactElement {
       version: '1.0',
       savedAt: new Date().toISOString(),
       conditions,
-      manualSettings,
       individualSettings,
-      implementationDate
+      implementationDate,
+      lastIncreaseDate
     };
     const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -225,6 +229,7 @@ export default function Home(): React.ReactElement {
         if (settings.manualSettings) setManualSettings(settings.manualSettings);
         if (settings.individualSettings) setIndividualSettings(settings.individualSettings);
         if (settings.implementationDate) setImplementationDate(settings.implementationDate);
+        if (settings.lastIncreaseDate) setLastIncreaseDate(settings.lastIncreaseDate);
         alert('設定を正常に読み込みました。');
       } catch (err) {
         console.error('Failed to load settings', err);
@@ -298,6 +303,10 @@ export default function Home(): React.ReactElement {
   useEffect(() => {
     localStorage.setItem('price-quotation-sticker-master', JSON.stringify(stickerMaster));
   }, [stickerMaster]);
+
+  useEffect(() => {
+    localStorage.setItem('price-quotation-last-increase-date', lastIncreaseDate);
+  }, [lastIncreaseDate]);
 
   /* eslint-disable react-hooks/purity */
   const recordHistory = (customerName: string, category: string) => {
@@ -610,6 +619,11 @@ export default function Home(): React.ReactElement {
                   <input type="date" value={implementationDate} onChange={(e) => setImplementationDate(e.target.value)} className={styles.manualInput} style={{ width: '135px' }} />
                 </div>
 
+                <div className={styles.controlGroup}>
+                  <span className={styles.controlLabel}>前回値上げ日:</span>
+                  <input type="date" value={lastIncreaseDate} onChange={(e) => setLastIncreaseDate(e.target.value)} className={styles.manualInput} style={{ width: '135px' }} title="これより前の受注日の商品は赤字になります" />
+                </div>
+
                 {activeTab === 'readymade' && (
                   <>
                     <div className={styles.controlGroup}>
@@ -871,8 +885,12 @@ export default function Home(): React.ReactElement {
                     const newTotal = price + pCost;
                     const diff = currentTotal > 0 ? ((newTotal / currentTotal) - 1) * 100 : 0;
                     
+                    const isInactive = lastIncreaseDate && order.lastOrderDate && (
+                      new Date(order.lastOrderDate).getTime() <= new Date(lastIncreaseDate).getTime()
+                    );
+                    
                     return (
-                      <tr key={i}>
+                      <tr key={i} className={isInactive ? styles.inactiveRow : ''}>
                         <td style={{ fontSize: '0.8rem', opacity: 0.7 }}>{order.category}</td>
                         <td style={{ fontSize: '0.8rem' }}>{order.orderNumber}</td>
                         <td>{order.directDeliveryName}</td>

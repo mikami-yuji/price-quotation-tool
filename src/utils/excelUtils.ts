@@ -7,7 +7,7 @@ import { OrderRecord, CustomPriceMatrixRow } from '../types';
  * @returns 抽出されたデータ
  */
 export const parseExcelFile = (arrayBuffer: ArrayBuffer): { orders: OrderRecord[], priceMatrix: CustomPriceMatrixRow[] } => {
-  const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+  const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
   const sheetNames = workbook.SheetNames;
 
   let orders: OrderRecord[] = [];
@@ -58,7 +58,9 @@ const mapRowToOrderRecord = (row: Record<string, string | number>): OrderRecord 
     janCode: String(row['JANコード'] || ''),
     directDeliveryCode: String(row['直送先コード'] || ''),
     directDeliveryName: String(row['直送先名称'] || ''),
-    lastOrderDate: String(row['最終受注日'] || ''),
+    lastOrderDate: row['最新受注日'] instanceof Date 
+      ? row['最新受注日'].toISOString() 
+      : String(row['最新受注日'] || row['最終受注日'] || ''),
     designName: String(row['デザイン名'] || '')
   };
 };

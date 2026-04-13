@@ -788,6 +788,18 @@
   background: rgba(239, 68, 68, 0.18) !important;
 }
 
+.inactiveRow {
+  background: rgba(239, 68, 68, 0.05) !important;
+}
+
+.inactiveRow td {
+  color: #ef4444 !important;
+}
+
+.inactiveRow:hover {
+  background: rgba(239, 68, 68, 0.12) !important;
+}
+
 
 /* Column Filter Styles */
 .filterContainer {
