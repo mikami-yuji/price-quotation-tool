@@ -45,10 +45,13 @@ export const calculateNewPrices = (
     const group = (isCustom || isSP || isSticker) ? groupSettings[groupKey] : null;
 
     // 1. 改定単価の決定
+    let isManualPrice = false;
     if (individual?.price !== undefined && individual.price !== 0) {
       newPrice = individual.price;
+      isManualPrice = true;
     } else if (group?.price !== undefined && group.price !== 0) {
       newPrice = group.price;
+      isManualPrice = true;
     } else {
       if (isCustom) {
         // 先に手アップロードのマスター、なければ共用(Excel内)の単価表をチェック
@@ -88,7 +91,6 @@ export const calculateNewPrices = (
         if (masterTable.length > 0) {
           if ('campaign' in masterTable[0]) {
             // ReadymadeMasterRow 型として処理
-            // ReadymadeMasterRow 型として処理
             // 同じ商品コードの中で、受注数(order.quantity)が設定された最小数量(minQuantity)を満たすもののうち、
             // 最もしきい値が高い（＝より大口の条件に合致する）行を選択する
             const matches = (masterTable as ReadymadeMasterRow[]).filter(m => m.productCode === order.productCode);
@@ -116,17 +118,19 @@ export const calculateNewPrices = (
       }
     }
 
-    // 端数処理
-    if (conditions.roundingMode === 'half') {
-      // 0.5単位で丸める (.00 または .50)
-      newPrice = Math.round(newPrice * 2) / 2;
-    } else {
-      // 通常（小数点第2位あたりで四捨五入）
-      newPrice = Math.round(newPrice * 100) / 100;
+    // 端数処理前の「理想的な単価差額」を計算（営G計算用）
+    const unroundedPriceDifference = Math.round((newPrice - order.currentPrice) * 100) / 100;
+
+    // 端数処理（手入力でない場合のみ適用）
+    if (!isManualPrice) {
+      if (conditions.roundingMode === 'half') {
+        // 0.5単位で丸める (.00 または .50)
+        newPrice = Math.round(newPrice * 2) / 2;
+      } else {
+        // 通常（小数点第2位あたりで四捨五入）
+        newPrice = Math.round(newPrice * 100) / 100;
+      }
     }
-    
-    // JSの浮動小数点問題を避けるため
-    const priceDifference = Math.round((newPrice - order.currentPrice) * 100) / 100;
     
     // 2. 改定後営Gの決定 (優先順位: 個別 > グループ > 差額加算)
     let resultSalesGroup: number;
@@ -135,9 +139,13 @@ export const calculateNewPrices = (
     } else if (group?.salesGroup !== undefined && group.salesGroup !== 0) {
       resultSalesGroup = group.salesGroup;
     } else {
-      resultSalesGroup = Math.round((order.salesGroup + priceDifference) * 100) / 100;
+      // 丸め前の差額を使用して計算（営Gが単価の丸めに引きずられないようにする）
+      resultSalesGroup = Math.round((order.salesGroup + unroundedPriceDifference) * 100) / 100;
     }
 
+    // JSの浮動小数点問題を避けるため
+    const priceDifference = Math.round((newPrice - order.currentPrice) * 100) / 100;
+    
     // 3. 改定印刷代・改定印刷営Gの決定
     let newPrintingCost = order.printingCost;
     let newPrintingSalesGroup = order.printingSalesGroup;

@@ -115,6 +115,34 @@ describe('Calculator Logic (Multilevel Precedence)', () => {
     expect(results[0].newPrice).toBe(80.5);
   });
 
+  it('丸め処理の修正確認: 改定単価は丸めるが、改定営Gは理想値を維持すること', () => {
+    const conditions: IncreaseSimulationConditions = {
+      customIncreaseType: 'amount',
+      customIncreaseValue: 0.35, // 80 + 0.35 = 80.35
+      roundingMode: 'half'      // -> 単価は 80.5 に丸まる
+    };
+    const results = calculateNewPrices(sampleOrders, [], conditions);
+    
+    expect(results[0].newPrice).toBe(80.5); // 丸め適用
+    // 旧営G 60 + 理想増分 0.35 = 60.35 (丸め後の 80.5-80 = 0.5 ではない)
+    expect(results[0].newSalesGroup).toBe(60.35); 
+  });
+
+  it('手入力の尊重: 手入力時はシミュレーションの丸め設定を無視すること', () => {
+    const conditions: IncreaseSimulationConditions = {
+      customIncreaseType: 'percentage',
+      customIncreaseValue: 10,
+      roundingMode: 'half'
+    };
+    const individualSettings = {
+      '1001': { price: 100.22 } // あえて .50 単位ではない数値を入力
+    };
+    const results = calculateNewPrices(sampleOrders, [], conditions, {}, individualSettings);
+    
+    expect(results[0].newPrice).toBe(100.22); // 丸められずにそのまま維持
+    expect(results[0].newSalesGroup).toBe(60 + (100.22 - 80)); // 営Gも入力値ベース
+  });
+
   describe('既製品ボリュームスライド (数量スライド) の検証', () => {
     const readyOrders: OrderRecord[] = [
       { orderNumber: 'R1', category: '既製品', weight: 0, productCode: 'ITEM-X', quantity: 100, currentPrice: 50, productName: '', shape: '', printingCost: 0, salesGroup: 0, printingSalesGroup: 0, materialName: '', printCode: '', frontColorCount: 0, backColorCount: 0, totalColorCount: 0, janCode: '', directDeliveryCode: '', directDeliveryName: '', lastOrderDate: '' },

@@ -212,7 +212,7 @@ export const generateQuoteExcel = async (
       cell.value = val;
       cell.alignment = { 
         vertical: 'middle', 
-        horizontal: (typeof val === 'number') ? 'right' : 'left',
+        horizontal: (typeof val === 'number' || (val && typeof val === 'object' && 'formula' in val)) ? 'right' : 'left',
         wrapText: true 
       };
       cell.border = {
