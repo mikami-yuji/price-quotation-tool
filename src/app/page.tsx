@@ -5,7 +5,7 @@ import styles from './page.module.css';
 import { parseExcelFile } from '../utils/excelUtils';
 import { calculateNewPrices } from '../utils/calculator';
 import { shortenProductName, normalizeCustomerName } from '../utils/stringUtils';
-import { OrderRecord, CustomPriceMatrixRow, IncreaseSimulationConditions, ManualGroupSetting, IndividualManualSetting, SimulationSettings, QuoteHistoryEntry, ReadymadeMasterRow, ReadymadePriceType, ReadymadeSegment } from '../types';
+import { OrderRecord, CustomPriceMatrixRow, IncreaseSimulationConditions, ManualGroupSetting, IndividualManualSetting, SimulationSettings, QuoteHistoryEntry, ReadymadeMasterRow, ReadymadePriceType, ReadymadeSegment, TimingBasis } from '../types';
 import { generateQuoteExcel } from '../utils/excelGenerator';
 import InlineNumericInput from '../components/InlineNumericInput';
 import ColumnFilter from '../components/ColumnFilter';
@@ -29,6 +29,7 @@ export default function Home(): React.ReactElement {
   const [individualSettings, setIndividualSettings] = useState<IndividualManualSetting>({});
   const [isGroupEditorExpanded, setIsGroupEditorExpanded] = useState(false);
   const [implementationDate, setImplementationDate] = useState<string>('');
+  const [timingBasis, setTimingBasis] = useState<TimingBasis>('order');
   const [lastIncreaseDate, setLastIncreaseDate] = useState<string>('');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [searchQuery, setSearchQuery] = useState('');
@@ -78,6 +79,9 @@ export default function Home(): React.ReactElement {
 
         const savedHistory = localStorage.getItem('price-quotation-history');
         if (savedHistory) setTimeout(() => setHistory(JSON.parse(savedHistory)), 0);
+
+        const savedTimingBasis = localStorage.getItem('price-quotation-timing-basis') as TimingBasis;
+        if (savedTimingBasis) setTimeout(() => setTimingBasis(savedTimingBasis), 0);
 
         const savedCustomMaster = localStorage.getItem('price-quotation-custom-master');
         if (savedCustomMaster) setTimeout(() => setCustomMaster(JSON.parse(savedCustomMaster)), 0);
@@ -155,6 +159,10 @@ export default function Home(): React.ReactElement {
     localStorage.setItem('price-quotation-individual-settings', JSON.stringify(individualSettings));
   }, [individualSettings]);
 
+  useEffect(() => {
+    localStorage.setItem('price-quotation-timing-basis', timingBasis);
+  }, [timingBasis]);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const settingsInputRef = useRef<HTMLInputElement>(null);
 
@@ -208,6 +216,7 @@ export default function Home(): React.ReactElement {
       manualSettings,
       individualSettings,
       implementationDate,
+      timingBasis,
       lastIncreaseDate
     };
     const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
@@ -230,6 +239,7 @@ export default function Home(): React.ReactElement {
         if (settings.manualSettings) setManualSettings(settings.manualSettings);
         if (settings.individualSettings) setIndividualSettings(settings.individualSettings);
         if (settings.implementationDate) setImplementationDate(settings.implementationDate);
+        if (settings.timingBasis) setTimingBasis(settings.timingBasis);
         if (settings.lastIncreaseDate) setLastIncreaseDate(settings.lastIncreaseDate);
         alert('設定を正常に読み込みました。');
       } catch (err) {
@@ -383,7 +393,8 @@ export default function Home(): React.ReactElement {
       today,
       categoryName,
       activeTab !== 'custom',
-      implementationDate
+      implementationDate,
+      timingBasis
     );
     
     recordHistory(customer, categoryName);
@@ -624,7 +635,25 @@ export default function Home(): React.ReactElement {
 
                 <div className={styles.controlGroup}>
                   <span className={styles.controlLabel}>実施時期:</span>
-                  <input type="date" value={implementationDate} onChange={(e) => setImplementationDate(e.target.value)} className={styles.manualInput} style={{ width: '135px' }} />
+                  <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+                    <input type="date" value={implementationDate} onChange={(e) => setImplementationDate(e.target.value)} className={styles.manualInput} style={{ width: '135px' }} />
+                    <div className={styles.segmentedControl}>
+                      <button 
+                        className={`${styles.segmentButton} ${timingBasis === 'order' ? styles.segmentActive : ''}`}
+                        onClick={() => setTimingBasis('order')}
+                        style={{ padding: '0 8px', fontSize: '0.75rem' }}
+                      >
+                        受注分
+                      </button>
+                      <button 
+                        className={`${styles.segmentButton} ${timingBasis === 'shipment' ? styles.segmentActive : ''}`}
+                        onClick={() => setTimingBasis('shipment')}
+                        style={{ padding: '0 8px', fontSize: '0.75rem' }}
+                      >
+                        出荷分
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 <div className={styles.controlGroup}>

@@ -25,7 +25,8 @@ export const generateQuoteExcel = async (
   date: string,
   category: string,
   showProductCode: boolean,
-  implementationDate?: string
+  implementationDate?: string,
+  timingBasis: 'order' | 'shipment' = 'order'
 ): Promise<void> => {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('見積書');
@@ -247,7 +248,8 @@ export const generateQuoteExcel = async (
   if (implementationDate) {
     const d = new Date(implementationDate);
     if (!isNaN(d.getTime())) {
-      implementationText = `※ 実施時期：${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日より`;
+      const basisText = timingBasis === 'shipment' ? '出荷分' : '受注分';
+      implementationText = `※ 実施時期：${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日${basisText}より`;
     }
   }
   

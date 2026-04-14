@@ -82,6 +82,8 @@ export type QuoteHistoryEntry = {
   revisionRate: number;
 };
 
+export type TimingBasis = 'order' | 'shipment';
+
 // 保存・読み込み用の設定一式
 export type SimulationSettings = {
   version: string;
@@ -90,6 +92,7 @@ export type SimulationSettings = {
   manualSettings: ManualGroupSetting;
   individualSettings: IndividualManualSetting;
   implementationDate?: string;
+  timingBasis?: TimingBasis;
   lastIncreaseDate?: string;
   readymadePriceType?: ReadymadePriceType;
   readymadeSegment?: ReadymadeSegment;
