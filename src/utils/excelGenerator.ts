@@ -55,7 +55,7 @@ export const generateQuoteExcel = async (
     ...(showProductCode ? [{ header: '商品コード', key: 'productCode', width: 15 }] : []),
     { header: '商品名 / 材質', key: 'productNameMaterial', width: 40 },
     { header: '形状', key: 'shape', width: 10 },
-    { header: '受注数', key: 'quantity', width: 10 },
+    { header: '前回受注数', key: 'quantity', width: 10 },
     ...(showPrintingInfo ? [{ header: '印刷コード', key: 'printCode', width: 15 }] : []),
     { header: '重量', key: 'weight', width: 8 },
     ...(category !== '既製' ? [{ header: '色数', key: 'colors', width: 6 }] : []),
