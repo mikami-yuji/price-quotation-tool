@@ -508,10 +508,14 @@ export default function Home(): React.ReactElement {
     sticker: getTabOrders('sticker', simulatedOrders).length
   };
 
-  const editorGroups = getTabOrders(activeTab === 'sp' ? 'sp' : 'custom', orders).reduce((acc, o) => {
-    const isSP = activeTab === 'sp';
+  const targetGroupTab = activeTab;
+  const editorGroups = getTabOrders(targetGroupTab, orders).reduce((acc, o) => {
+    const isSP = targetGroupTab === 'sp';
+    const isReady = targetGroupTab === 'readymade';
     const groupKey = isSP 
       ? `${o.materialName}-${o.weight}-${o.totalColorCount}-${o.printCode}`
+      : isReady
+      ? `${o.materialName}-${o.weight}`
       : `${o.materialName}-${o.weight}-${o.totalColorCount}`;
       
     const weightStr = `${o.weight} ㎏`;
@@ -519,7 +523,7 @@ export default function Home(): React.ReactElement {
     if (!acc[o.materialName][weightStr]) acc[o.materialName][weightStr] = [];
     if (!acc[o.materialName][weightStr].find(g => g.key === groupKey)) {
       acc[o.materialName][weightStr].push({
-        colors: o.totalColorCount,
+        colors: isReady ? 0 : o.totalColorCount,
         printCode: isSP ? o.printCode : undefined,
         currentPrice: o.currentPrice,
         currentSalesGroup: o.salesGroup,
@@ -791,10 +795,10 @@ export default function Home(): React.ReactElement {
               <header className={styles.editorHeader} onClick={() => setIsGroupEditorExpanded(!isGroupEditorExpanded)}>
                 <div className={styles.editorTitle}>
                   <span className={styles.editorIcon}>🛠</span>
-                  <h3>{activeTab === 'sp' ? 'SP' : '別注'}グループ単価設定</h3>
+                  <h3>{activeTab === 'sp' ? 'SP' : activeTab === 'readymade' ? '既製品' : activeTab === 'sticker' ? 'シール' : '別注'}グループ単価設定</h3>
                   <span className={styles.expandIcon}>{isGroupEditorExpanded ? '▼' : '▶'}</span>
                 </div>
-                <p className={styles.controlLabel}>材質・重量・色数が同じ商品をまとめて単価設定できます。</p>
+                <p className={styles.controlLabel}>材質・{activeTab === 'readymade' ? '重量' : '重量・色数'}が同じ商品をまとめて単価設定できます。</p>
               </header>
               
               {isGroupEditorExpanded && (
@@ -810,7 +814,7 @@ export default function Home(): React.ReactElement {
                               <div key={group.key} className={styles.groupInputRow}>
                                 <div className={styles.groupInfo}>
                                   <div className={styles.groupTopInfo}>
-                                    <span className={styles.groupColors}>{group.colors}色</span>
+                                    {activeTab !== 'readymade' && <span className={styles.groupColors}>{group.colors}色</span>}
                                     {group.printCode && <span className={styles.printCodeLabel}>{group.printCode}</span>}
                                   </div>
                                 </div>

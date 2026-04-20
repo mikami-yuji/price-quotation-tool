@@ -17,6 +17,7 @@ export const parseExcelFile = (arrayBuffer: ArrayBuffer): { orders: OrderRecord[
   if (sheetNames.includes('受注データ')) {
     const sheet = workbook.Sheets['受注データ'];
     // 最初の行をヘッダーとしてJSON化
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rawData = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: '' });
     orders = rawData.map((row) => mapRowToOrderRecord(row));
   }
@@ -24,8 +25,10 @@ export const parseExcelFile = (arrayBuffer: ArrayBuffer): { orders: OrderRecord[
   // 別注単価表の読み込み
   if (sheetNames.includes('別注単価表')) {
     const sheet = workbook.Sheets['別注単価表'];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rawMatrix = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: '' });
-    priceMatrix = rawMatrix.map(row => mapRowToPriceMatrix(row)).filter(row => row !== null) as CustomPriceMatrixRow[];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    priceMatrix = rawMatrix.map((row: any) => mapRowToPriceMatrix(row)).filter(row => row !== null) as CustomPriceMatrixRow[];
   }
 
   return { orders, priceMatrix };
@@ -36,6 +39,7 @@ export const parseExcelFile = (arrayBuffer: ArrayBuffer): { orders: OrderRecord[
  * @param row Excelの1行分のJSONデータ
  * @returns OrderRecordオブジェクト
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mapRowToOrderRecord = (row: Record<string, any>): OrderRecord => {
   return {
     orderNumber: String(row['受注№'] || ''),
@@ -70,6 +74,7 @@ const mapRowToOrderRecord = (row: Record<string, any>): OrderRecord => {
  * @param row Excelの1行分のJSONデータ
  * @returns CustomPriceMatrixRowオブジェクト、または無効な行ならnull
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mapRowToPriceMatrix = (row: Record<string, any>): CustomPriceMatrixRow | null => {
   const materialName = row['材質名称'] as string;
   const weight = row['重量'];

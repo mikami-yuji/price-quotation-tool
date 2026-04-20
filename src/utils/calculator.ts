@@ -40,9 +40,11 @@ export const calculateNewPrices = (
 
     const groupKey = isSP 
       ? `${order.materialName}-${order.weight}-${order.totalColorCount}-${order.printCode}`
+      : isReady
+      ? `${order.materialName}-${order.weight}`
       : `${order.materialName}-${order.weight}-${order.totalColorCount}`;
     
-    const group = (isCustom || isSP || isSticker) ? groupSettings[groupKey] : null;
+    const group = (isCustom || isSP || isSticker || isReady) ? groupSettings[groupKey] : null;
 
     // 1. 改定単価の決定
     let isManualPrice = false;
