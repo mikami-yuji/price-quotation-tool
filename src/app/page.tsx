@@ -805,10 +805,10 @@ export default function Home(): React.ReactElement {
                 <div className={styles.editorContent}>
                   {Object.entries(editorGroups).map(([material, weights]) => (
                     <div key={material} className={styles.materialSection}>
-                      <h4 className={styles.materialHeader}>{material}</h4>
+                      <h4 className={styles.materialHeader}>{material || '(材質未定義)'}</h4>
                       {Object.entries(weights).map(([weight, groups]) => (
                         <div key={weight} className={styles.weightGroup}>
-                          <h5 className={styles.weightHeader}>{weight}</h5>
+                          <h5 className={styles.weightHeader}>{weight.trim() === '㎏' ? '(重量未定義)' : weight}</h5>
                           <div className={styles.groupGrid}>
                             {groups.map((group) => (
                               <div key={group.key} className={styles.groupInputRow}>
