@@ -170,7 +170,8 @@ export const calculateNewPrices = (
       newSalesGroup: resultSalesGroup,
       newPrintingCost,
       newPrintingSalesGroup,
-      priceDifference
+      priceDifference,
+      thickness: individual?.thickness
     };
   });
 };

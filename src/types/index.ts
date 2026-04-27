@@ -30,6 +30,7 @@ export type OrderRecord = {
   newPrintingCost?: number;
   newPrintingSalesGroup?: number;
   priceDifference?: number;
+  thickness?: string;
 };
 
 // 別注単価表の1行を表すデータ
@@ -105,5 +106,6 @@ export type IndividualManualSetting = {
     salesGroup?: number;
     printingPrice?: number;
     printingSalesGroup?: number;
+    thickness?: string;
   };
 };

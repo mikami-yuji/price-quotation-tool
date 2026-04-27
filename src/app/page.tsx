@@ -8,6 +8,7 @@ import { shortenProductName, normalizeCustomerName } from '../utils/stringUtils'
 import { OrderRecord, CustomPriceMatrixRow, IncreaseSimulationConditions, ManualGroupSetting, IndividualManualSetting, SimulationSettings, QuoteHistoryEntry, ReadymadeMasterRow, ReadymadePriceType, ReadymadeSegment, TimingBasis } from '../types';
 import { generateQuoteExcel } from '../utils/excelGenerator';
 import InlineNumericInput from '../components/InlineNumericInput';
+import InlineTextInput from '../components/InlineTextInput';
 import ColumnFilter from '../components/ColumnFilter';
 import { parseReadymadeCSV } from '../utils/csvUtils';
 
@@ -344,10 +345,17 @@ export default function Home(): React.ReactElement {
     setManualSettings(newSettings);
   };
 
-  const updateIndividualField = (orderNumber: string, field: 'price' | 'salesGroup' | 'printingPrice' | 'printingSalesGroup', value: number) => {
+  const updateIndividualField = (
+    orderNumber: string, 
+    field: 'price' | 'salesGroup' | 'printingPrice' | 'printingSalesGroup' | 'thickness', 
+    value: number | string
+  ) => {
     const newSettings = {
       ...individualSettings,
-      [orderNumber]: { ...individualSettings[orderNumber], [field]: value !== 0 ? value : undefined }
+      [orderNumber]: { 
+        ...individualSettings[orderNumber], 
+        [field]: field === 'thickness' ? (value || undefined) : (value !== 0 ? value : undefined) 
+      }
     };
     setIndividualSettings(newSettings);
   };
@@ -900,6 +908,9 @@ export default function Home(): React.ReactElement {
                         <ColumnFilter columnKey="totalColorCount" options={filterOptions.totalColorCount} selectedValues={columnFilters.totalColorCount || []} onFilterChange={(vals) => handleColumnFilterChange('totalColorCount', vals)} title="色数" />
                       </th>
                     )}
+                    {(activeTab === 'custom') && (
+                      <th className={styles.manualHeader}>厚み</th>
+                    )}
                     <th>現行単価</th>
                     <th className={styles.highlightHeader}>改定単価</th>
                     {showMarginCols && (
@@ -947,6 +958,19 @@ export default function Home(): React.ReactElement {
                         {showPrintingCols && <td>{order.printCode}</td>}
                         <td>{order.weight}</td>
                         {activeTab !== 'readymade' && <td>{order.totalColorCount}</td>}
+                        {(activeTab === 'custom') && (
+                          <td className={styles.highlightCell}>
+                            <InlineTextInput 
+                              value={individualSettings[order.orderNumber]?.thickness || ''} 
+                              onCommit={(val) => updateIndividualField(order.orderNumber, 'thickness', val)} 
+                              onKeyDown={(e) => handleKeyDown(e, i, 'thickness')} 
+                              className={styles.manualInput} 
+                              rowIndex={i} 
+                              colKey="thickness" 
+                              placeholder="厚み"
+                            />
+                          </td>
+                        )}
                         <td>¥{order.currentPrice.toFixed(2)}</td>
                         <td className={styles.highlightCell}>
                           <InlineNumericInput value={price} onCommit={(val) => updateIndividualField(order.orderNumber, 'price', val)} onKeyDown={(e) => handleKeyDown(e, i, 'price')} className={styles.manualInput} rowIndex={i} colKey="price" decimals={2} />
