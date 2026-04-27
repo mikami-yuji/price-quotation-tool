@@ -1,3 +1,10 @@
+## [Unreleased] - 2026-04-27
+
+### Refactored
+- **UIコンポーネントの分割**: 巨大だった `page.tsx` を機能ごとに5つの独立したコンポーネント（SummaryDashboard, GroupPriceEditor, SimulationControls, OrderDataTable, HistoryAndMasterManager）に分割しました。
+- **カスタムフックへのロジック抽出**: ビジネスロジックを `usePriceSimulation`、フィルタリング・検索ロジックを `useFilters` カスタムフックへ移行。UIとロジックを分離し、コードの再利用性とテスト性を向上させました。
+- **データ型管理の強化**: 各コンポーネントのPropsに厳密な型を定義し、プロジェクト全体の型安全性を強化しました。
+
 ## [Unreleased] - 2026-04-14
 
 ### Fixed

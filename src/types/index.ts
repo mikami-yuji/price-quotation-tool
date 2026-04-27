@@ -1,4 +1,5 @@
 export type OrderCategory = '別注' | '既製品' | 'SP' | string;
+export type TabType = 'custom' | 'sp' | 'readymade' | 'sticker';
 
 export type OrderRecord = {
   orderNumber: string; // 受注№
