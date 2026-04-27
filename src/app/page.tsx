@@ -10,6 +10,11 @@ import { generateQuoteExcel } from '../utils/excelGenerator';
 import InlineNumericInput from '../components/InlineNumericInput';
 import InlineTextInput from '../components/InlineTextInput';
 import ColumnFilter from '../components/ColumnFilter';
+import SummaryDashboard from '../components/SummaryDashboard';
+import GroupPriceEditor from '../components/GroupPriceEditor';
+import SimulationControls from '../components/SimulationControls';
+import OrderDataTable from '../components/OrderDataTable';
+import HistoryAndMasterManager from '../components/HistoryAndMasterManager';
 import { parseReadymadeCSV } from '../utils/csvUtils';
 
 type TabType = 'custom' | 'sp' | 'readymade' | 'sticker';
@@ -578,7 +583,7 @@ export default function Home(): React.ReactElement {
       ) : (
         <div className={styles.dashboard}>
           <div className={`${styles.glassPanel} ${styles.controls}`}>
-            {/* 1. File & Context Zone */}
+            {/* 1. File Context Zone */}
             <div className={styles.controlTopBar}>
               <div className={styles.fileInfo}>
                 <div className={styles.fileIcon}>📄</div>
@@ -592,588 +597,92 @@ export default function Home(): React.ReactElement {
                   <p>{orders.length} 件のデータが見つかりました。</p>
                 </div>
               </div>
-
-              <div className={styles.simulationParams}>
-                {activeTab === 'custom' && (
-                  <>
-                    <div className={styles.controlGroup}>
-                      <span className={styles.controlLabel}>値上げベース:</span>
-                      <div className={styles.segmentedControl}>
-                        <button 
-                          className={`${styles.segmentButton} ${conditions.customIncreaseType === 'percentage' ? styles.segmentActive : ''}`}
-                          onClick={() => setConditions({ ...conditions, customIncreaseType: 'percentage' })}
-                        >
-                          一律 (%)
-                        </button>
-                        <button 
-                          className={`${styles.segmentButton} ${conditions.customIncreaseType === 'amount' ? styles.segmentActive : ''}`}
-                          onClick={() => setConditions({ ...conditions, customIncreaseType: 'amount' })}
-                        >
-                          一律 (円)
-                        </button>
-                      </div>
-                    </div>
-                    
-                    <div className={styles.controlGroup}>
-                      <span className={styles.controlLabel}>値幅:</span>
-                      <InlineNumericInput 
-                        value={conditions.customIncreaseValue}
-                        onCommit={(val) => setConditions({ ...conditions, customIncreaseValue: val })}
-                        className={styles.manualInput}
-                        style={{ width: '80px' }}
-                        decimals={1}
-                      />
-                    </div>
-
-                    <div className={styles.controlGroup}>
-                      <span className={styles.controlLabel}>端数丸め:</span>
-                      <div className={styles.segmentedControl}>
-                        <button 
-                          className={`${styles.segmentButton} ${conditions.roundingMode === 'none' ? styles.segmentActive : ''}`}
-                          onClick={() => setConditions({ ...conditions, roundingMode: 'none' })}
-                        >
-                          なし
-                        </button>
-                        <button 
-                          className={`${styles.segmentButton} ${conditions.roundingMode === 'half' ? styles.segmentActive : ''}`}
-                          onClick={() => setConditions({ ...conditions, roundingMode: 'half' })}
-                        >
-                          .00 / .50
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                <div className={styles.controlGroup}>
-                  <span className={styles.controlLabel}>実施時期:</span>
-                  <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
-                    <input type="date" value={implementationDate} onChange={(e) => setImplementationDate(e.target.value)} className={styles.manualInput} style={{ width: '135px' }} />
-                    <div className={styles.segmentedControl}>
-                      <button 
-                        className={`${styles.segmentButton} ${timingBasis === 'order' ? styles.segmentActive : ''}`}
-                        onClick={() => setTimingBasis('order')}
-                        style={{ padding: '0 8px', fontSize: '0.75rem' }}
-                      >
-                        受注分
-                      </button>
-                      <button 
-                        className={`${styles.segmentButton} ${timingBasis === 'shipment' ? styles.segmentActive : ''}`}
-                        onClick={() => setTimingBasis('shipment')}
-                        style={{ padding: '0 8px', fontSize: '0.75rem' }}
-                      >
-                        出荷分
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className={styles.controlGroup}>
-                  <span className={styles.controlLabel}>前回値上げ日:</span>
-                  <input type="date" value={lastIncreaseDate} onChange={(e) => setLastIncreaseDate(e.target.value)} className={styles.manualInput} style={{ width: '135px' }} title="これより前の受注日の商品は赤字になります" />
-                </div>
-
-                {activeTab === 'readymade' && (
-                  <>
-                    <div className={styles.controlGroup}>
-                      <span className={styles.controlLabel}>価格タイプ:</span>
-                      <div className={styles.segmentedControl}>
-                        <button 
-                          className={`${styles.segmentButton} ${readymadePriceType === 'normal' ? styles.segmentActive : ''}`}
-                          onClick={() => setReadymadePriceType('normal')}
-                        >
-                          通常
-                        </button>
-                        <button 
-                          className={`${styles.segmentButton} ${readymadePriceType === 'campaign' ? styles.segmentActive : ''}`}
-                          onClick={() => setReadymadePriceType('campaign')}
-                        >
-                          CP
-                        </button>
-                      </div>
-                    </div>
-                    <div className={styles.controlGroup}>
-                      <span className={styles.controlLabel}>客層区分:</span>
-                      <div className={styles.segmentedControl}>
-                        {(['uru', 'junD', 'd'] as ReadymadeSegment[]).map(s => (
-                          <button 
-                            key={s}
-                            className={`${styles.segmentButton} ${readymadeSegment === s ? styles.segmentActive : ''}`}
-                            onClick={() => setReadymadeSegment(s)}
-                          >
-                            {s === 'uru' ? '売' : s === 'junD' ? '準D' : 'D'}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
             </div>
-            
-            {/* 2. Global Toolbar Zone */}
-            <div className={styles.toolbar}>
-              <div className={styles.controlGroup}>
-                <span className={styles.controlLabel}>🔍 検索:</span>
-                <input 
-                  type="text" 
-                  placeholder="商品名、コードなどで絞り込み..." 
-                  value={searchQuery} 
-                  onChange={(e) => setSearchQuery(e.target.value)} 
-                  className={styles.manualInput} 
-                  style={{ width: '250px' }} 
-                />
-              </div>
 
-              <div className={styles.actionButtons}>
-                <button className={styles.resetButton} onClick={handleResetSettings}>🔄 設定リセット</button>
-                
-                {simulatedOrders.length > 0 && (
-                  <>
-                    <button onClick={handleSaveSettings} className={styles.secondaryButton} title="設定保存">
-                      💾 保存
-                    </button>
-                    <button onClick={() => settingsInputRef.current?.click()} className={styles.secondaryButton} title="設定読込">
-                      📂 読込
-                    </button>
-                    <input type="file" accept=".json" hidden ref={settingsInputRef} onChange={handleLoadSettings} />
-                    
-                    <button className={styles.primaryButton} onClick={handleSimulate}>
-                      ✨ 再計算
-                    </button>
-
-                    <button onClick={handleExportExcel} className={styles.pdfButton}>
-                      🚀 {activeTab === 'custom' ? '別注' : activeTab === 'sp' ? 'SP' : activeTab === 'readymade' ? '既製' : 'シール'}見積書を出力
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
+            <SimulationControls 
+              activeTab={activeTab}
+              conditions={conditions}
+              setConditions={setConditions}
+              implementationDate={implementationDate}
+              setImplementationDate={setImplementationDate}
+              timingBasis={timingBasis}
+              setTimingBasis={setTimingBasis}
+              lastIncreaseDate={lastIncreaseDate}
+              setLastIncreaseDate={setLastIncreaseDate}
+              readymadePriceType={readymadePriceType}
+              setReadymadePriceType={setReadymadePriceType}
+              readymadeSegment={readymadeSegment}
+              setReadymadeSegment={setReadymadeSegment}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              handleResetSettings={handleResetSettings}
+              handleSaveSettings={handleSaveSettings}
+              handleLoadSettings={handleLoadSettings}
+              handleSimulate={handleSimulate}
+              handleExportExcel={handleExportExcel}
+              hasOrders={simulatedOrders.length > 0}
+              settingsInputRef={settingsInputRef}
+            />
           </div>
 
-          <div className={styles.summaryDashboard}>
-            <div className={`${styles.glassPanel} ${styles.summaryCard}`}>
-              <span className={styles.summaryLabel}>表示アイテム数</span>
-              <span className={styles.summaryValue}>{filteredOrders.length} 件</span>
-            </div>
-            <div className={`${styles.glassPanel} ${styles.summaryCard}`}>
-              <span className={styles.summaryLabel}>現行 売上合計</span>
-              <span className={styles.summaryValue}>¥{summary.currentTotal.toLocaleString()}</span>
-            </div>
-            <div className={`${styles.glassPanel} ${styles.summaryCard}`}>
-              <span className={styles.summaryLabel}>改定後 予想売上</span>
-              <span className={styles.summaryValue}>¥{summary.newTotal.toLocaleString()}</span>
-              <span className={`${styles.summaryTrend} ${styles.trendUp}`}>+{revenueIncrease.toLocaleString()} 円増加</span>
-            </div>
-            <div className={`${styles.glassPanel} ${styles.summaryCard}`}>
-              <span className={styles.summaryLabel}>平均改定率</span>
-              <span className={`${styles.summaryValue} ${styles.priceUp}`}>{avgRevisionRate.toFixed(1)}%</span>
-            </div>
-          </div>
+          <SummaryDashboard 
+            itemCount={filteredOrders.length}
+            currentTotal={summary.currentTotal}
+            newTotal={summary.newTotal}
+            revenueIncrease={revenueIncrease}
+            avgRevisionRate={avgRevisionRate}
+          />
 
           <div className={styles.tabContainer}>
-            <button 
-              className={`${styles.tabItem} ${activeTab === 'custom' ? styles.tabActive : ''}`}
-              onClick={() => setActiveTab('custom')}
-            >
-              別注・ポリ別注 ({counts.custom})
-            </button>
-            <button 
-              className={`${styles.tabItem} ${activeTab === 'sp' ? styles.tabActive : ''}`}
-              onClick={() => setActiveTab('sp')}
-            >
-              SP・シルク ({counts.sp})
-            </button>
-            <button 
-              className={`${styles.tabItem} ${activeTab === 'readymade' ? styles.tabActive : ''}`}
-              onClick={() => setActiveTab('readymade')}
-            >
-              既製・その他 ({counts.readymade})
-            </button>
-            <button 
-              className={`${styles.tabItem} ${activeTab === 'sticker' ? styles.tabActive : ''}`}
-              onClick={() => setActiveTab('sticker')}
-            >
-              シール ({counts.sticker})
-            </button>
+            {(['custom', 'sp', 'readymade', 'sticker'] as TabType[]).map(tab => (
+              <button 
+                key={tab}
+                className={`${styles.tabItem} ${activeTab === tab ? styles.tabActive : ''}`}
+                onClick={() => setActiveTab(tab)}
+              >
+                {tab === 'custom' ? '別注・ポリ別注' : tab === 'sp' ? 'SP・シルク' : tab === 'readymade' ? '既製・その他' : 'シール'} ({counts[tab]})
+              </button>
+            ))}
           </div>
 
-          {Object.keys(editorGroups).length > 0 && (
-            <div className={`${styles.glassPanel} ${styles.groupPriceEditor} ${!isGroupEditorExpanded ? styles.collapsed : ''}`}>
-              <header className={styles.editorHeader} onClick={() => setIsGroupEditorExpanded(!isGroupEditorExpanded)}>
-                <div className={styles.editorTitle}>
-                  <span className={styles.editorIcon}>🛠</span>
-                  <h3>{activeTab === 'sp' ? 'SP' : activeTab === 'readymade' ? '既製品' : activeTab === 'sticker' ? 'シール' : '別注'}グループ単価設定</h3>
-                  <span className={styles.expandIcon}>{isGroupEditorExpanded ? '▼' : '▶'}</span>
-                </div>
-                <p className={styles.controlLabel}>材質・{activeTab === 'readymade' ? '重量' : '重量・色数'}が同じ商品をまとめて単価設定できます。</p>
-              </header>
-              
-              {isGroupEditorExpanded && (
-                <div className={styles.editorContent}>
-                  {Object.entries(editorGroups).map(([material, weights]) => (
-                    <div key={material} className={styles.materialSection}>
-                      <h4 className={styles.materialHeader}>{material || '(材質未定義)'}</h4>
-                      {Object.entries(weights).map(([weight, groups]) => (
-                        <div key={weight} className={styles.weightGroup}>
-                          <h5 className={styles.weightHeader}>{weight.trim() === '㎏' ? '(重量未定義)' : weight}</h5>
-                          <div className={styles.groupGrid}>
-                            {groups.map((group) => (
-                              <div key={group.key} className={styles.groupInputRow}>
-                                <div className={styles.groupInfo}>
-                                  <div className={styles.groupTopInfo}>
-                                    {activeTab !== 'readymade' && <span className={styles.groupColors}>{group.colors}色</span>}
-                                    {group.printCode && <span className={styles.printCodeLabel}>{group.printCode}</span>}
-                                  </div>
-                                </div>
-                                <div className={styles.groupInputs}>
-                                  <div className={styles.inputWrapper}>
-                                    <span className={styles.inputLabel}>単価</span>
-                                    <InlineNumericInput value={manualSettings[group.key]?.price || 0} onCommit={(val) => updateManualField(group.key, 'price', val)} onKeyDown={preventArrowKeys} className={styles.manualInput} decimals={2} />
-                                    <div className={styles.groupPriceDetail}>現行: ¥{group.currentPrice.toFixed(2)}</div>
-                                  </div>
-                                  <div className={styles.inputWrapper}>
-                                    <span className={styles.inputLabel}>営G</span>
-                                    <InlineNumericInput value={manualSettings[group.key]?.salesGroup || 0} onCommit={(val) => updateManualField(group.key, 'salesGroup', val)} onKeyDown={preventArrowKeys} className={styles.manualInput} decimals={2} />
-                                    <div className={styles.groupPriceDetail}>現行: ¥{group.currentSalesGroup.toFixed(2)}</div>
-                                  </div>
-                                  {activeTab === 'sp' && (
-                                    <>
-                                      <div className={styles.inputWrapper}>
-                                        <span className={styles.inputLabel}>印刷代</span>
-                                        <InlineNumericInput value={manualSettings[group.key]?.printingPrice ?? group.currentPrintingCost ?? 0} onCommit={(val) => updateManualField(group.key, 'printingPrice', val)} onKeyDown={preventArrowKeys} className={styles.manualInput} decimals={2} />
-                                        <div className={styles.groupPriceDetail}>現行: ¥{(group.currentPrintingCost || 0).toFixed(2)}</div>
-                                      </div>
-                                      <div className={styles.inputWrapper}>
-                                        <span className={styles.inputLabel}>印刷営G</span>
-                                        <InlineNumericInput value={manualSettings[group.key]?.printingSalesGroup ?? group.currentPrintingSalesGroup ?? 0} onCommit={(val) => updateManualField(group.key, 'printingSalesGroup', val)} onKeyDown={preventArrowKeys} className={styles.manualInput} decimals={2} />
-                                        <div className={styles.groupPriceDetail}>現行: ¥{(group.currentPrintingSalesGroup || 0).toFixed(2)}</div>
-                                      </div>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+          <GroupPriceEditor 
+            activeTab={activeTab}
+            editorGroups={editorGroups}
+            manualSettings={manualSettings}
+            updateManualField={updateManualField}
+            isExpanded={isGroupEditorExpanded}
+            onToggleExpand={() => setIsGroupEditorExpanded(!isGroupEditorExpanded)}
+            preventArrowKeys={preventArrowKeys}
+          />
 
-          <div className={styles.tableCard}>
-            <div className={styles.tableContainer}>
-              <table className={styles.dataTable}>
-                <thead>
-                  <tr>
-                    <th>
-                      種別
-                      <ColumnFilter columnKey="category" options={filterOptions.category} selectedValues={columnFilters.category || []} onFilterChange={(vals) => handleColumnFilterChange('category', vals)} title="種別" />
-                    </th>
-                    <th>
-                      受注No
-                      <ColumnFilter columnKey="orderNumber" options={filterOptions.orderNumber} selectedValues={columnFilters.orderNumber || []} onFilterChange={(vals) => handleColumnFilterChange('orderNumber', vals)} title="受注No" />
-                    </th>
-                    <th>
-                      直送先
-                      <ColumnFilter columnKey="directDeliveryName" options={filterOptions.directDeliveryName} selectedValues={columnFilters.directDeliveryName || []} onFilterChange={(vals) => handleColumnFilterChange('directDeliveryName', vals)} title="直送先" />
-                    </th>
-                    {activeTab !== 'custom' && (
-                      <th>
-                        商品コード
-                        <ColumnFilter columnKey="productCode" options={filterOptions.productCode} selectedValues={columnFilters.productCode || []} onFilterChange={(vals) => handleColumnFilterChange('productCode', vals)} title="コード" />
-                      </th>
-                    )}
-                    <th>
-                      商品名
-                      <ColumnFilter columnKey="productName" options={filterOptions.productName} selectedValues={columnFilters.productName || []} onFilterChange={(vals) => handleColumnFilterChange('productName', vals)} title="商品名" />
-                    </th>
-                    <th>形状</th>
-                    <th>数量</th>
-                    <th>
-                      材質
-                      <ColumnFilter columnKey="materialName" options={filterOptions.materialName} selectedValues={columnFilters.materialName || []} onFilterChange={(vals) => handleColumnFilterChange('materialName', vals)} title="材質" />
-                    </th>
-                    {showPrintingCols && <th>印刷コード</th>}
-                    <th>
-                      重量
-                      <ColumnFilter columnKey="weight" options={filterOptions.weight} selectedValues={columnFilters.weight || []} onFilterChange={(vals) => handleColumnFilterChange('weight', vals)} title="重量" />
-                    </th>
-                    {activeTab !== 'readymade' && (
-                      <th>
-                        色数
-                        <ColumnFilter columnKey="totalColorCount" options={filterOptions.totalColorCount} selectedValues={columnFilters.totalColorCount || []} onFilterChange={(vals) => handleColumnFilterChange('totalColorCount', vals)} title="色数" />
-                      </th>
-                    )}
-                    {(activeTab === 'custom') && (
-                      <th className={styles.manualHeader}>厚み</th>
-                    )}
-                    <th>現行単価</th>
-                    <th className={styles.highlightHeader}>改定単価</th>
-                    {showMarginCols && (
-                      <>
-                        <th>現行営G</th>
-                        <th className={styles.highlightHeader}>改定営G</th>
-                      </>
-                    )}
-                    {showPrintingCols && <th>印刷代</th>}
-                    {showPrintingCols && <th className={`${styles.highlightHeader} ${styles.compactHeader}`}>改定印刷代単価</th>}
-                    {showPrintingCols && <th>印刷営G</th>}
-                    {showPrintingCols && <th className={`${styles.highlightHeader} ${styles.compactHeader}`}>改定印刷代営G</th>}
-                    <th>値上率</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredOrders.map((order, i) => {
-                    const price = individualSettings[order.orderNumber]?.price ?? order.newPrice ?? order.currentPrice;
-                    const salesGroup = individualSettings[order.orderNumber]?.salesGroup ?? order.newSalesGroup ?? order.salesGroup;
-                    const pCost = individualSettings[order.orderNumber]?.printingPrice ?? order.newPrintingCost ?? order.printingCost ?? 0;
-                    const pSalesGroup = individualSettings[order.orderNumber]?.printingSalesGroup ?? order.newPrintingSalesGroup ?? order.printingSalesGroup ?? 0;
-                    
-                    const currentTotal = order.currentPrice + (order.printingCost || 0);
-                    const newTotal = price + pCost;
-                    const diff = currentTotal > 0 ? ((newTotal / currentTotal) - 1) * 100 : 0;
-                    
-                    const isInactive = lastIncreaseDate && order.lastOrderDate && (
-                      new Date(order.lastOrderDate).getTime() <= new Date(lastIncreaseDate).getTime()
-                    );
-                    
-                    return (
-                      <tr key={i} className={isInactive ? styles.inactiveRow : ''}>
-                        <td style={{ fontSize: '0.8rem', opacity: 0.7 }}>{order.category}</td>
-                        <td style={{ fontSize: '0.8rem' }}>{order.orderNumber}</td>
-                        <td>{order.directDeliveryName}</td>
-                        {activeTab !== 'custom' && <td>{order.productCode}</td>}
-                        <td>
-                          {order.category === '既製品' || order.category === '' 
-                            ? order.productName 
-                            : shortenProductName(order.title || order.productName)}
-                        </td>
-                        <td>{order.shape}</td>
-                        <td>{order.quantity}</td>
-                        <td>{order.materialName}</td>
-                        {showPrintingCols && <td>{order.printCode}</td>}
-                        <td>{order.weight}</td>
-                        {activeTab !== 'readymade' && <td>{order.totalColorCount}</td>}
-                        {(activeTab === 'custom') && (
-                          <td className={styles.highlightCell}>
-                            <InlineTextInput 
-                              value={individualSettings[order.orderNumber]?.thickness || ''} 
-                              onCommit={(val) => updateIndividualField(order.orderNumber, 'thickness', val)} 
-                              onKeyDown={(e) => handleKeyDown(e, i, 'thickness')} 
-                              className={styles.manualInput} 
-                              rowIndex={i} 
-                              colKey="thickness" 
-                              placeholder="厚み"
-                            />
-                          </td>
-                        )}
-                        <td>¥{order.currentPrice.toFixed(2)}</td>
-                        <td className={styles.highlightCell}>
-                          <InlineNumericInput value={price} onCommit={(val) => updateIndividualField(order.orderNumber, 'price', val)} onKeyDown={(e) => handleKeyDown(e, i, 'price')} className={styles.manualInput} rowIndex={i} colKey="price" decimals={2} />
-                        </td>
-                        {showMarginCols && (
-                          <>
-                            <td style={{ fontSize: '0.85rem' }}>¥{order.salesGroup.toFixed(2)}</td>
-                            <td className={styles.highlightCell}>
-                              <InlineNumericInput value={salesGroup} onCommit={(val) => updateIndividualField(order.orderNumber, 'salesGroup', val)} onKeyDown={(e) => handleKeyDown(e, i, 'salesGroup')} className={styles.manualInput} rowIndex={i} colKey="salesGroup" decimals={2} />
-                            </td>
-                          </>
-                        )}
-                        {showPrintingCols && <td style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>¥{(order.printingCost || 0).toFixed(2)}</td>}
-                        {showPrintingCols && (
-                          <td className={`${styles.highlightCell} ${styles.compactCell}`}>
-                            <InlineNumericInput 
-                              value={pCost} 
-                              onCommit={(val) => updateIndividualField(order.orderNumber, 'printingPrice', val)} 
-                              onKeyDown={(e) => handleKeyDown(e, i, 'printingPrice')} 
-                              className={styles.manualInput} 
-                              rowIndex={i} 
-                              colKey="printingPrice" 
-                              decimals={2} 
-                            />
-                          </td>
-                        )}
-                        {showPrintingCols && <td style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>¥{(order.printingSalesGroup || 0).toFixed(2)}</td>}
-                        {showPrintingCols && (
-                          <td className={`${styles.highlightCell} ${styles.compactCell}`}>
-                            <InlineNumericInput 
-                              value={pSalesGroup} 
-                              onCommit={(val) => updateIndividualField(order.orderNumber, 'printingSalesGroup', val)} 
-                              onKeyDown={(e) => handleKeyDown(e, i, 'printingSalesGroup')} 
-                              className={styles.manualInput} 
-                              rowIndex={i} 
-                              colKey="printingSalesGroup" 
-                              decimals={2} 
-                            />
-                          </td>
-                        )}
-                        <td className={`${styles.highlightRateCell} ${styles.compactCell}`}>
-                          <InlineNumericInput 
-                            value={diff} 
-                            onCommit={(val) => updateIndividualPriceByRate(order.orderNumber, order.currentPrice, order.printingCost, val)} 
-                            onKeyDown={(e) => handleKeyDown(e, i, 'diff')} 
-                            className={styles.manualInput} 
-                            rowIndex={i} 
-                            colKey="diff" 
-                            decimals={1} 
-                            suffix="%"
-                          />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {filteredOrders.length === 0 && (
-                    <tr>
-                      <td colSpan={20} className={styles.emptyState}>該当するデータがありません</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          
-          {/* マスターデータ管理セクション */}
-      <section className={`${styles.glassPanel} ${styles.historySection}`} style={{ marginTop: '2rem' }}>
-        <div className={styles.historyHeader} onClick={() => setIsMasterExpanded(!isMasterExpanded)}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span role="img" aria-label="database">📊</span>
-            <h3>マスター価格表の管理（個別アップロード）</h3>
-          </div>
-          <span>{isMasterExpanded ? '▲ 閉じる' : '▼ 開く'}</span>
-        </div>
-        
-        {isMasterExpanded && (
-          <div className={styles.historyList}>
-            <p className={styles.subtitle} style={{ fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-              カテゴリーごとに固定の単価表をアップロードできます。設定したマスターはブラウザに保存され、見積作成時に自動適用されます。
-            </p>
-            
-            <div className={styles.tabContainer} style={{ background: 'rgba(0,0,0,0.1)', marginBottom: '1.5rem' }}>
-              <button 
-                className={`${styles.tabItem} ${activeMasterTab === 'custom' ? styles.activeTab : ''}`}
-                onClick={() => setActiveMasterTab('custom')}
-              >
-                別注マスター
-                {customMaster.length > 0 && <span className={styles.statusBadge}>設定済</span>}
-              </button>
-              <button 
-                className={`${styles.tabItem} ${activeMasterTab === 'sp' ? styles.activeTab : ''}`}
-                onClick={() => setActiveMasterTab('sp')}
-              >
-                SPマスター
-                {spMaster.length > 0 && <span className={styles.statusBadge}>設定済</span>}
-              </button>
-              <button 
-                className={`${styles.tabItem} ${activeMasterTab === 'readymade' ? styles.activeTab : ''}`}
-                onClick={() => setActiveMasterTab('readymade')}
-              >
-                既製マスター
-                {readymadeMaster.length > 0 && <span className={styles.statusBadge}>設定済</span>}
-              </button>
-              <button 
-                className={`${styles.tabItem} ${activeMasterTab === 'sticker' ? styles.activeTab : ''}`}
-                onClick={() => setActiveMasterTab('sticker')}
-              >
-                シールマスター
-                {stickerMaster.length > 0 && <span className={styles.statusBadge}>設定済</span>}
-              </button>
-            </div>
+          <OrderDataTable 
+            activeTab={activeTab}
+            filteredOrders={filteredOrders}
+            individualSettings={individualSettings}
+            columnFilters={columnFilters}
+            filterOptions={filterOptions}
+            handleColumnFilterChange={handleColumnFilterChange}
+            updateIndividualField={updateIndividualField}
+            updateIndividualPriceByRate={updateIndividualPriceByRate}
+            handleKeyDown={handleKeyDown}
+            lastIncreaseDate={lastIncreaseDate}
+          />
 
-            <div className={styles.masterControlArea}>
-              <div className={styles.masterInfo}>
-                <h4>
-                  {activeMasterTab === 'custom' ? '別注・ポリ別注' : 
-                   activeMasterTab === 'sp' ? 'SP・シルク' : 
-                   activeMasterTab === 'sticker' ? 'シール' : '既製品・その他'}用
-                </h4>
-                <p>登録件数: {
-                  activeMasterTab === 'custom' ? customMaster.length : 
-                  activeMasterTab === 'sp' ? spMaster.length : 
-                  activeMasterTab === 'sticker' ? stickerMaster.length : readymadeMaster.length
-                } 件</p>
-              </div>
-              
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <label className={styles.secondaryButton}>
-                  <span role="img" aria-label="upload">📤</span> マスターをアップロード
-                  <input 
-                    type="file" 
-                    accept=".xlsx, .xls, .csv" 
-                    style={{ display: 'none' }} 
-                    onChange={(e) => handleMasterUpload(e, activeMasterTab)}
-                  />
-                </label>
-                {(activeMasterTab === 'custom' ? customMaster.length : 
-                  activeMasterTab === 'sp' ? spMaster.length : readymadeMaster.length) > 0 && (
-                  <button 
-                    className={styles.resetButton}
-                    onClick={() => {
-                      if (confirm('このカテゴリーのマスターデータを削除しますか？')) {
-                        if (activeMasterTab === 'custom') setCustomMaster([]);
-                        if (activeMasterTab === 'sp') setSpMaster([]);
-                        if (activeMasterTab === 'readymade') setReadymadeMaster([]);
-                        if (activeMasterTab === 'sticker') setStickerMaster([]);
-                      }
-                    }}
-                  >
-                    リセット
-                  </button>
-                )}
-              </div>
-            </div>
-            
-            <div style={{ marginTop: '1rem', padding: '15px', background: 'rgba(0,0,0,0.05)', borderRadius: '8px', fontSize: '0.85rem' }}>
-              <strong>ヒント:</strong> 「別注単価表」という名前のシートに、[材質名称, 重量, 1, 2, 3, 4, 5, 6, 7] の列を持つExcelファイルを読み込んでください。
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* 作成履歴セクション */}
-          <div className={`${styles.glassPanel} ${styles.historySection}`}>
-            <div className={styles.historyHeader} onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}>
-              <h3>📜 作成履歴 ({history.length})</h3>
-              <span className={styles.expandIcon}>{isHistoryExpanded ? '▲' : '▼'}</span>
-            </div>
-            {isHistoryExpanded && (
-              <div className={styles.historyList}>
-                {history.length === 0 ? (
-                  <p className={styles.noHistory}>履歴はまだありません</p>
-                ) : (
-                  <table className={styles.historyTable}>
-                    <thead>
-                      <tr>
-                        <th>日時</th>
-                        <th>得意先</th>
-                        <th>種別</th>
-                        <th>点数</th>
-                        <th>旧売上合計</th>
-                        <th>新売上合計</th>
-                        <th>改定率</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {history.map(entry => (
-                        <tr key={entry.id}>
-                          <td>{new Date(entry.timestamp).toLocaleString('ja-JP')}</td>
-                          <td>{entry.customerName}</td>
-                          <td>{entry.category}</td>
-                          <td>{entry.itemCount}</td>
-                          <td>¥{entry.totalBefore.toLocaleString()}</td>
-                          <td>¥{entry.totalAfter.toLocaleString()}</td>
-                          <td className={styles.priceUp}>{entry.revisionRate.toFixed(1)}%</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            )}
-          </div>
+          <HistoryAndMasterManager 
+            history={history}
+            isHistoryExpanded={isHistoryExpanded}
+            setIsHistoryExpanded={setIsHistoryExpanded}
+            activeMasterTab={activeMasterTab}
+            setActiveMasterTab={setActiveMasterTab}
+            isMasterExpanded={isMasterExpanded}
+            setIsMasterExpanded={setIsMasterExpanded}
+            customMaster={customMaster}
+            spMaster={spMaster}
+            readymadeMaster={readymadeMaster}
+            stickerMaster={stickerMaster}
+            handleMasterUpload={handleMasterUpload}
+            hasOrders={orders.length > 0}
+          />
         </div>
       )}
     </div>
