@@ -32,14 +32,14 @@ export const calculateNewPrices = (
     // 優先順位: 個別設定 > グループ設定 > デフォルト
     const individual = individualSettings[order.orderNumber];
     
-    // SP・シルクの場合は印刷コードも含めた4項目でグルーピング
+    // SPの場合は印刷コードも含めた4項目でグルーピング
     const isCustom = order.category === '別注' || order.category === 'ポリ別注';
-    const isSP = order.category === 'SP' || order.category === 'シルク';
+    const isSP = order.category === 'SP';
     const isSticker = order.category === 'シール' || order.category === 'シール（フルオーダー）' || order.category.includes('シール');
     
-    // 既製品かどうかの判定（余白や表記の揺れを考慮）
+    // 既製品かどうかの判定（「シルク」も既製品マスターで計算する）
     const category = (order.category || '').trim();
-    const isReady = category.includes('既製品') || category.includes('既製') || category === '' || category.toUpperCase() === 'READYMADE';
+    const isReady = category.includes('既製品') || category.includes('既製') || category === 'シルク' || category === '' || category.toUpperCase() === 'READYMADE';
 
     const groupKey = isSP 
       ? `${order.materialName}-${order.weight}-${order.totalColorCount}-${order.printCode}`

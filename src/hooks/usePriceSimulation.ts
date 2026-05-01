@@ -62,12 +62,12 @@ export const usePriceSimulation = () => {
       case 'custom':
         return allOrders.filter(o => o.category === '別注' || o.category === 'ポリ別注');
       case 'sp':
-        return allOrders.filter(o => o.category === 'SP' || o.category === 'シルク');
+        return allOrders.filter(o => o.category === 'SP');
       case 'sticker':
         return allOrders.filter(o => o.category === 'シール' || o.category === 'シール（フルオーダー）' || o.category.includes('シール'));
       case 'readymade':
         return allOrders.filter(o => 
-          o.category !== '別注' && o.category !== 'ポリ別注' && o.category !== 'SP' && o.category !== 'シルク' && 
+          o.category !== '別注' && o.category !== 'ポリ別注' && o.category !== 'SP' && 
           !(o.category === 'シール' || o.category === 'シール（フルオーダー）' || o.category.includes('シール')) &&
           o.productCode !== '999999999'
         );
