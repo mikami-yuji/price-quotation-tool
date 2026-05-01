@@ -200,10 +200,12 @@ const mapRowToPriceMatrix = (row: Record<string, any>): CustomPriceMatrixRow | n
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mapRowToReadymadeMaster = (row: Record<string, any>): ReadymadeMasterRow | null => {
-  // すべてのキーのスペースを除去したマップを作成
+  // すべてのキーの特殊文字（スペース、改行など）を除去したマップを作成
   const cleanRow: Record<string, any> = {};
   Object.keys(row).forEach(key => {
-    cleanRow[key.replace(/\s+/g, '')] = row[key];
+    // 改行コードや全角スペース、タブなどもすべて削除
+    const cleanKey = key.replace(/[\s\t\r\n\xA0]/g, '');
+    cleanRow[cleanKey] = row[key];
   });
 
   // 商品コード（ＮＯ．、ＮＯ、商品コード、商品CD 等に対応）
