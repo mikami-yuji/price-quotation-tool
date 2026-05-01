@@ -61,6 +61,8 @@ export default function InlineTextInput({
   return (
     <input
       ref={inputRef}
+      id={rowIndex !== undefined && colKey ? `text-input-${rowIndex}-${colKey}` : undefined}
+      name={rowIndex !== undefined && colKey ? `text-input-${rowIndex}-${colKey}` : undefined}
       type="text"
       value={localValue}
       onChange={handleChange}

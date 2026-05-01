@@ -97,6 +97,8 @@ export default function InlineNumericInput({
   return (
     <input
       ref={inputRef}
+      id={rowIndex !== undefined && colKey ? `input-${rowIndex}-${colKey}` : undefined}
+      name={rowIndex !== undefined && colKey ? `input-${rowIndex}-${colKey}` : undefined}
       type="text"
       inputMode="decimal"
       value={localValue}
