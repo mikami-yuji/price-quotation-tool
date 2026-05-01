@@ -223,6 +223,11 @@ const mapRowToReadymadeMaster = (row: Record<string, any>): ReadymadeMasterRow |
     ''
   ).replace(/\s+/g, '');
 
+  // フォールバック: 4列目の値を採用（標準的な受注データの形式に合わせる）
+  if (!absCode && Object.values(row).length >= 4) {
+    absCode = String(Object.values(row)[3]).replace(/\s+/g, '');
+  }
+
   // フォールバック: 1列目の値をABSコードとして採用（見出し名が異なる場合への対応）
   if (!absCode && Object.values(row).length > 0) {
     absCode = String(Object.values(row)[0]).replace(/\s+/g, '');
