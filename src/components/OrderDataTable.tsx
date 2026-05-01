@@ -15,7 +15,7 @@ type OrderDataTableProps = {
   columnFilters: Record<string, string[]>;
   filterOptions: { [key: string]: string[] };
   handleColumnFilterChange: (columnKey: string, values: string[]) => void;
-  updateIndividualField: (orderNumber: string, field: any, value: number | string) => void;
+  updateIndividualField: (orderNumber: string, field: 'price' | 'salesGroup' | 'printingPrice' | 'printingSalesGroup' | 'thickness', value: number | string) => void;
   updateIndividualPriceByRate: (orderNumber: string, currentPrice: number, printingCost: number, rate: number) => void;
   handleKeyDown: (e: React.KeyboardEvent<HTMLInputElement>, rowIndex: number, colKey: string) => void;
   lastIncreaseDate: string;

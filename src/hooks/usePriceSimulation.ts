@@ -124,11 +124,31 @@ export const usePriceSimulation = () => {
         parsedMatrix = parseReadymadeCSV(buffer);
       } else {
         const parsedData = parseExcelFile(buffer);
-        parsedMatrix = parsedData.priceMatrix;
+        
+        if (type === 'readymade') {
+          // 既製品の場合: 1. 専用シートからのパース結果があれば優先
+          if (parsedData.readymadeMaster && parsedData.readymadeMaster.length > 0) {
+            parsedMatrix = parsedData.readymadeMaster;
+          } 
+          // 2. 「見積書」シートとして読み込まれたデータがあれば、それをマスターに変換
+          else if (parsedData.orders && parsedData.orders.length > 0) {
+            parsedMatrix = parsedData.orders
+              .filter(o => o.productCode && o.productCode !== '999999999')
+              .map(o => ({
+                productCode: o.productCode,
+                minQuantity: 0,
+                campaign: { uru: 0, junD: 0, d: 0 },
+                normal: { uru: o.currentPrice, junD: 0, d: 0 }
+              }));
+          }
+        } else {
+          // 別注・SP・シールの場合は従来通り材質・重量ベースの単価表
+          parsedMatrix = parsedData.priceMatrix;
+        }
       }
       
       if (parsedMatrix.length === 0) {
-        alert('マスターデータの形式を確認してください。');
+        alert('マスターデータの形式を確認してください（適切なシート名や列名が必要です）。');
         return;
       }
 
@@ -137,10 +157,10 @@ export const usePriceSimulation = () => {
       if (type === 'readymade') setReadymadeMaster(parsedMatrix);
       if (type === 'sticker') setStickerMaster(parsedMatrix as CustomPriceMatrixRow[]);
       
-      alert(`${type.toUpperCase()}マスターを読込ました。`);
+      alert(`${type === 'readymade' ? '既製品' : type.toUpperCase()}マスターを読み込みました。`);
     } catch (err) {
       console.error(err);
-      alert('解析失敗');
+      alert('解析失敗: ファイルの形式が正しいか確認してください。');
     }
   };
 
@@ -151,54 +171,58 @@ export const usePriceSimulation = () => {
 
   // Persistence (Load)
   useEffect(() => {
-    setIsMounted(true);
-    if (typeof window !== 'undefined') {
-      try {
-        const savedTheme = localStorage.getItem('theme') as 'light' | 'dark';
-        if (savedTheme) {
-          setTheme(savedTheme);
-          document.documentElement.setAttribute('data-theme', savedTheme);
+    const loadFromLocalStorage = () => {
+      setIsMounted(true);
+      if (typeof window !== 'undefined') {
+        try {
+          const savedTheme = localStorage.getItem('theme') as 'light' | 'dark';
+          if (savedTheme) {
+            setTheme(savedTheme);
+            document.documentElement.setAttribute('data-theme', savedTheme);
+          }
+
+          const savedHistory = localStorage.getItem('price-quotation-history');
+          if (savedHistory) setHistory(JSON.parse(savedHistory));
+
+          const savedConditions = localStorage.getItem('price-quotation-conditions');
+          if (savedConditions) setConditions(JSON.parse(savedConditions));
+          
+          const savedManualSettings = localStorage.getItem('price-quotation-manual-settings');
+          if (savedManualSettings) setManualSettings(JSON.parse(savedManualSettings));
+
+          const savedIndividualSettings = localStorage.getItem('price-quotation-individual-settings');
+          if (savedIndividualSettings) setIndividualSettings(JSON.parse(savedIndividualSettings));
+
+          const savedTimingBasis = localStorage.getItem('price-quotation-timing-basis') as TimingBasis;
+          if (savedTimingBasis) setTimingBasis(savedTimingBasis);
+
+          const savedCustomMaster = localStorage.getItem('price-quotation-custom-master');
+          if (savedCustomMaster) setCustomMaster(JSON.parse(savedCustomMaster));
+
+          const savedSPMaster = localStorage.getItem('price-quotation-sp-master');
+          if (savedSPMaster) setSpMaster(JSON.parse(savedSPMaster));
+
+          const savedReadyMaster = localStorage.getItem('price-quotation-ready-master');
+          if (savedReadyMaster) setReadymadeMaster(JSON.parse(savedReadyMaster));
+
+          const savedReadyType = localStorage.getItem('price-quotation-ready-type') as ReadymadePriceType;
+          if (savedReadyType) setReadymadePriceType(savedReadyType);
+
+          const savedReadySegment = localStorage.getItem('price-quotation-ready-segment') as ReadymadeSegment;
+          if (savedReadySegment) setReadymadeSegment(savedReadySegment);
+
+          const savedStickerMaster = localStorage.getItem('price-quotation-sticker-master');
+          if (savedStickerMaster) setStickerMaster(JSON.parse(savedStickerMaster));
+
+          const savedLastIncreaseDate = localStorage.getItem('price-quotation-last-increase-date');
+          if (savedLastIncreaseDate) setLastIncreaseDate(savedLastIncreaseDate);
+        } catch (e) {
+          console.error('Failed to load settings from localStorage', e);
         }
-
-        const savedHistory = localStorage.getItem('price-quotation-history');
-        if (savedHistory) setHistory(JSON.parse(savedHistory));
-
-        const savedConditions = localStorage.getItem('price-quotation-conditions');
-        if (savedConditions) setConditions(JSON.parse(savedConditions));
-        
-        const savedManualSettings = localStorage.getItem('price-quotation-manual-settings');
-        if (savedManualSettings) setManualSettings(JSON.parse(savedManualSettings));
-
-        const savedIndividualSettings = localStorage.getItem('price-quotation-individual-settings');
-        if (savedIndividualSettings) setIndividualSettings(JSON.parse(savedIndividualSettings));
-
-        const savedTimingBasis = localStorage.getItem('price-quotation-timing-basis') as TimingBasis;
-        if (savedTimingBasis) setTimingBasis(savedTimingBasis);
-
-        const savedCustomMaster = localStorage.getItem('price-quotation-custom-master');
-        if (savedCustomMaster) setCustomMaster(JSON.parse(savedCustomMaster));
-
-        const savedSPMaster = localStorage.getItem('price-quotation-sp-master');
-        if (savedSPMaster) setSpMaster(JSON.parse(savedSPMaster));
-
-        const savedReadyMaster = localStorage.getItem('price-quotation-ready-master');
-        if (savedReadyMaster) setReadymadeMaster(JSON.parse(savedReadyMaster));
-
-        const savedReadyType = localStorage.getItem('price-quotation-ready-type') as ReadymadePriceType;
-        if (savedReadyType) setReadymadePriceType(savedReadyType);
-
-        const savedReadySegment = localStorage.getItem('price-quotation-ready-segment') as ReadymadeSegment;
-        if (savedReadySegment) setReadymadeSegment(savedReadySegment);
-
-        const savedStickerMaster = localStorage.getItem('price-quotation-sticker-master');
-        if (savedStickerMaster) setStickerMaster(JSON.parse(savedStickerMaster));
-
-        const savedLastIncreaseDate = localStorage.getItem('price-quotation-last-increase-date');
-        if (savedLastIncreaseDate) setLastIncreaseDate(savedLastIncreaseDate);
-      } catch (e) {
-        console.error('Failed to load settings from localStorage', e);
       }
-    }
+    };
+
+    setTimeout(loadFromLocalStorage, 0);
   }, []);
 
   // Persistence (Save)

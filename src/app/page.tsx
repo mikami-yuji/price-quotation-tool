@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import styles from './page.module.css';
 import SummaryDashboard from '../components/SummaryDashboard';
 import GroupPriceEditor from '../components/GroupPriceEditor';
@@ -21,10 +21,10 @@ export default function Home(): React.ReactElement {
     implementationDate, setImplementationDate,
     timingBasis, setTimingBasis,
     lastIncreaseDate, setLastIncreaseDate,
-    customMaster, setCustomMaster,
-    spMaster, setSpMaster,
-    readymadeMaster, setReadymadeMaster,
-    stickerMaster, setStickerMaster,
+    customMaster,
+    spMaster,
+    readymadeMaster,
+    stickerMaster,
     readymadePriceType, setReadymadePriceType,
     readymadeSegment, setReadymadeSegment,
     simulatedOrders,
@@ -55,7 +55,7 @@ export default function Home(): React.ReactElement {
     filterOptions,
     filteredOrders,
     handleColumnFilterChange
-  } = useFilters(getTabOrders(activeTab, simulatedOrders), activeTab);
+  } = useFilters(getTabOrders(activeTab, simulatedOrders));
 
   const [isGroupEditorExpanded, setIsGroupEditorExpanded] = useState(false);
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
@@ -166,7 +166,7 @@ export default function Home(): React.ReactElement {
               const dT = new DataTransfer();
               dT.items.add(file);
               if (fileInputRef.current) fileInputRef.current.files = dT.files;
-              handleFileUpload({ target: { files: dT.files } } as any);
+              handleFileUpload({ target: { files: dT.files } } as React.ChangeEvent<HTMLInputElement>);
             }
           }}
         >

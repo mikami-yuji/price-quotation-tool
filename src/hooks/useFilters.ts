@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { OrderRecord } from '../types';
 import { shortenProductName } from '../utils/stringUtils';
 
-export const useFilters = (orders: OrderRecord[], activeTab: string) => {
+export const useFilters = (orders: OrderRecord[]) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
 
