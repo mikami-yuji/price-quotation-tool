@@ -96,11 +96,34 @@ export const calculateNewPrices = (
             // 商品コードを正規化（スペース除去、大文字化）して比較
             const normalize = (s: string) => String(s || '').replace(/\s+/g, '').toUpperCase();
             const orderCode = normalize(order.productCode);
+            const orderShape = normalize(order.shape);
             
+            // 商品コードで絞り込み
             const matches = (masterTable as ReadymadeMasterRow[]).filter(m => normalize(m.productCode) === orderCode);
-            const mapped = matches
-              .filter(m => (order.quantity || 0) >= m.minQuantity)
-              .sort((a, b) => b.minQuantity - a.minQuantity)[0];
+            
+            // 重量(Kg)と形状(shape)も考慮して最適な行を探す
+            let mapped = matches.find(m => {
+              const mWeight = Number(m.weight || 0);
+              const mShape = normalize(m.shape || '');
+              // 重量と形状が両方指定されている場合は完全一致を優先
+              return mWeight > 0 && mShape !== '' && mWeight === order.weight && mShape === orderShape;
+            });
+
+            // 見つからない場合は重量のみ、あるいは形状のみで探す
+            if (!mapped) {
+              mapped = matches.find(m => {
+                const mWeight = Number(m.weight || 0);
+                const mShape = normalize(m.shape || '');
+                return (mWeight > 0 && mWeight === order.weight) || (mShape !== '' && mShape === orderShape);
+              });
+            }
+
+            // それでも見つからない場合は、数量条件で一番近いものを選択
+            if (!mapped) {
+              mapped = matches
+                .filter(m => (order.quantity || 0) >= m.minQuantity)
+                .sort((a, b) => b.minQuantity - a.minQuantity)[0];
+            }
 
             if (mapped && readymadePrefs) {
               const priceGroup = readymadePrefs.type === 'campaign' ? mapped.campaign : mapped.normal;

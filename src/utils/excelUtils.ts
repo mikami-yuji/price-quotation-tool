@@ -214,6 +214,10 @@ const mapRowToReadymadeMaster = (row: Record<string, any>): ReadymadeMasterRow |
   
   if (!productCode || productCode === '商品コード' || productCode === 'ＮＯ．') return null;
 
+  // 重量(Kg)と形状の取得
+  const weight = Number(cleanRow['Ｋｇ'] || cleanRow['Kg'] || cleanRow['重量'] || 0);
+  const shape = String(cleanRow['形状'] || cleanRow['形'] || '').trim();
+
   // 数量スライド（備考_2 から抽出）
   const remark = String(cleanRow['備考'] || cleanRow['備考_2'] || cleanRow['数量下限'] || '');
   let minQuantity = 0;
@@ -225,6 +229,8 @@ const mapRowToReadymadeMaster = (row: Record<string, any>): ReadymadeMasterRow |
   return {
     productCode,
     minQuantity,
+    weight,
+    shape,
     campaign: {
       // 現行キャンペーン単価
       uru: Number(cleanRow['現行ｷｬﾝ売'] || cleanRow['現行キャン売'] || cleanRow['キャンペーン_売単価'] || cleanRow['キャン_売'] || 0),
