@@ -98,14 +98,21 @@ export const calculateNewPrices = (
             const orderCode = normalize(order.productCode);
             const orderShape = normalize(order.shape);
             
-            // 商品コードで絞り込み
-            const matches = (masterTable as ReadymadeMasterRow[]).filter(m => normalize(m.productCode) === orderCode);
+            // 商品コードで絞り込み（部分一致に対応：注文コードの中にマスターコードが含まれているか）
+            // 複数の候補がある場合は、より長いマスターコードを優先する
+            const matches = (masterTable as ReadymadeMasterRow[])
+              .filter(m => {
+                const mCode = normalize(m.productCode);
+                return mCode !== '' && orderCode.includes(mCode);
+              })
+              .sort((a, b) => normalize(b.productCode).length - normalize(a.productCode).length);
             
-            // 重量(Kg)と形状(shape)も考慮して最適な行を探す
-            let mapped = matches.find(m => {
+            // 上位（最も長いコード）に一致するものの中から、さらに重量(Kg)と形状(shape)で絞り込む
+            const topCodeMatches = matches.filter(m => normalize(m.productCode) === normalize(matches[0].productCode));
+            
+            let mapped = topCodeMatches.find(m => {
               const mWeight = Number(m.weight || 0);
               const mShape = normalize(m.shape || '');
-              // 重量と形状が両方指定されている場合は完全一致を優先
               return mWeight > 0 && mShape !== '' && mWeight === order.weight && mShape === orderShape;
             });
 
