@@ -211,8 +211,11 @@ const mapRowToReadymadeMaster = (row: Record<string, any>): ReadymadeMasterRow |
     cleanRow['ＮＯ．'] || cleanRow['NO.'] || cleanRow['ＮＯ'] || cleanRow['NO'] || 
     cleanRow['商品コード'] || cleanRow['商品CD'] || cleanRow['コード'] || ''
   ).trim();
+
+  // ABSコード
+  const absCode = String(cleanRow['ABSコード'] || cleanRow['ABSCD'] || '').replace(/\s+/g, '');
   
-  if (!productCode || productCode === '商品コード' || productCode === 'ＮＯ．') return null;
+  if ((!productCode || productCode === '商品コード' || productCode === 'ＮＯ．') && !absCode) return null;
 
   // 重量(Kg)と形状の取得
   const weight = Number(cleanRow['Ｋｇ'] || cleanRow['Kg'] || cleanRow['重量'] || 0);

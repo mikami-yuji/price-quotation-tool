@@ -4,6 +4,7 @@ export type TabType = 'custom' | 'sp' | 'readymade' | 'sticker';
 export type OrderRecord = {
   orderNumber: string; // 受注№
   category: OrderCategory; // 種別
+  absCode?: string; // ABSコード
   weight: number | string; // 重量
   productCode: string; // 商品コード
   productName: string; // 商品名
@@ -46,6 +47,7 @@ export type CustomPriceMatrixRow = {
 // 既製品用の高度な単価データ
 export type ReadymadeMasterRow = {
   productCode: string;
+  absCode?: string;
   minQuantity: number; // 数量スライド用の最小数量 (備考_2から算出)
   weight?: number;
   shape?: string;

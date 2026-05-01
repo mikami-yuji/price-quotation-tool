@@ -93,33 +93,10 @@ export const calculateNewPrices = (
         if (masterTable.length > 0) {
           if ('campaign' in masterTable[0]) {
             // ReadymadeMasterRow 型として処理
-            // 商品コードを正規化（スペース除去、大文字化）して比較
             const normalize = (s: string) => String(s || '').replace(/\s+/g, '').toUpperCase();
+            const orderAbsCode = normalize(order.absCode || '');
             const orderCode = normalize(order.productCode);
             const orderShape = normalize(order.shape);
-            
-            // 商品コードで絞り込み（部分一致に対応：注文コードの中にマスターコードが含まれているか）
-            // 複数の候補がある場合は、より長いマスターコードを優先する
-            const matches = (masterTable as ReadymadeMasterRow[])
-              .filter(m => {
-                const mCode = normalize(m.productCode);
-                return mCode !== '' && orderCode.includes(mCode);
-              })
-              .sort((a, b) => normalize(b.productCode).length - normalize(a.productCode).length);
-            
-            // 上位（最も長いコード）に一致するものの中から、さらに重量(Kg)と形状(shape)で絞り込む
-            const topCodeMatches = matches.filter(m => normalize(m.productCode) === normalize(matches[0].productCode));
-            
-            let mapped = topCodeMatches.find(m => {
-              const mWeight = Number(m.weight || 0);
-              const mShape = normalize(m.shape || '');
-              return mWeight > 0 && mShape !== '' && mWeight === order.weight && mShape === orderShape;
-            });
-
-            // 見つからない場合は重量のみ、あるいは形状のみで探す
-            if (!mapped) {
-              mapped = matches.find(m => {
-                const mWeight = Number(m.weight || 0);
                 const mShape = normalize(m.shape || '');
                 return (mWeight > 0 && mWeight === order.weight) || (mShape !== '' && mShape === orderShape);
               });
