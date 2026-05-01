@@ -215,13 +215,18 @@ const mapRowToReadymadeMaster = (row: Record<string, any>): ReadymadeMasterRow |
   ).trim();
 
   // ABSコード
-  const absCode = String(
+  let absCode = String(
     cleanRow['ABSコード'] || 
     cleanRow['ABSCD'] || 
     cleanRow['商品コード'] || 
     cleanRow['商品CD'] || 
     ''
   ).replace(/\s+/g, '');
+
+  // フォールバック: 1列目の値をABSコードとして採用（見出し名が異なる場合への対応）
+  if (!absCode && Object.values(row).length > 0) {
+    absCode = String(Object.values(row)[0]).replace(/\s+/g, '');
+  }
   
   if ((!productCode || productCode === '商品コード' || productCode === 'ＮＯ．') && !absCode) return null;
 
