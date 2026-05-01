@@ -95,19 +95,12 @@ export const calculateNewPrices = (
             // ReadymadeMasterRow 型として処理
             const normalize = (s: string) => String(s || '').replace(/\s+/g, '').toUpperCase();
             const orderAbsCode = normalize(order.absCode || '');
-            const orderCode = normalize(order.productCode);
-            const orderShape = normalize(order.shape);
-                const mShape = normalize(m.shape || '');
-                return (mWeight > 0 && mWeight === order.weight) || (mShape !== '' && mShape === orderShape);
-              });
-            }
-
-            // それでも見つからない場合は、数量条件で一番近いものを選択
-            if (!mapped) {
-              mapped = matches
-                .filter(m => (order.quantity || 0) >= m.minQuantity)
-                .sort((a, b) => b.minQuantity - a.minQuantity)[0];
-            }
+            const masterRows = masterTable as ReadymadeMasterRow[];
+            
+            // ABSコードによる完全一致のみで照合を行う
+            const mapped = orderAbsCode 
+              ? masterRows.find(m => normalize(m.absCode || '') === orderAbsCode)
+              : undefined;
 
             if (mapped && readymadePrefs) {
               const priceGroup = readymadePrefs.type === 'campaign' ? mapped.campaign : mapped.normal;
