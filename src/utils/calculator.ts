@@ -93,14 +93,29 @@ export const calculateNewPrices = (
         if (masterTable.length > 0) {
           if ('campaign' in masterTable[0]) {
             // ReadymadeMasterRow 型として処理
-            const normalize = (s: string) => String(s || '').replace(/\s+/g, '').toUpperCase();
+            // 先頭の0、スペースを除去し、大文字化する正規化関数
+            const normalize = (s: string) => String(s || '').replace(/\s+/g, '').replace(/^0+/, '').toUpperCase();
             const orderAbsCode = normalize(order.absCode || '');
+            const orderCode = normalize(order.productCode || '');
             const masterRows = masterTable as ReadymadeMasterRow[];
             
-            // ABSコードによる完全一致のみで照合を行う
-            const mapped = orderAbsCode 
-              ? masterRows.find(m => normalize(m.absCode || '') === orderAbsCode)
-              : undefined;
+            let mapped: ReadymadeMasterRow | undefined = undefined;
+
+            // ステップ1: ABSコードによる一致を最優先で探す（先頭の0を無視）
+            if (orderAbsCode) {
+              mapped = masterRows.find(m => normalize(m.absCode || '') === orderAbsCode);
+            }
+
+            // ステップ2: 一致しない場合、商品コードの部分一致で探す
+            if (!mapped) {
+              const matches = masterRows
+                .filter(m => {
+                  const mCode = normalize(m.productCode || '');
+                  return mCode !== '' && orderCode.includes(mCode);
+                })
+                .sort((a, b) => normalize(b.productCode || '').length - normalize(a.productCode || '').length);
+              mapped = matches[0];
+            }
 
             if (mapped && readymadePrefs) {
               const priceGroup = readymadePrefs.type === 'campaign' ? mapped.campaign : mapped.normal;
