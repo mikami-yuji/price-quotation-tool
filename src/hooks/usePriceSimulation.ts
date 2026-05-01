@@ -119,20 +119,28 @@ export const usePriceSimulation = () => {
     
     try {
       const buffer = await file.arrayBuffer();
-      let parsedMatrix: CustomPriceMatrixRow[] | ReadymadeMasterRow[] = [];
       
+      // SPマスターの場合は最優先で専用解析を実行
+      if (type === 'sp') {
+        const spData = parseSPMasterFile(buffer);
+        if (spData && spData.length > 0) {
+          setSpMaster(spData);
+          alert(`SPマスターを${spData.length}件読み込みました。`);
+        } else {
+          alert('SPマスターが見つかりませんでした。Excel内の「売」「準」「Ｄ」という文字やレイアウトを確認してください。');
+        }
+        return;
+      }
+
+      let parsedMatrix: CustomPriceMatrixRow[] | ReadymadeMasterRow[] = [];
       if (file.name.toLowerCase().endsWith('.csv')) {
         parsedMatrix = parseReadymadeCSV(buffer);
       } else {
         const parsedData = parseExcelFile(buffer);
-        
         if (type === 'readymade') {
-          // 既製品の場合: 1. 専用シートからのパース結果があれば優先
           if (parsedData.readymadeMaster && parsedData.readymadeMaster.length > 0) {
             parsedMatrix = parsedData.readymadeMaster;
-          } 
-          // 2. 「見積書」シートとして読み込まれたデータがあれば、それをマスターに変換
-          else if (parsedData.orders && parsedData.orders.length > 0) {
+          } else if (parsedData.orders && parsedData.orders.length > 0) {
             parsedMatrix = parsedData.orders
               .filter(o => o.productCode && o.productCode !== '999999999')
               .map(o => ({
@@ -142,16 +150,7 @@ export const usePriceSimulation = () => {
                 normal: { uru: o.currentPrice, junD: 0, d: 0 }
               }));
           }
-        } else if (type === 'sp') {
-          // SPマスター専用のパース
-          const spData = parseSPMasterFile(buffer);
-          setSpMaster(spData);
-          if (spData.length > 0) {
-            alert(`SPマスターを${spData.length}件読み込みました。`);
-          }
-          return; // SPの場合はここで処理終了
         } else {
-          // 別注・シールの場合は従来通り材質・重量ベースの単価表
           parsedMatrix = parsedData.priceMatrix;
         }
       }
@@ -162,12 +161,15 @@ export const usePriceSimulation = () => {
       }
 
       if (type === 'custom') setCustomMaster(parsedMatrix as CustomPriceMatrixRow[]);
-      if (type === 'sp') setSpMaster(parsedMatrix as CustomPriceMatrixRow[]);
       if (type === 'readymade') setReadymadeMaster(parsedMatrix);
       if (type === 'sticker') setStickerMaster(parsedMatrix as CustomPriceMatrixRow[]);
       
       alert(`${type === 'readymade' ? '既製品' : type.toUpperCase()}マスターを読み込みました。`);
     } catch (err) {
+      console.error('Master upload error:', err);
+      alert('マスターの読み込み中にエラーが発生しました。');
+    }
+  };
       console.error(err);
       alert('解析失敗: ファイルの形式が正しいか確認してください。');
     }
