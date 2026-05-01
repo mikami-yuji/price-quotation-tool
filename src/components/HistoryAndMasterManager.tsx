@@ -2,7 +2,7 @@
 
 import React from 'react';
 import styles from '../app/page.module.css';
-import { QuoteHistoryEntry, CustomPriceMatrixRow, ReadymadeMasterRow } from '../types';
+import { QuoteHistoryEntry, CustomPriceMatrixRow, ReadymadeMasterRow, SPMasterRow } from '../types';
 
 type TabType = 'custom' | 'sp' | 'readymade' | 'sticker';
 
@@ -15,7 +15,7 @@ type HistoryAndMasterManagerProps = {
   isMasterExpanded: boolean;
   setIsMasterExpanded: (v: boolean) => void;
   customMaster: CustomPriceMatrixRow[];
-  spMaster: CustomPriceMatrixRow[];
+  spMaster: SPMasterRow[];
   readymadeMaster: CustomPriceMatrixRow[] | ReadymadeMasterRow[];
   stickerMaster: CustomPriceMatrixRow[];
   handleMasterUpload: (e: React.ChangeEvent<HTMLInputElement>, type: TabType) => void;

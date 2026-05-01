@@ -20,8 +20,8 @@ export const calculateNewPrices = (
   individualSettings: IndividualManualSetting = {},
   categorizedMasters: { 
     custom: CustomPriceMatrixRow[], 
-    sp: CustomPriceMatrixRow[], 
-    readymade: CustomPriceMatrixRow[] | ReadymadeMasterRow[],
+    sp: SPMasterRow[], 
+    readymade: ReadymadeMasterRow[],
     sticker: CustomPriceMatrixRow[]
   } = { custom: [], sp: [], readymade: [], sticker: [] },
   readymadePrefs?: { type: ReadymadePriceType; segment: ReadymadeSegment }
@@ -88,6 +88,27 @@ export const calculateNewPrices = (
           const mappedPrice = findPriceFromMatrix(order, priceMatrix);
           if (mappedPrice !== null) {
             newPrice = mappedPrice;
+        }
+      } else if (isSP) {
+        // SPマスター（セレクトパック）を優先チェック
+        if (categorizedMasters.sp && categorizedMasters.sp.length > 0) {
+          const normalize = (s: any) => (!s ? '' : String(s).replace(/\s+/g, '').replace(/^0+/, '').toUpperCase());
+          const orderCode = normalize(order.productCode || order.absCode);
+          
+          const matched = categorizedMasters.sp.find(m => 
+            m.catalogNos.some(no => orderCode.includes(normalize(no))) &&
+            Number(m.weight) === Number(order.weight) &&
+            (m.shape === order.shape || (order.shape === 'R' && m.shape === 'R') || (order.shape === '単袋' && m.shape === '単袋'))
+          );
+
+          if (matched) {
+            const segment = readymadePrefs?.segment || 'uru';
+            const colorCount = order.totalColorCount || (order.frontColorCount + order.backColorCount);
+            const priceObj = matched.colorPrices[colorCount];
+            if (priceObj) {
+              const price = priceObj[segment];
+              if (price > 0) newPrice = price;
+            }
           }
         }
       } else if (isReady) {

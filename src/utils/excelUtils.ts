@@ -70,6 +70,81 @@ export const parseExcelFile = (arrayBuffer: ArrayBuffer): {
 };
 
 /**
+ * SP用マスターデータのパース
+ */
+export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
+  const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+  const results: SPMasterRow[] = [];
+
+  for (const name of workbook.SheetNames) {
+    const sheet = workbook.Sheets[name];
+    const rows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, defval: '' });
+
+    for (let r = 0; r < rows.length; r++) {
+      const row = rows[r];
+      for (let c = 0; c < row.length; c++) {
+        const cell = String(row[c] || '');
+        if (cell.includes('ｶﾀﾛｸﾞ№')) {
+          // テーブルの起点を発見。ここからデータを抽出
+          const catalogRow = rows[r + 1];
+          if (!catalogRow) continue;
+
+          // カタログ番号を取得（改行等で複数ある場合を考慮）
+          const catalogRaw = String(catalogRow[c] || '');
+          const catalogNos = catalogRaw.split(/[\r\n\s]+/).map(s => s.trim()).filter(Boolean);
+          if (catalogNos.length === 0) continue;
+
+          // 重量と色数ヘッダーの列を特定
+          const weightIdx = c + 5;
+          const color1Idx = c + 15;
+          const color2Idx = c + 19;
+          const color3Idx = c + 23;
+          const color4Idx = c + 27;
+
+          const weight = parseFloat(String(catalogRow[weightIdx] || '0'));
+
+          // 2つのセクション（通常はロール用と枚数用）を読み取る
+          const sections = [
+            { startRow: r + 1, shape: 'R' as const },
+            { startRow: r + 4, shape: '単袋' as const }
+          ];
+
+          for (const section of sections) {
+            const colorPrices: { [key: number]: SPMasterPrice } = {};
+            
+            // 売, 準, D の3行をループ
+            const typeLabels = ['売', '準', 'Ｄ'];
+            const pricesByColor = [1, 2, 3, 4].map(colorNum => {
+              const colIdx = c + 15 + (colorNum - 1) * 4;
+              const uru = parseFloat(String(rows[section.startRow][colIdx] || '0'));
+              const junD = parseFloat(String(rows[section.startRow + 1][colIdx] || '0'));
+              const d = parseFloat(String(rows[section.startRow + 2][colIdx] || '0'));
+              return { colorNum, uru, junD, d };
+            });
+
+            pricesByColor.forEach(p => {
+              if (p.uru > 0) {
+                colorPrices[p.colorNum] = { uru: p.uru, junD: p.junD, d: p.d };
+              }
+            });
+
+            if (Object.keys(colorPrices).length > 0) {
+              results.push({
+                catalogNos,
+                weight,
+                shape: section.shape,
+                colorPrices
+              });
+            }
+          }
+        }
+      }
+    }
+  }
+  return results;
+};
+
+/**
  * 配列から受注レコードへ
  */
 const mapRowArrayToOrderRecord = (row: any[], headers: any[]): OrderRecord | null => {

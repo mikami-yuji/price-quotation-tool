@@ -55,6 +55,21 @@ export type ReadymadeMasterRow = {
   normal: { uru: number; junD: number; d: number };
 };
 
+export type SPMasterPrice = {
+  uru: number;
+  junD: number;
+  d: number;
+};
+
+export type SPMasterRow = {
+  catalogNos: string[];
+  weight: number;
+  shape: 'R' | '単袋';
+  colorPrices: {
+    [colorCount: number]: SPMasterPrice;
+  };
+};
+
 export type ReadymadePriceType = 'normal' | 'campaign';
 export type ReadymadeSegment = 'uru' | 'junD' | 'd';
 

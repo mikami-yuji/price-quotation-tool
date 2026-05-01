@@ -9,6 +9,7 @@ import {
   IndividualManualSetting, 
   QuoteHistoryEntry, 
   ReadymadeMasterRow, 
+  SPMasterRow,
   ReadymadePriceType, 
   ReadymadeSegment, 
   TimingBasis,
@@ -17,7 +18,7 @@ import {
 } from '../types';
 
 import { calculateNewPrices } from '../utils/calculator';
-import { parseExcelFile } from '../utils/excelUtils';
+import { parseExcelFile, parseSPMasterFile } from '../utils/excelUtils';
 import { generateQuoteExcel } from '../utils/excelGenerator';
 import { parseReadymadeCSV } from '../utils/csvUtils';
 
@@ -42,7 +43,7 @@ export const usePriceSimulation = () => {
   const [lastIncreaseDate, setLastIncreaseDate] = useState<string>('');
   
   const [customMaster, setCustomMaster] = useState<CustomPriceMatrixRow[]>([]);
-  const [spMaster, setSpMaster] = useState<CustomPriceMatrixRow[]>([]);
+  const [spMaster, setSpMaster] = useState<SPMasterRow[]>([]);
   const [readymadeMaster, setReadymadeMaster] = useState<CustomPriceMatrixRow[] | ReadymadeMasterRow[]>([]);
   const [stickerMaster, setStickerMaster] = useState<CustomPriceMatrixRow[]>([]);
   const [readymadePriceType, setReadymadePriceType] = useState<ReadymadePriceType>('normal');
@@ -141,8 +142,16 @@ export const usePriceSimulation = () => {
                 normal: { uru: o.currentPrice, junD: 0, d: 0 }
               }));
           }
+        } else if (type === 'sp') {
+          // SPマスター専用のパース
+          const spData = parseSPMasterFile(buffer);
+          setSpMaster(spData);
+          if (spData.length > 0) {
+            alert(`SPマスターを${spData.length}件読み込みました。`);
+          }
+          return; // SPの場合はここで処理終了
         } else {
-          // 別注・SP・シールの場合は従来通り材質・重量ベースの単価表
+          // 別注・シールの場合は従来通り材質・重量ベースの単価表
           parsedMatrix = parsedData.priceMatrix;
         }
       }
