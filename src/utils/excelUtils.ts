@@ -75,11 +75,31 @@ export const parseExcelFile = (arrayBuffer: ArrayBuffer): {
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mapRowToOrderRecord = (row: Record<string, any>): OrderRecord => {
+  const cleanRow: Record<string, any> = {};
+  Object.keys(row).forEach(key => {
+    const cleanKey = key.replace(/[\s\t\r\n\xA0]/g, '');
+    cleanRow[cleanKey] = row[key];
+  });
+
+  let absCode = String(
+    cleanRow['ABSコード'] || 
+    cleanRow['ABSCD'] || 
+    cleanRow['商品コード'] || 
+    cleanRow['商品CD'] || 
+    ''
+  ).replace(/\s+/g, '');
+
+  // フォールバック: 4列目の値を採用（標準的な受注データの形式に合わせる）
+  if (!absCode && Object.values(row).length >= 4) {
+    absCode = String(Object.values(row)[3]).replace(/\s+/g, '');
+  }
+
   return {
     orderNumber: String(row['受注№'] || ''),
     category: String(row['種別'] || ''),
     weight: row['重量'] || 0,
     productCode: String(row['商品コード'] || ''),
+    absCode,
     productName: String(row['商品名'] || ''),
     title: String(row['タイトル'] || ''),
     shape: String(row['形状'] || ''),
@@ -172,74 +192,61 @@ const mapRowToPriceMatrix = (row: Record<string, any>): CustomPriceMatrixRow | n
 };
 
 /**
- * 行データを既製品マスターオブジェクトにマッピングする
- * ユーザー提供の見出し（ＮＯ．、改定後売、現行ｷｬﾝ売 等）に完全対応
+ * 既製マスターの行データをマッピングする
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mapRowToReadymadeMaster = (row: Record<string, any>): ReadymadeMasterRow | null => {
-  // すべてのキーの特殊文字（スペース、改行など）を除去したマップを作成
+const mapRowToReadymadeMaster = (row: any): ReadymadeMasterRow | null => {
+  if (!row) return null;
+  
   const cleanRow: Record<string, any> = {};
+  const rawValues = Object.values(row);
+  
   Object.keys(row).forEach(key => {
-    // 改行コードや全角スペース、タブなどもすべて削除
     const cleanKey = key.replace(/[\s\t\r\n\xA0]/g, '');
     cleanRow[cleanKey] = row[key];
   });
 
-  // 商品コード（ＮＯ．、ＮＯ、商品コード、商品CD 等に対応）
-  const productCode = String(
-    cleanRow['ＮＯ．'] || cleanRow['NO.'] || cleanRow['ＮＯ'] || cleanRow['NO'] || 
-    cleanRow['商品コード'] || cleanRow['商品CD'] || cleanRow['コード'] || ''
-  ).trim();
+  const parseNum = (val: any) => {
+    if (typeof val === 'number') return val;
+    if (!val) return 0;
+    const cleaned = String(val).replace(/[^0-9.-]/g, '');
+    const num = parseFloat(cleaned);
+    return isNaN(num) ? 0 : num;
+  };
 
-  // ABSコード
-  let absCode = String(
-    cleanRow['ABSコード'] || 
-    cleanRow['ABSCD'] || 
-    cleanRow['商品コード'] || 
-    cleanRow['商品CD'] || 
-    ''
-  ).replace(/\s+/g, '');
-
-  // フォールバック: 4列目の値を採用（標準的な受注データの形式に合わせる）
-  if (!absCode && Object.values(row).length >= 4) {
-    absCode = String(Object.values(row)[3]).replace(/\s+/g, '');
+  // ABSコード: 1列目、または指定の見出し名から取得
+  let absCode = String(cleanRow['ABSコード'] || cleanRow['ABSCD'] || '').replace(/\s+/g, '');
+  if (!absCode && rawValues.length > 0) {
+    absCode = String(rawValues[0]).replace(/\s+/g, '');
   }
 
-  // フォールバック: 1列目の値をABSコードとして採用（見出し名が異なる場合への対応）
-  if (!absCode && Object.values(row).length > 0) {
-    absCode = String(Object.values(row)[0]).replace(/\s+/g, '');
+  // 商品コード(NO.): 2列目、または指定の見出し名から取得
+  let productCode = String(cleanRow['ＮＯ．'] || cleanRow['NO.'] || '').trim();
+  if (!productCode && rawValues.length > 1) {
+    productCode = String(rawValues[1]).trim();
   }
-  
-  if ((!productCode || productCode === '商品コード' || productCode === 'ＮＯ．') && !absCode) return null;
 
-  // 重量(Kg)と形状の取得
-  const weight = Number(cleanRow['Ｋｇ'] || cleanRow['Kg'] || cleanRow['重量'] || 0);
-  const shape = String(cleanRow['形状'] || cleanRow['形'] || '').trim();
+  // 必須項目がない場合はスキップ
+  if (!absCode || absCode === 'ABSコード' || absCode === 'ABSCD') return null;
 
-  // 数量スライド（備考_2 から抽出）
-  const remark = String(cleanRow['備考'] || cleanRow['備考_2'] || cleanRow['数量下限'] || '');
-  let minQuantity = 0;
-  const match = remark.match(/\((\d+)[～~-]/);
-  if (match) {
-    minQuantity = parseInt(match[1], 10);
-  }
+  // 重量と形状
+  const weight = parseNum(cleanRow['Ｋｇ'] || cleanRow['Kg'] || cleanRow['重量'] || (rawValues.length > 6 ? rawValues[6] : 0));
+  const shape = String(cleanRow['形状'] || cleanRow['形'] || (rawValues.length > 7 ? rawValues[7] : '')).trim();
 
   return {
     productCode,
-    minQuantity,
+    absCode,
+    minQuantity: 0,
     weight,
     shape,
     campaign: {
-      // 現行キャンペーン単価
-      uru: Number(cleanRow['現行ｷｬﾝ売'] || cleanRow['現行キャン売'] || cleanRow['キャンペーン_売単価'] || cleanRow['キャン_売'] || 0),
-      junD: Number(cleanRow['現行ｷｬﾝ準Ｄ'] || cleanRow['現行キャン準D'] || cleanRow['キャンペーン_準D単価'] || cleanRow['キャン_準D'] || 0),
-      d: Number(cleanRow['現行ｷｬﾝＤ'] || cleanRow['現行キャンD'] || cleanRow['キャンペーン_D単価'] || cleanRow['キャン_D'] || 0),
+      uru: parseNum(cleanRow['現行ｷｬﾝ売'] || cleanRow['現行キャン売'] || 0),
+      junD: parseNum(cleanRow['現行ｷｬﾝ準Ｄ'] || cleanRow['現行キャン準D'] || 0),
+      d: parseNum(cleanRow['現行ｷｬﾝＤ'] || cleanRow['現行キャンD'] || 0),
     },
     normal: {
-      // 改定後単価
-      uru: Number(cleanRow['改定後売'] || cleanRow['通常_売単価'] || cleanRow['通常売'] || cleanRow['売単価'] || 0),
-      junD: Number(cleanRow['改定後準Ｄ'] || cleanRow['改定後準D'] || cleanRow['通常_準D単価'] || cleanRow['通常準D'] || cleanRow['準D単価'] || 0),
-      d: Number(cleanRow['改定後Ｄ'] || cleanRow['改定後D'] || cleanRow['通常_D単価'] || cleanRow['通常D'] || cleanRow['D単価'] || 0),
+      uru: parseNum(cleanRow['改定後売'] || cleanRow['通常売'] || (rawValues.length > 8 ? rawValues[8] : 0)),
+      junD: parseNum(cleanRow['改定後準Ｄ'] || cleanRow['改定後準D'] || (rawValues.length > 9 ? rawValues[9] : 0)),
+      d: parseNum(cleanRow['改定後Ｄ'] || cleanRow['改定後D'] || (rawValues.length > 10 ? rawValues[10] : 0)),
     }
   };
 };
