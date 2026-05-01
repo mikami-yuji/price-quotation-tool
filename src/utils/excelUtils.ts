@@ -51,9 +51,15 @@ export const parseExcelFile = (arrayBuffer: ArrayBuffer): {
   if (!readySheet) {
     for (const name of sheetNames) {
       const sheet = workbook.Sheets[name];
-      const json = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { header: 1, range: 0, defval: '' });
-      const firstRow = json[0] || [];
-      if (firstRow.some((cell: any) => String(cell).includes('商品コード') || String(cell).includes('商品CD'))) {
+      const json = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, range: 0, defval: '' });
+      // 最初の方の行に見出しキーワードがあるかチェック
+      const found = json.slice(0, 10).some(row => 
+        row.some((cell: any) => {
+          const s = String(cell);
+          return s.includes('ＮＯ') || s.includes('NO') || s.includes('商品名') || s.includes('商品コード');
+        })
+      );
+      if (found) {
         readySheet = name;
         break;
       }
@@ -62,7 +68,23 @@ export const parseExcelFile = (arrayBuffer: ArrayBuffer): {
 
   if (readySheet) {
     const sheet = workbook.Sheets[readySheet];
-    const rawData = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: '' });
+    // 見出し行（NO.や商品名が含まれる行）のインデックスを探す
+    const fullData = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, defval: '' });
+    let headerRowIndex = 0;
+    
+    for (let i = 0; i < Math.min(fullData.length, 20); i++) {
+      const row = fullData[i] || [];
+      if (row.some(cell => {
+        const s = String(cell);
+        return s.includes('ＮＯ') || s.includes('NO') || s.includes('商品名') || s.includes('商品コード');
+      })) {
+        headerRowIndex = i;
+        break;
+      }
+    }
+
+    // 見つかった見出し行を基準にデータをパースし直す
+    const rawData = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { range: headerRowIndex, defval: '' });
     readymadeMaster = rawData.map(row => mapRowToReadymadeMaster(row)).filter(row => row !== null) as ReadymadeMasterRow[];
   }
 
