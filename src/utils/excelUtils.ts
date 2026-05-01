@@ -213,7 +213,13 @@ const mapRowToReadymadeMaster = (row: Record<string, any>): ReadymadeMasterRow |
   ).trim();
 
   // ABSコード
-  const absCode = String(cleanRow['ABSコード'] || cleanRow['ABSCD'] || '').replace(/\s+/g, '');
+  const absCode = String(
+    cleanRow['ABSコード'] || 
+    cleanRow['ABSCD'] || 
+    cleanRow['商品コード'] || 
+    cleanRow['商品CD'] || 
+    ''
+  ).replace(/\s+/g, '');
   
   if ((!productCode || productCode === '商品コード' || productCode === 'ＮＯ．') && !absCode) return null;
 
