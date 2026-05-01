@@ -119,19 +119,24 @@ export const usePriceSimulation = () => {
     
     try {
       const buffer = await file.arrayBuffer();
+      console.log(`Master Upload Start - Mode: ${type}, File: ${file.name}`);
+
+      // 1. まず SP マスターとして解析を試みる（「売」の文字を探す強力な方式）
+      const spData = parseSPMasterFile(buffer);
       
-      // SPマスターの場合は最優先で専用解析を実行
-      if (type === 'sp') {
-        const spData = parseSPMasterFile(buffer);
+      // もし SP タブが選ばれている、あるいは SP データらしきものが 10 件以上見つかった場合
+      if (type === 'sp' || (spData && spData.length > 10)) {
         if (spData && spData.length > 0) {
           setSpMaster(spData);
           alert(`SPマスターを${spData.length}件読み込みました。`);
-        } else {
-          alert('SPマスターが見つかりませんでした。Excel内の「売」「準」「Ｄ」という文字やレイアウトを確認してください。');
+          return;
+        } else if (type === 'sp') {
+          alert('SPマスター形式のデータが見つかりませんでした。Excel内の「売」「準」「Ｄ」という文字を確認してください。');
+          return;
         }
-        return;
       }
 
+      // 2. SP でない場合、または SP タブだがデータが見つからなかった場合の通常処理
       let parsedMatrix: CustomPriceMatrixRow[] | ReadymadeMasterRow[] = [];
       if (file.name.toLowerCase().endsWith('.csv')) {
         parsedMatrix = parseReadymadeCSV(buffer);
@@ -156,7 +161,13 @@ export const usePriceSimulation = () => {
       }
       
       if (parsedMatrix.length === 0) {
-        alert('マスターデータの形式を確認してください（適切なシート名や列名が必要です）。');
+        // ここでもう一度だけ SP 解析の結果があれば救済
+        if (spData && spData.length > 0) {
+          setSpMaster(spData);
+          alert(`自動判別により、SPマスターとして${spData.length}件読み込みました。`);
+          return;
+        }
+        alert('マスターデータの形式を確認してください。適切なシート名や列名、または単価ラベル（売・準・Ｄ）が必要です。');
         return;
       }
 
@@ -167,7 +178,7 @@ export const usePriceSimulation = () => {
       alert(`${type === 'readymade' ? '既製品' : type.toUpperCase()}マスターを読み込みました。`);
     } catch (err) {
       console.error('Master upload error:', err);
-      alert('マスターの読み込み中にエラーが発生しました。');
+      alert('読み込み中にエラーが発生しました: ' + String(err));
     }
   };
       console.error(err);
