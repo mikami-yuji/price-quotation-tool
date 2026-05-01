@@ -76,7 +76,7 @@ export const parseExcelFile = (arrayBuffer: ArrayBuffer): {
       const row = fullData[i] || [];
       if (row.some(cell => {
         const s = String(cell);
-        return s.includes('ＮＯ') || s.includes('NO') || s.includes('商品名') || s.includes('商品コード');
+        return s.includes('ＮＯ') || s.includes('NO') || s.includes('商品名') || s.includes('商品コード') || s.includes('ABSコード');
       })) {
         headerRowIndex = i;
         break;
