@@ -95,11 +95,16 @@ export const calculateNewPrices = (
           const normalize = (s: any) => (!s ? '' : String(s).replace(/\s+/g, '').replace(/^0+/, '').toUpperCase());
           const orderCode = normalize(order.productCode || order.absCode);
           
-          const matched = categorizedMasters.sp.find(m => 
+          const matches = categorizedMasters.sp.filter(m => 
             m.catalogNos.some(no => orderCode.includes(normalize(no))) &&
             Number(m.weight) === Number(order.weight) &&
             (m.shape === order.shape || (order.shape === 'R' && m.shape === 'R') || (order.shape === '単袋' && m.shape === '単袋'))
           );
+
+          // 数量スライドの適用: 受注数以上の minQuantity を持つ中で最大のものを探す
+          const matched = matches
+            .filter(m => order.quantity >= m.minQuantity)
+            .sort((a, b) => b.minQuantity - a.minQuantity)[0];
 
           if (matched) {
             const segment = readymadePrefs?.segment || 'uru';

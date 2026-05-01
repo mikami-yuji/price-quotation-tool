@@ -70,7 +70,7 @@ export const parseExcelFile = (arrayBuffer: ArrayBuffer): {
 };
 
 /**
- * SP用マスターデータのパース
+ * SP用マスターデータのパース（数量スライド対応）
  */
 export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
   const workbook = XLSX.read(arrayBuffer, { type: 'array' });
@@ -85,57 +85,53 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
       for (let c = 0; c < row.length; c++) {
         const cell = String(row[c] || '');
         if (cell.includes('ｶﾀﾛｸﾞ№')) {
-          // テーブルの起点を発見。ここからデータを抽出
-          const catalogRow = rows[r + 1];
-          if (!catalogRow) continue;
+          // テーブルの起点を発見
+          const headerRow = rows[r + 1];
+          if (!headerRow) continue;
 
-          // カタログ番号を取得（改行等で複数ある場合を考慮）
-          const catalogRaw = String(catalogRow[c] || '');
+          const catalogRaw = String(headerRow[c] || '');
           const catalogNos = catalogRaw.split(/[\r\n\s]+/).map(s => s.trim()).filter(Boolean);
           if (catalogNos.length === 0) continue;
 
-          // 重量と色数ヘッダーの列を特定
           const weightIdx = c + 5;
-          const color1Idx = c + 15;
-          const color2Idx = c + 19;
-          const color3Idx = c + 23;
-          const color4Idx = c + 27;
+          const qtyIdx = c + 8;
+          const weight = parseFloat(String(headerRow[weightIdx] || '0'));
 
-          const weight = parseFloat(String(catalogRow[weightIdx] || '0'));
+          // この起点(r, c)から下に続くセクションをすべてスキャン
+          // 通常、3行1セット（売・準・D）で、セクション間に空行があるか次の数量がある
+          let currentR = r + 1;
+          while (currentR < rows.length) {
+            const qtyCell = String(rows[currentR][qtyIdx] || '');
+            if (!qtyCell || (!qtyCell.includes('ｍ') && !qtyCell.includes('枚'))) {
+              // 数量がなくなったら終了（または次のテーブルヘッダーへ）
+              if (currentR > r + 5 && rows[currentR].some(cell => String(cell).includes('ｶﾀﾛｸﾞ№'))) break;
+              if (currentR > r + 30) break; // 無限ループ防止
+              currentR++;
+              continue;
+            }
 
-          // 2つのセクション（通常はロール用と枚数用）を読み取る
-          const sections = [
-            { startRow: r + 1, shape: 'R' as const },
-            { startRow: r + 4, shape: '単袋' as const }
-          ];
+            // 数量と形状を解析
+            const shape: 'R' | '単袋' = qtyCell.includes('ｍ') ? 'R' : '単袋';
+            const minQuantity = parseFloat(qtyCell.replace(/[^0-9]/g, '')) || 0;
 
-          for (const section of sections) {
             const colorPrices: { [key: number]: SPMasterPrice } = {};
-            
-            // 売, 準, D の3行をループ
-            const typeLabels = ['売', '準', 'Ｄ'];
-            const pricesByColor = [1, 2, 3, 4].map(colorNum => {
+            [1, 2, 3, 4].forEach(colorNum => {
               const colIdx = c + 15 + (colorNum - 1) * 4;
-              const uru = parseFloat(String(rows[section.startRow][colIdx] || '0'));
-              const junD = parseFloat(String(rows[section.startRow + 1][colIdx] || '0'));
-              const d = parseFloat(String(rows[section.startRow + 2][colIdx] || '0'));
-              return { colorNum, uru, junD, d };
-            });
-
-            pricesByColor.forEach(p => {
-              if (p.uru > 0) {
-                colorPrices[p.colorNum] = { uru: p.uru, junD: p.junD, d: p.d };
+              if (colIdx >= rows[currentR].length) return;
+              
+              const uru = parseFloat(String(rows[currentR][colIdx] || '0'));
+              const junD = parseFloat(String(rows[currentR + 1] ? rows[currentR + 1][colIdx] : '0'));
+              const d = parseFloat(String(rows[currentR + 2] ? rows[currentR + 2][colIdx] : '0'));
+              
+              if (uru > 0) {
+                colorPrices[colorNum] = { uru, junD, d };
               }
             });
 
             if (Object.keys(colorPrices).length > 0) {
-              results.push({
-                catalogNos,
-                weight,
-                shape: section.shape,
-                colorPrices
-              });
+              results.push({ catalogNos, weight, shape, minQuantity, colorPrices });
             }
+            currentR += 3; // 次の数量セクションへ
           }
         }
       }
