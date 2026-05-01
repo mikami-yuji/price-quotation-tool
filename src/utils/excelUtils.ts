@@ -41,51 +41,28 @@ export const parseExcelFile = (arrayBuffer: ArrayBuffer): {
     priceMatrix = rawMatrix.map((row: any) => mapRowToPriceMatrix(row)).filter(row => row !== null) as CustomPriceMatrixRow[];
   }
 
-  // 4. 既製品マスターの読み込み (商品コードベース)
-  // まずは特定のキーワードを含むシートを探す
-  let readySheet = sheetNames.find(n => 
-    n.includes('既製品') || n.includes('価格表') || n.includes('マスター') || n.includes('Readymade')
-  );
-
-  // 見つからない場合、全シートをスキャンして「商品コード」等の列があるシートを探す
-  if (!readySheet) {
-    for (const name of sheetNames) {
-      const sheet = workbook.Sheets[name];
-      const json = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, range: 0, defval: '' });
-      // 最初の方の行に見出しキーワードがあるかチェック
-      const found = json.slice(0, 10).some(row => 
-        row.some((cell: any) => {
-          const s = String(cell);
-          return s.includes('ＮＯ') || s.includes('NO') || s.includes('商品名') || s.includes('商品コード');
-        })
-      );
-      if (found) {
-        readySheet = name;
-        break;
-      }
-    }
-  }
-
-  if (readySheet) {
-    const sheet = workbook.Sheets[readySheet];
-    // 見出し行（NO.や商品名が含まれる行）のインデックスを探す
+  // 4. 既製品マスターの読み込み (全シートスキャン方式)
+  for (const name of sheetNames) {
+    const sheet = workbook.Sheets[name];
     const fullData = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, defval: '' });
-    let headerRowIndex = 0;
     
+    let headerRowIndex = -1;
     for (let i = 0; i < Math.min(fullData.length, 20); i++) {
       const row = fullData[i] || [];
-      if (row.some(cell => {
-        const s = String(cell);
-        return s.includes('ＮＯ') || s.includes('NO') || s.includes('商品名') || s.includes('商品コード') || s.includes('ABSコード');
-      })) {
+      if (row.some(cell => String(cell || '').includes('ABSコード'))) {
         headerRowIndex = i;
         break;
       }
     }
 
-    // 見つかった見出し行を基準にデータをパースし直す
-    const rawData = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { range: headerRowIndex, defval: '' });
-    readymadeMaster = rawData.map(row => mapRowToReadymadeMaster(row)).filter(row => row !== null) as ReadymadeMasterRow[];
+    if (headerRowIndex !== -1) {
+      const rawData = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { range: headerRowIndex, defval: '' });
+      const currentSheetMaster = rawData.map(row => mapRowToReadymadeMaster(row)).filter(row => row !== null) as ReadymadeMasterRow[];
+      if (currentSheetMaster.length > 0) {
+        readymadeMaster = currentSheetMaster;
+        break;
+      }
+    }
   }
 
   return { orders, priceMatrix, readymadeMaster };

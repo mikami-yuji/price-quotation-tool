@@ -93,14 +93,14 @@ export const calculateNewPrices = (
         if (masterTable.length > 0) {
           if ('campaign' in masterTable[0]) {
             // ReadymadeMasterRow 型として処理
-            // 先頭の0とスペースを除去し、大文字化する正規化関数
-            const normalize = (s: string) => String(s || '').replace(/\s+/g, '').replace(/^0+/, '').toUpperCase();
-            const orderAbsCode = normalize(order.absCode || '');
+            // 安全にスペースと先頭0を除去し、大文字化する正規化関数
+            const normalize = (s: any) => (!s ? '' : String(s).replace(/\s+/g, '').replace(/^0+/, '').toUpperCase());
+            const orderAbsCode = normalize(order.absCode);
             const masterRows = masterTable as ReadymadeMasterRow[];
             
             // ABSコードによる一致のみで照合を行う（先頭の0の違いは吸収）
             const mapped = orderAbsCode 
-              ? masterRows.find(m => normalize(m.absCode || '') === orderAbsCode)
+              ? masterRows.find(m => normalize(m.absCode) === orderAbsCode)
               : undefined;
 
             if (mapped && readymadePrefs) {
