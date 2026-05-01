@@ -200,16 +200,22 @@ const mapRowToPriceMatrix = (row: Record<string, any>): CustomPriceMatrixRow | n
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mapRowToReadymadeMaster = (row: Record<string, any>): ReadymadeMasterRow | null => {
+  // すべてのキーのスペースを除去したマップを作成
+  const cleanRow: Record<string, any> = {};
+  Object.keys(row).forEach(key => {
+    cleanRow[key.replace(/\s+/g, '')] = row[key];
+  });
+
   // 商品コード（ＮＯ．、ＮＯ、商品コード、商品CD 等に対応）
   const productCode = String(
-    row['ＮＯ．'] || row['NO.'] || row['ＮＯ'] || row['NO'] || 
-    row['商品コード'] || row['商品CD'] || row['コード'] || ''
+    cleanRow['ＮＯ．'] || cleanRow['NO.'] || cleanRow['ＮＯ'] || cleanRow['NO'] || 
+    cleanRow['商品コード'] || cleanRow['商品CD'] || cleanRow['コード'] || ''
   ).trim();
   
   if (!productCode || productCode === '商品コード' || productCode === 'ＮＯ．') return null;
 
   // 数量スライド（備考_2 から抽出）
-  const remark = String(row['備考'] || row['備考_2'] || row['数量下限'] || '');
+  const remark = String(cleanRow['備考'] || cleanRow['備考_2'] || cleanRow['数量下限'] || '');
   let minQuantity = 0;
   const match = remark.match(/\((\d+)[～~-]/);
   if (match) {
@@ -220,16 +226,16 @@ const mapRowToReadymadeMaster = (row: Record<string, any>): ReadymadeMasterRow |
     productCode,
     minQuantity,
     campaign: {
-      // 現行キャンペーン単価（現行ｷｬﾝ売、キャン_売 等に対応）
-      uru: Number(row['現行ｷｬﾝ売'] || row['現行キャン売'] || row['キャンペーン_売単価'] || row['キャン_売'] || 0),
-      junD: Number(row['現行ｷｬﾝ準Ｄ'] || row['現行キャン準D'] || row['キャンペーン_準D単価'] || row['キャン_準D'] || 0),
-      d: Number(row['現行ｷｬﾝＤ'] || row['現行キャンD'] || row['キャンペーン_D単価'] || row['キャン_D'] || 0),
+      // 現行キャンペーン単価
+      uru: Number(cleanRow['現行ｷｬﾝ売'] || cleanRow['現行キャン売'] || cleanRow['キャンペーン_売単価'] || cleanRow['キャン_売'] || 0),
+      junD: Number(cleanRow['現行ｷｬﾝ準Ｄ'] || cleanRow['現行キャン準D'] || cleanRow['キャンペーン_準D単価'] || cleanRow['キャン_準D'] || 0),
+      d: Number(cleanRow['現行ｷｬﾝＤ'] || cleanRow['現行キャンD'] || cleanRow['キャンペーン_D単価'] || cleanRow['キャン_D'] || 0),
     },
     normal: {
-      // 改定後単価（改定後売、通常_売単価 等に対応）
-      uru: Number(row['改定後売'] || row['通常_売単価'] || row['通常売'] || row['売単価'] || 0),
-      junD: Number(row['改定後準Ｄ'] || row['改定後準D'] || row['通常_準D単価'] || row['通常準D'] || row['準D単価'] || 0),
-      d: Number(row['改定後Ｄ'] || row['改定後D'] || row['通常_D単価'] || row['通常D'] || row['D単価'] || 0),
+      // 改定後単価
+      uru: Number(cleanRow['改定後売'] || cleanRow['通常_売単価'] || cleanRow['通常売'] || cleanRow['売単価'] || 0),
+      junD: Number(cleanRow['改定後準Ｄ'] || cleanRow['改定後準D'] || cleanRow['通常_準D単価'] || cleanRow['通常準D'] || cleanRow['準D単価'] || 0),
+      d: Number(cleanRow['改定後Ｄ'] || cleanRow['改定後D'] || cleanRow['通常_D単価'] || cleanRow['通常D'] || cleanRow['D単価'] || 0),
     }
   };
 };

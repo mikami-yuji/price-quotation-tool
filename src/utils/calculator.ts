@@ -36,7 +36,7 @@ export const calculateNewPrices = (
     const isCustom = order.category === '別注' || order.category === 'ポリ別注';
     const isSP = order.category === 'SP' || order.category === 'シルク';
     const isSticker = order.category === 'シール' || order.category === 'シール（フルオーダー）' || order.category.includes('シール');
-    const isReady = order.category === '既製品' || order.category === '';
+    const isReady = order.category === '既製品' || order.category === '既製' || order.category === '' || order.category.includes('既製');
 
     const groupKey = isSP 
       ? `${order.materialName}-${order.weight}-${order.totalColorCount}-${order.printCode}`
@@ -93,9 +93,11 @@ export const calculateNewPrices = (
         if (masterTable.length > 0) {
           if ('campaign' in masterTable[0]) {
             // ReadymadeMasterRow 型として処理
-            // 同じ商品コードの中で、受注数(order.quantity)が設定された最小数量(minQuantity)を満たすもののうち、
-            // 最もしきい値が高い（＝より大口の条件に合致する）行を選択する
-            const matches = (masterTable as ReadymadeMasterRow[]).filter(m => m.productCode === order.productCode);
+            // 商品コードを正規化（スペース除去、大文字化）して比較
+            const normalize = (s: string) => String(s || '').replace(/\s+/g, '').toUpperCase();
+            const orderCode = normalize(order.productCode);
+            
+            const matches = (masterTable as ReadymadeMasterRow[]).filter(m => normalize(m.productCode) === orderCode);
             const mapped = matches
               .filter(m => (order.quantity || 0) >= m.minQuantity)
               .sort((a, b) => b.minQuantity - a.minQuantity)[0];
