@@ -57,8 +57,9 @@ export const parseExcelFile = (arrayBuffer: ArrayBuffer): {
     }
 
     if (headerIdx !== -1) {
+      const headers = rows[headerIdx];
       for (let i = headerIdx + 1; i < rows.length; i++) {
-        const master = mapRowArrayToReadymadeMaster(rows[i]);
+        const master = mapRowArrayToReadymadeMaster(rows[i], headers);
         if (master) readymadeMaster.push(master);
       }
       if (readymadeMaster.length > 0) break;
@@ -69,20 +70,21 @@ export const parseExcelFile = (arrayBuffer: ArrayBuffer): {
 };
 
 /**
- * 配列から受注レコードへ（インデックス固定）
+ * 配列から受注レコードへ
  */
 const mapRowArrayToOrderRecord = (row: any[], headers: any[]): OrderRecord | null => {
-  if (!row || row.length === 0) return null;
+  if (!row || row.length < 5) return null;
   
-  const getIdx = (names: string[]) => headers.findIndex(h => names.some(n => String(h).includes(n)));
+  const getIdx = (names: string[]) => headers.findIndex(h => names.some(n => String(h || '').replace(/[\s\t\r\n\xA0]/g, '').includes(n)));
+  
   const idxMap = {
     category: getIdx(['種別']),
     orderNumber: getIdx(['受注№', '受注番号']),
-    productCode: getIdx(['商品コード', '商品CD', 'ABSコード', 'ABSCD']),
+    productCode: getIdx(['商品コード', '商品CD']),
     productName: getIdx(['商品名']),
-    quantity: getIdx(['受注数', '数量', '前回受注数']),
-    currentPrice: getIdx(['現行単価', '単価', '新単価']),
-    salesGroup: getIdx(['営G', '改定後 営G']),
+    quantity: getIdx(['受注数', '数量']),
+    currentPrice: getIdx(['現行単価', '単価']),
+    salesGroup: getIdx(['営G']),
     weight: getIdx(['重量']),
     shape: getIdx(['形状'])
   };
@@ -90,7 +92,7 @@ const mapRowArrayToOrderRecord = (row: any[], headers: any[]): OrderRecord | nul
   const val = (idx: number) => (idx !== -1 ? row[idx] : '');
 
   return {
-    category: String(val(idxMap.category) || ''),
+    category: String(val(idxMap.category) || '既製品').trim(),
     orderNumber: String(val(idxMap.orderNumber)),
     productCode: String(val(idxMap.productCode)),
     absCode: String(val(idxMap.productCode)).replace(/\s+/g, ''),
@@ -116,10 +118,12 @@ const mapRowArrayToOrderRecord = (row: any[], headers: any[]): OrderRecord | nul
 };
 
 /**
- * 配列から既製マスターへ（インデックス固定）
+ * 配列から既製マスターへ
  */
-const mapRowArrayToReadymadeMaster = (row: any[]): ReadymadeMasterRow | null => {
-  if (!row || row.length < 2) return null;
+const mapRowArrayToReadymadeMaster = (row: any[], headers: any[]): ReadymadeMasterRow | null => {
+  if (!row || row.length < 5) return null;
+  
+  const getIdx = (names: string[]) => headers.findIndex(h => names.some(n => String(h || '').replace(/[\s\t\r\n\xA0]/g, '').includes(n)));
   
   const parseNum = (v: any) => {
     if (typeof v === 'number') return v;
@@ -127,20 +131,30 @@ const mapRowArrayToReadymadeMaster = (row: any[]): ReadymadeMasterRow | null => 
     return isNaN(n) ? 0 : n;
   };
 
-  const absCode = String(row[0] || '').replace(/\s+/g, '');
-  if (!absCode || absCode === 'ABSコード' || absCode === 'ABSCD') return null;
+  const idxMap = {
+    absCode: getIdx(['ABSコード', 'ABSCD']),
+    productCode: getIdx(['ＮＯ．', 'NO.', '商品コード']),
+    weight: getIdx(['Ｋｇ', '重量', 'Kg']),
+    shape: getIdx(['形状']),
+    uru: getIdx(['改定後売', '通常売', '売単価']),
+    junD: getIdx(['改定後準Ｄ', '改定後準D', '準D単価']),
+    d: getIdx(['改定後Ｄ', '改定後D', 'D単価'])
+  };
+
+  const absCode = String(row[idxMap.absCode] || '').replace(/\s+/g, '');
+  if (!absCode || absCode === 'ABSコード') return null;
 
   return {
     absCode,
-    productCode: String(row[1] || ''),
-    weight: parseNum(row[6]),
-    shape: String(row[7] || ''),
+    productCode: String(row[idxMap.productCode] || ''),
+    weight: parseNum(row[idxMap.weight]),
+    shape: String(row[idxMap.shape] || ''),
     minQuantity: 0,
     campaign: { uru: 0, junD: 0, d: 0 },
     normal: {
-      uru: parseNum(row[8]),
-      junD: parseNum(row[9]),
-      d: parseNum(row[10])
+      uru: parseNum(row[idxMap.uru]),
+      junD: parseNum(row[idxMap.junD]),
+      d: parseNum(row[idxMap.d])
     }
   };
 };

@@ -36,7 +36,10 @@ export const calculateNewPrices = (
     const isCustom = order.category === '別注' || order.category === 'ポリ別注';
     const isSP = order.category === 'SP' || order.category === 'シルク';
     const isSticker = order.category === 'シール' || order.category === 'シール（フルオーダー）' || order.category.includes('シール');
-    const isReady = order.category === '既製品' || order.category === '既製' || order.category === '' || order.category.includes('既製');
+    
+    // 既製品かどうかの判定（余白や表記の揺れを考慮）
+    const category = (order.category || '').trim();
+    const isReady = category.includes('既製品') || category.includes('既製') || category === '' || category.toUpperCase() === 'READYMADE';
 
     const groupKey = isSP 
       ? `${order.materialName}-${order.weight}-${order.totalColorCount}-${order.printCode}`
