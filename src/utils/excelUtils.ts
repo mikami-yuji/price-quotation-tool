@@ -70,7 +70,7 @@ export const parseExcelFile = (arrayBuffer: ArrayBuffer): {
 };
 
 /**
- * SP用マスターデータのパース（数量スライド対応）
+ * SP用マスターデータのパース（超高耐久版）
  */
 export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
   const workbook = XLSX.read(arrayBuffer, { type: 'array' });
@@ -82,57 +82,66 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
 
     for (let r = 0; r < rows.length; r++) {
       const row = rows[r];
-      for (let c = 0; c < row.length; c++) {
-        const cell = String(row[c] || '');
-        if (cell.includes('ｶﾀﾛｸﾞ№')) {
-          // テーブルの起点を発見
-          const headerRow = rows[r + 1];
-          if (!headerRow) continue;
+      // 「カタログ」と「№」または「番号」が含まれるセルを探す
+      const catIdx = row.findIndex(c => {
+        const s = String(c || '');
+        return (s.includes('カタログ') || s.includes('ｶﾀﾛｸﾞ')) && (s.includes('№') || s.includes('番号') || s.includes('NO'));
+      });
 
-          const catalogRaw = String(headerRow[c] || '');
-          const catalogNos = catalogRaw.split(/[\r\n\s]+/).map(s => s.trim()).filter(Boolean);
-          if (catalogNos.length === 0) continue;
+      if (catIdx !== -1) {
+        // テーブルの起点を発見。列の位置を動的に特定
+        const weightIdx = row.findIndex(c => String(c).includes('㎏') || String(c).includes('Kg'));
+        const qtyIdx = row.findIndex(c => String(c).includes('数量'));
+        const color1Idx = row.findIndex(c => String(c).includes('１色') || String(c).includes('1色'));
 
-          const weightIdx = c + 5;
-          const qtyIdx = c + 8;
-          const weight = parseFloat(String(headerRow[weightIdx] || '0'));
+        if (color1Idx === -1) continue;
 
-          // この起点(r, c)から下に続くセクションをすべてスキャン
-          // 通常、3行1セット（売・準・D）で、セクション間に空行があるか次の数量がある
-          let currentR = r + 1;
-          while (currentR < rows.length) {
-            const qtyCell = String(rows[currentR][qtyIdx] || '');
-            if (!qtyCell || (!qtyCell.includes('ｍ') && !qtyCell.includes('枚'))) {
-              // 数量がなくなったら終了（または次のテーブルヘッダーへ）
-              if (currentR > r + 5 && rows[currentR].some(cell => String(cell).includes('ｶﾀﾛｸﾞ№'))) break;
-              if (currentR > r + 30) break; // 無限ループ防止
-              currentR++;
-              continue;
-            }
+        // 次の行からデータ抽出
+        let currentR = r + 1;
+        let catalogNos: string[] = [];
+        let weight = 0;
 
-            // 数量と形状を解析
-            const shape: 'R' | '単袋' = qtyCell.includes('ｍ') ? 'R' : '単袋';
+        while (currentR < rows.length) {
+          const currentRow = rows[currentR];
+          if (!currentRow || currentRow.length === 0) { currentR++; continue; }
+
+          // カタログ番号が新しく出てきたら更新
+          const potentialCatalog = String(currentRow[catIdx] || '').trim();
+          if (potentialCatalog && potentialCatalog !== 'カタログ№' && !potentialCatalog.includes('ロール')) {
+            catalogNos = potentialCatalog.split(/[\r\n\s]+/).map(s => s.trim()).filter(Boolean);
+            if (weightIdx !== -1) weight = parseFloat(String(currentRow[weightIdx] || '0'));
+          }
+
+          const qtyCell = String(currentRow[qtyIdx] || '');
+          if (qtyCell.includes('ｍ') || qtyCell.includes('枚') || qtyCell.includes('m')) {
+            const shape: 'R' | '単袋' = (qtyCell.includes('ｍ') || qtyCell.includes('m')) ? 'R' : '単袋';
             const minQuantity = parseFloat(qtyCell.replace(/[^0-9]/g, '')) || 0;
 
             const colorPrices: { [key: number]: SPMasterPrice } = {};
-            [1, 2, 3, 4].forEach(colorNum => {
-              const colIdx = c + 15 + (colorNum - 1) * 4;
-              if (colIdx >= rows[currentR].length) return;
-              
-              const uru = parseFloat(String(rows[currentR][colIdx] || '0'));
-              const junD = parseFloat(String(rows[currentR + 1] ? rows[currentR + 1][colIdx] : '0'));
-              const d = parseFloat(String(rows[currentR + 2] ? rows[currentR + 2][colIdx] : '0'));
-              
-              if (uru > 0) {
-                colorPrices[colorNum] = { uru, junD, d };
-              }
-            });
+            // 1色〜4色までループ
+            for (let i = 0; i < 4; i++) {
+              const baseCol = color1Idx + (i * 4); // １色, ２色... は通常4列おき
+              if (baseCol >= currentRow.length) break;
 
-            if (Object.keys(colorPrices).length > 0) {
+              const uru = parseFloat(String(currentRow[baseCol] || '0'));
+              const junD = parseFloat(String(rows[currentR + 1] ? rows[currentR + 1][baseCol] : '0'));
+              const d = parseFloat(String(rows[currentR + 2] ? rows[currentR + 2][baseCol] : '0'));
+
+              if (uru > 0) {
+                colorPrices[i + 1] = { uru, junD, d };
+              }
+            }
+
+            if (Object.keys(colorPrices).length > 0 && catalogNos.length > 0) {
               results.push({ catalogNos, weight, shape, minQuantity, colorPrices });
             }
-            currentR += 3; // 次の数量セクションへ
+            currentR += 3; // 売・準・Dの3行分進む
+          } else {
+            // 次のテーブルヘッダーが見えたらこのエリアは終了
+            if (currentRow.some(c => String(c).includes('カタログ') && String(c).includes('№'))) break;
+            currentR++;
           }
+          if (currentR > r + 100) break; // 安全装置
         }
       }
     }
