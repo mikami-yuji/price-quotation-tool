@@ -18,50 +18,50 @@ export const parseExcelFile = (arrayBuffer: ArrayBuffer): {
   let priceMatrix: CustomPriceMatrixRow[] = [];
   let readymadeMaster: ReadymadeMasterRow[] = [];
 
-  // 1. 受注データの読み込み (システムからのエクスポート)
-  if (sheetNames.includes('受注データ')) {
-    const sheet = workbook.Sheets['受注データ'];
-    const rawData = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
-    orders = rawData.map((row) => mapRowToOrderRecord(row));
-  } 
-  // 2. 見積書データの読み込み (本ツールで生成したExcelからの再利用)
-  else if (sheetNames.includes('見積書')) {
-    const sheet = workbook.Sheets['見積書'];
-    // 行13(インデックス12)からヘッダーが始まると想定
-    const rawData = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { range: 12, defval: '' });
-    orders = rawData.map((row) => mapQuoteRowToOrderRecord(row));
+  // 1. 受注データの読み込み (配列方式でズレを防止)
+  const orderSheet = workbook.Sheets['受注データ'] || workbook.Sheets['見積書'] || workbook.Sheets[sheetNames[0]];
+  if (orderSheet) {
+    const rows = XLSX.utils.sheet_to_json<any[]>(orderSheet, { header: 1, defval: '' });
+    let headerIdx = -1;
+    for (let i = 0; i < Math.min(rows.length, 20); i++) {
+      if (rows[i].some(c => String(c).includes('商品コード') || String(c).includes('受注') || String(c).includes('ABSコード'))) {
+        headerIdx = i;
+        break;
+      }
+    }
+    const dataStartIdx = headerIdx === -1 ? 0 : headerIdx + 1;
+    for (let i = dataStartIdx; i < rows.length; i++) {
+      const record = mapRowArrayToOrderRecord(rows[i], rows[headerIdx] || []);
+      if (record) orders.push(record);
+    }
   }
 
-  // 3. 別注単価表の読み込み
+  // 2. 別注単価表の読み込み
   if (sheetNames.includes('別注単価表')) {
     const sheet = workbook.Sheets['別注単価表'];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rawMatrix = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: '' });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     priceMatrix = rawMatrix.map((row: any) => mapRowToPriceMatrix(row)).filter(row => row !== null) as CustomPriceMatrixRow[];
   }
 
-  // 4. 既製品マスターの読み込み (全シートスキャン方式)
+  // 3. 既製品マスターの読み込み (全シートスキャン + 配列方式)
   for (const name of sheetNames) {
     const sheet = workbook.Sheets[name];
-    const fullData = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, defval: '' });
+    const rows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, defval: '' });
     
-    let headerRowIndex = -1;
-    for (let i = 0; i < Math.min(fullData.length, 20); i++) {
-      const row = fullData[i] || [];
-      if (row.some(cell => String(cell || '').includes('ABSコード'))) {
-        headerRowIndex = i;
+    let headerIdx = -1;
+    for (let i = 0; i < Math.min(rows.length, 20); i++) {
+      if (rows[i].some(c => String(c || '').includes('ABSコード'))) {
+        headerIdx = i;
         break;
       }
     }
 
-    if (headerRowIndex !== -1) {
-      const rawData = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { range: headerRowIndex, defval: '' });
-      const currentSheetMaster = rawData.map(row => mapRowToReadymadeMaster(row)).filter(row => row !== null) as ReadymadeMasterRow[];
-      if (currentSheetMaster.length > 0) {
-        readymadeMaster = currentSheetMaster;
-        break;
+    if (headerIdx !== -1) {
+      for (let i = headerIdx + 1; i < rows.length; i++) {
+        const master = mapRowArrayToReadymadeMaster(rows[i]);
+        if (master) readymadeMaster.push(master);
       }
+      if (readymadeMaster.length > 0) break;
     }
   }
 
@@ -69,99 +69,85 @@ export const parseExcelFile = (arrayBuffer: ArrayBuffer): {
 };
 
 /**
- * 行データを受注レコードオブジェクトにマッピングする
- * @param row Excelの1行分のJSONデータ
- * @returns OrderRecordオブジェクト
+ * 配列から受注レコードへ（インデックス固定）
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mapRowToOrderRecord = (row: Record<string, any>): OrderRecord => {
-  const cleanRow: Record<string, any> = {};
-  Object.keys(row).forEach(key => {
-    const cleanKey = key.replace(/[\s\t\r\n\xA0]/g, '');
-    cleanRow[cleanKey] = row[key];
-  });
-
-  let absCode = String(
-    cleanRow['ABSコード'] || 
-    cleanRow['ABSCD'] || 
-    cleanRow['商品コード'] || 
-    cleanRow['商品CD'] || 
-    ''
-  ).replace(/\s+/g, '');
-
-  // フォールバック: 4列目の値を採用（標準的な受注データの形式に合わせる）
-  if (!absCode && Object.values(row).length >= 4) {
-    absCode = String(Object.values(row)[3]).replace(/\s+/g, '');
-  }
-
-  return {
-    orderNumber: String(row['受注№'] || ''),
-    category: String(row['種別'] || ''),
-    weight: row['重量'] || 0,
-    productCode: String(row['商品コード'] || ''),
-    absCode,
-    productName: String(row['商品名'] || ''),
-    title: String(row['タイトル'] || ''),
-    shape: String(row['形状'] || ''),
-    quantity: Number(row['受注数']) || 0,
-    currentPrice: Number(row['単価']) || 0,
-    printingCost: Number(row['印刷代']) || 0,
-    salesGroup: Number(row['営G']) || 0,
-    printingSalesGroup: Number(row['印刷営G']) || 0,
-    materialName: String(row['材質名称'] || ''),
-    printCode: String(row['印刷コード'] || ''),
-    frontColorCount: Number(row['表色数']) || 0,
-    backColorCount: Number(row['裏色数']) || 0,
-    totalColorCount: Number(row['総色数']) || 0,
-    janCode: String(row['JANコード'] || ''),
-    directDeliveryCode: String(row['直送先コード'] || ''),
-    directDeliveryName: String(row['直送先名称'] || ''),
-    lastOrderDate: row['最新受注日'] instanceof Date 
-      ? row['最新受注日'].toISOString() 
-      : String(row['最新受注日'] || row['最終受注日'] || ''),
-    designName: String(row['デザイン名'] || '')
+const mapRowArrayToOrderRecord = (row: any[], headers: any[]): OrderRecord | null => {
+  if (!row || row.length === 0) return null;
+  
+  const getIdx = (names: string[]) => headers.findIndex(h => names.some(n => String(h).includes(n)));
+  const idxMap = {
+    category: getIdx(['種別']),
+    orderNumber: getIdx(['受注№', '受注番号']),
+    productCode: getIdx(['商品コード', '商品CD', 'ABSコード', 'ABSCD']),
+    productName: getIdx(['商品名']),
+    quantity: getIdx(['受注数', '数量', '前回受注数']),
+    currentPrice: getIdx(['現行単価', '単価', '新単価']),
+    salesGroup: getIdx(['営G', '改定後 営G']),
+    weight: getIdx(['重量']),
+    shape: getIdx(['形状'])
   };
-};
 
-/**
- * 本ツールで生成した見積書（Excel）の1行分を受注レコードにマッピングする。
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mapQuoteRowToOrderRecord = (row: Record<string, any>): OrderRecord => {
-  const nameMaterial = String(row['商品名 / 材質'] || '');
-  const [productName, materialName] = nameMaterial.split('\n');
+  const val = (idx: number) => (idx !== -1 ? row[idx] : '');
 
   return {
-    orderNumber: String(row['受注№'] || ''),
-    category: String(row['種別'] || ''),
-    weight: row['重量'] || 0,
-    productCode: String(row['商品コード'] || ''),
-    productName: productName || '',
-    materialName: materialName || '',
-    shape: String(row['形状'] || ''),
-    quantity: Number(row['前回受注数']) || 0,
-    currentPrice: Number(row['新単価']) || Number(row['現行単価']) || 0,
-    printingCost: Number(row['改定印刷代単価']) || Number(row['現行印刷代']) || 0,
-    salesGroup: Number(row['改定後 営G']) || Number(row['営G']) || 0,
-    printingSalesGroup: Number(row['改定印刷代営G']) || Number(row['現行印刷営G']) || 0,
-    totalColorCount: Number(row['色数']) || 0,
-    thickness: String(row['厚み'] || ''),
-    directDeliveryCode: String(row['直送先コード'] || ''),
-    directDeliveryName: String(row['直送先名称'] || ''),
-    printCode: String(row['印刷コード'] || ''),
-    title: productName || '',
+    category: String(val(idxMap.category) || ''),
+    orderNumber: String(val(idxMap.orderNumber)),
+    productCode: String(val(idxMap.productCode)),
+    absCode: String(val(idxMap.productCode)).replace(/\s+/g, ''),
+    productName: String(val(idxMap.productName)),
+    quantity: Number(val(idxMap.quantity)) || 0,
+    currentPrice: Number(val(idxMap.currentPrice)) || 0,
+    salesGroup: Number(val(idxMap.salesGroup)) || 0,
+    weight: Number(val(idxMap.weight)) || 0,
+    shape: String(val(idxMap.shape)),
+    materialName: '',
+    title: '',
+    printingCost: 0,
+    printingSalesGroup: 0,
     frontColorCount: 0,
     backColorCount: 0,
+    totalColorCount: 0,
     janCode: '',
+    directDeliveryCode: '',
+    directDeliveryName: '',
     lastOrderDate: '',
     designName: ''
   };
 };
 
 /**
+ * 配列から既製マスターへ（インデックス固定）
+ */
+const mapRowArrayToReadymadeMaster = (row: any[]): ReadymadeMasterRow | null => {
+  if (!row || row.length < 2) return null;
+  
+  const parseNum = (v: any) => {
+    if (typeof v === 'number') return v;
+    const n = parseFloat(String(v || '').replace(/[^0-9.-]/g, ''));
+    return isNaN(n) ? 0 : n;
+  };
+
+  const absCode = String(row[0] || '').replace(/\s+/g, '');
+  if (!absCode || absCode === 'ABSコード' || absCode === 'ABSCD') return null;
+
+  return {
+    absCode,
+    productCode: String(row[1] || ''),
+    weight: parseNum(row[6]),
+    shape: String(row[7] || ''),
+    minQuantity: 0,
+    campaign: { uru: 0, junD: 0, d: 0 },
+    normal: {
+      uru: parseNum(row[8]),
+      junD: parseNum(row[9]),
+      d: parseNum(row[10])
+    }
+  };
+};
+
+/**
  * 行データを単価表マトリックスオブジェクトにマッピングする
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mapRowToPriceMatrix = (row: Record<string, any>): CustomPriceMatrixRow | null => {
   const materialName = row['材質名称'] as string;
   const weight = row['重量'];
@@ -189,44 +175,6 @@ const mapRowToPriceMatrix = (row: Record<string, any>): CustomPriceMatrixRow | n
     weight,
     colorPrices
   };
-};
-
-/**
- * 既製マスターの行データをマッピングする
- */
-const mapRowToReadymadeMaster = (row: any): ReadymadeMasterRow | null => {
-  if (!row) return null;
-  
-  const cleanRow: Record<string, any> = {};
-  const rawValues = Object.values(row);
-  
-  Object.keys(row).forEach(key => {
-    const cleanKey = key.replace(/[\s\t\r\n\xA0]/g, '');
-    cleanRow[cleanKey] = row[key];
-  });
-
-  const parseNum = (val: any) => {
-    if (typeof val === 'number') return val;
-    if (!val) return 0;
-    const cleaned = String(val).replace(/[^0-9.-]/g, '');
-    const num = parseFloat(cleaned);
-    return isNaN(num) ? 0 : num;
-  };
-
-  // ABSコード: 1列目、または指定の見出し名から取得
-  let absCode = String(cleanRow['ABSコード'] || cleanRow['ABSCD'] || '').replace(/\s+/g, '');
-  if (!absCode && rawValues.length > 0) {
-    absCode = String(rawValues[0]).replace(/\s+/g, '');
-  }
-
-  // 商品コード(NO.): 2列目、または指定の見出し名から取得
-  let productCode = String(cleanRow['ＮＯ．'] || cleanRow['NO.'] || '').trim();
-  if (!productCode && rawValues.length > 1) {
-    productCode = String(rawValues[1]).trim();
-  }
-
-  // 必須項目がない場合はスキップ
-  if (!absCode || absCode === 'ABSコード' || absCode === 'ABSCD') return null;
 
   // 重量と形状
   const weight = parseNum(cleanRow['Ｋｇ'] || cleanRow['Kg'] || cleanRow['重量'] || (rawValues.length > 6 ? rawValues[6] : 0));
