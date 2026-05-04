@@ -80,6 +80,7 @@ export type IncreaseSimulationConditions = {
   customIncreaseType: 'percentage' | 'amount';
   customIncreaseValue: number;
   roundingMode: 'none' | 'half';
+  spColorOffset?: boolean; // SPの色数-1オフセットを有効にするか
 };
 
 // 別注・ポリ別注・SPの手入力設定 (キー: "材質-重量-色数[-印刷コード]")

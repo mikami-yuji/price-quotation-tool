@@ -31,10 +31,10 @@ export const calculateNewPrices = (
     let newPrice = order.currentPrice;
     const individual = individualSettings[order.orderNumber];
     const category = (order.category || '').trim();
-    const isCustom = category === '別注' || category === 'ポリ別注';
-    const isSP = category === 'SP' || category === 'ＳＰ';
+    const isCustom = category.includes('別注') || category.includes('ポリ');
     const isSticker = category === 'シール' || category === 'シール（フルオーダー）' || category.includes('シール');
-    const isReady = category.includes('既製品') || category.includes('既製') || category === 'シルク' || category === '' || category.toUpperCase() === 'READYMADE';
+    const isSP = category.includes('SP') || category.includes('ＳＰ') || category.includes('シルク');
+    const isReady = !isCustom && !isSP && !isSticker && order.productCode !== '999999999';
     
     // グループキーの生成
     const groupKey = isSP 
