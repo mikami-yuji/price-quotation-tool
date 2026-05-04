@@ -62,19 +62,20 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
           const t = String(row[i] || '').trim();
           if (t.includes('単袋')) shape = '単袋';
           else if (t.includes('R')) shape = 'R';
-          const q = parseInt(t);
+          const q = parseInt(t.replace(/[^\d]/g, ''));
           if (!isNaN(q) && q >= 100) { minQuantity = q; break; }
         }
         if (currentCatalogNos.length > 0 && minQuantity > 0) {
           const colorPrices: { [key: number]: SPMasterPrice } = {};
-          for (let c = 1; c <= 4; c++) {
+          // 色数は7色目まで取得するように拡大
+          for (let c = 1; c <= 7; c++) {
             const price = parseFloat(String(row[sellIdx + c]));
             if (!isNaN(price) && price > 0) {
               colorPrices[c] = { uru: price, junD: price, d: price };
             }
           }
           results.push({
-            catalogNos: currentCatalogNos,
+            catalogNos: [...currentCatalogNos],
             weight: currentWeight,
             shape,
             minQuantity,
@@ -116,7 +117,7 @@ const parsePriceMatrix = (rows: any[]): CustomPriceMatrixRow[] => {
     const weight = parseFloat(String(row[1]));
     if (!materialName || isNaN(weight)) continue;
     const colorPrices: { [key: number]: number } = {};
-    for (let i = 1; i <= 4; i++) {
+    for (let i = 1; i <= 7; i++) {
       const price = parseFloat(String(row[i + 1]));
       if (!isNaN(price)) colorPrices[i] = price;
     }
@@ -155,7 +156,7 @@ const mapRowArrayToOrderRecord = (row: any[], header: any[]): OrderRecord => {
   const val = (idx: number) => (idx !== -1 ? row[idx] : '');
   const num = (idx: number) => {
     const v = val(idx);
-    return v === '' ? 0 : Number(v) || 0;
+    return v === '' ? 0 : Number(String(v).replace(/[^\d.]/g, '')) || 0;
   };
 
   const pCode = String(val(idxMap.productCode));

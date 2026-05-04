@@ -66,14 +66,15 @@ export const calculateNewPrices = (
           const orderCode = normalize(order.productCode || order.absCode);
           const matches = (categorizedMasters.sp as SPMasterRow[]).filter(m => {
             const codeMatch = m.catalogNos.some(no => orderCode.includes(normalize(no)));
-            const weightMatch = Number(m.weight) === Number(order.weight);
-            const shapeMatch = (m.shape === order.shape || (order.shape === 'R' && m.shape === 'R') || (order.shape === '単袋' && m.shape === '単袋'));
+            const weightMatch = Math.abs(Number(m.weight) - Number(order.weight)) < 0.1;
+            const orderShape = String(order.shape || '').toUpperCase().replace(/[ 　]/g, '');
+            const mShape = String(m.shape || '').toUpperCase();
+            const shapeMatch = orderShape.includes(mShape) || mShape.includes(orderShape);
             
             let materialMatch = true;
             if (m.materialHint && order.materialName) {
               const normM = normalize(order.materialName).replace(/[【】]/g, '');
               const normH = normalize(m.materialHint).replace(/[【】]/g, '');
-              // 材質名は前方一致で厳密に判定 (「ＳＦポリ」が「ポリ」にヒットしないように)
               materialMatch = normM.startsWith(normH);
             }
             return codeMatch && weightMatch && shapeMatch && materialMatch;
