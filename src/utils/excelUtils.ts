@@ -38,8 +38,8 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
     const sheet = workbook.Sheets[name];
     const rows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, defval: '' });
     const materialHint = name.replace(/^\d+_/, '').trim();
-    let currentCatalogNos: string[] = [];
-    let currentWeight = 0;
+    const sheetWeight = parseFloat(name.match(/^\d+/)?.[0] || '0');
+    let currentWeight = sheetWeight;
     for (let r = 0; r < rows.length; r++) {
       const row = rows[r];
       if (!row || row.length === 0) continue;
@@ -64,7 +64,12 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
           const val = parseFloat(String(row[i]).replace(/[^\d.]/g, ''));
           if (!isNaN(val) && val > 0 && val < 100) { weight = val; break; }
         }
-        if (weight > 0) currentWeight = weight;
+        if (weight > 0) {
+          currentWeight = weight;
+        } else {
+          // 行に重量がない場合はシート名の数値を使用
+          currentWeight = sheetWeight;
+        }
 
         let minQuantity = 0;
         let shape: 'R' | '単袋' = 'R';
@@ -73,8 +78,8 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
           const t = String(row[i] || '').trim();
           if (t.includes('単袋')) shape = '単袋';
           else if (t.includes('R')) shape = 'R';
-          const q = parseInt(t.replace(/[^\d,]/g, ''));
-          if (!isNaN(q) && q >= 10) { // 10以上の数量を許容するように緩和
+          const q = parseInt(String(row[i]).replace(/[^\d]/g, ''));
+          if (!isNaN(q) && q >= 10) { 
             minQuantity = q;
             break;
           }
