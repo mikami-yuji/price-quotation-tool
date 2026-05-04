@@ -80,7 +80,7 @@ export const usePriceSimulation = () => {
     return calculateNewPrices(orders, priceMatrix, conditions, manualSettings, individualSettings, {
       custom: customMaster,
       sp: spMaster,
-      readymade: readymadeMaster,
+      readymade: readymadeMaster as ReadymadeMasterRow[],
       sticker: stickerMaster
     }, { type: readymadePriceType, segment: readymadeSegment });
   }, [orders, priceMatrix, conditions, manualSettings, individualSettings, customMaster, spMaster, readymadeMaster, stickerMaster, readymadePriceType, readymadeSegment]);
@@ -179,10 +179,6 @@ export const usePriceSimulation = () => {
     } catch (err) {
       console.error('Master upload error:', err);
       alert('読み込み中にエラーが発生しました: ' + String(err));
-    }
-  };
-      console.error(err);
-      alert('解析失敗: ファイルの形式が正しいか確認してください。');
     }
   };
 

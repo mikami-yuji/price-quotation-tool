@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { OrderRecord, CustomPriceMatrixRow, ReadymadeMasterRow } from '../types';
+import { OrderRecord, CustomPriceMatrixRow, ReadymadeMasterRow, SPMasterRow, SPMasterPrice } from '../types';
 
 /**
  * Excelのファイルオブジェクト（ArrayBuffer）を読み込み、受注データ、別注単価表、既製品マスターの配列を返します。
@@ -14,9 +14,9 @@ export const parseExcelFile = (arrayBuffer: ArrayBuffer): {
   const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
   const sheetNames = workbook.SheetNames;
 
-  let orders: OrderRecord[] = [];
+  const orders: OrderRecord[] = [];
   let priceMatrix: CustomPriceMatrixRow[] = [];
-  let readymadeMaster: ReadymadeMasterRow[] = [];
+  const readymadeMaster: ReadymadeMasterRow[] = [];
 
   // 1. 受注データの読み込み (配列方式でズレを防止)
   const orderSheet = workbook.Sheets['受注データ'] || workbook.Sheets['見積書'] || workbook.Sheets[sheetNames[0]];
@@ -199,6 +199,7 @@ const mapRowArrayToOrderRecord = (row: any[], headers: any[]): OrderRecord | nul
     directDeliveryCode: '',
     directDeliveryName: '',
     lastOrderDate: '',
+    printCode: '',
     designName: ''
   };
 };
@@ -274,27 +275,5 @@ const mapRowToPriceMatrix = (row: Record<string, any>): CustomPriceMatrixRow | n
     materialName,
     weight,
     colorPrices
-  };
-
-  // 重量と形状
-  const weight = parseNum(cleanRow['Ｋｇ'] || cleanRow['Kg'] || cleanRow['重量'] || (rawValues.length > 6 ? rawValues[6] : 0));
-  const shape = String(cleanRow['形状'] || cleanRow['形'] || (rawValues.length > 7 ? rawValues[7] : '')).trim();
-
-  return {
-    productCode,
-    absCode,
-    minQuantity: 0,
-    weight,
-    shape,
-    campaign: {
-      uru: parseNum(cleanRow['現行ｷｬﾝ売'] || cleanRow['現行キャン売'] || 0),
-      junD: parseNum(cleanRow['現行ｷｬﾝ準Ｄ'] || cleanRow['現行キャン準D'] || 0),
-      d: parseNum(cleanRow['現行ｷｬﾝＤ'] || cleanRow['現行キャンD'] || 0),
-    },
-    normal: {
-      uru: parseNum(cleanRow['改定後売'] || cleanRow['通常売'] || (rawValues.length > 8 ? rawValues[8] : 0)),
-      junD: parseNum(cleanRow['改定後準Ｄ'] || cleanRow['改定後準D'] || (rawValues.length > 9 ? rawValues[9] : 0)),
-      d: parseNum(cleanRow['改定後Ｄ'] || cleanRow['改定後D'] || (rawValues.length > 10 ? rawValues[10] : 0)),
-    }
   };
 };

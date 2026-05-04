@@ -65,6 +65,7 @@ export type SPMasterRow = {
   catalogNos: string[];
   weight: number;
   shape: 'R' | '単袋';
+  minQuantity: number; // 数量スライド用の最小数量
   colorPrices: {
     [colorCount: number]: SPMasterPrice;
   };

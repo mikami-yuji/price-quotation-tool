@@ -1,3 +1,25 @@
+## [Unreleased] - 2026-05-04
+
+### Fixed
+- **SP用マスター見積書の実装強化と不具合修正**:
+    - `calculator.ts`: `SPMasterRow`のインポート不足を解消し、重複していたSP分岐を高度な「セレクトパック照合ロジック」に統一。
+    - `calculator.ts`: シールブランチの閉じ括弧欠落によるロジックの崩れを修正。
+    - `excelUtils.ts`: `SPMasterRow`/`SPMasterPrice`のインポートを追加し、`OrderRecord`のマッピングに`printCode`が欠落していた問題を修正。
+    - `excelUtils.ts`: `mapRowToPriceMatrix`内の到達不能なデッドコードを削除。
+    - `usePriceSimulation.ts`: `handleMasterUpload`内に残存していた孤立した`catch`ブロックを削除。
+    - **TypeScript型エラーの解消**: 既製品マスター読み込み時や計算ロジック内の型不整合（キャスト不足等）を修正し、ビルドが通る状態に復旧。
+
+## [Unreleased] - 2026-05-04
+
+### Fixed
+- **SP用マスター見積書の実装強化と不具合修正**:
+    - `calculator.ts`: `SPMasterRow`のインポート不足を解消し、重複していたSP分岐を高度な「セレクトパック照合ロジック」に統一。
+    - `calculator.ts`: シールブランチの閉じ括弧欠落によるロジックの崩れを修正。
+    - `excelUtils.ts`: `SPMasterRow`/`SPMasterPrice`のインポートを追加し、`OrderRecord`のマッピングに`printCode`が欠落していた問題を修正。
+    - `excelUtils.ts`: `mapRowToPriceMatrix`内の到達不能なデッドコードを削除。
+    - `usePriceSimulation.ts`: `handleMasterUpload`内に残存していた孤立した`catch`ブロックを削除。
+    - **TypeScript型エラーの解消**: 既製品マスター読み込み時や計算ロジック内の型不整合（キャスト不足等）を修正し、ビルドが通る状態に復旧。
+
 ## [Unreleased] - 2026-05-01
 
 ### Added

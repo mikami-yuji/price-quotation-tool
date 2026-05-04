@@ -6,12 +6,10 @@ import {
   IndividualManualSetting,
   ReadymadeMasterRow,
   ReadymadePriceType,
-  ReadymadeSegment
+  ReadymadeSegment,
+  SPMasterRow
 } from '../types';
 
-/**
- * 全オーダーレコードに対してシミュレーション結果を計算する
- */
 export const calculateNewPrices = (
   orders: OrderRecord[],
   priceMatrix: CustomPriceMatrixRow[],
@@ -28,28 +26,18 @@ export const calculateNewPrices = (
 ): OrderRecord[] => {
   return orders.map(order => {
     let newPrice = order.currentPrice;
-    
-    // 優先順位: 個別設定 > グループ設定 > デフォルト
     const individual = individualSettings[order.orderNumber];
-    
-    // SPの場合は印刷コードも含めた4項目でグルーピング
     const isCustom = order.category === '別注' || order.category === 'ポリ別注';
     const isSP = order.category === 'SP';
     const isSticker = order.category === 'シール' || order.category === 'シール（フルオーダー）' || order.category.includes('シール');
-    
-    // 既製品かどうかの判定（「シルク」も既製品マスターで計算する）
     const category = (order.category || '').trim();
     const isReady = category.includes('既製品') || category.includes('既製') || category === 'シルク' || category === '' || category.toUpperCase() === 'READYMADE';
-
     const groupKey = isSP 
       ? `${order.materialName}-${order.weight}-${order.totalColorCount}-${order.printCode}`
-      : isReady
-      ? `${order.materialName}-${order.weight}`
+      : isReady ? `${order.materialName}-${order.weight}`
       : `${order.materialName}-${order.weight}-${order.totalColorCount}`;
-    
     const group = (isCustom || isSP || isSticker || isReady) ? groupSettings[groupKey] : null;
 
-    // 1. 改定単価の決定
     let isManualPrice = false;
     if (individual?.price !== undefined && individual.price !== 0) {
       newPrice = individual.price;
@@ -59,7 +47,6 @@ export const calculateNewPrices = (
       isManualPrice = true;
     } else {
       if (isCustom) {
-        // 先に手アップロードのマスター、なければ共用(Excel内)の単価表をチェック
         const masterPrice = findPriceFromMatrix(order, categorizedMasters.custom as CustomPriceMatrixRow[]);
         if (masterPrice !== null) {
           newPrice = masterPrice;
@@ -67,129 +54,99 @@ export const calculateNewPrices = (
           newPrice = calculateCustomIncrease(order.currentPrice, conditions);
         }
       } else if (isSP) {
-        // SPマスターを優先チェック
-        const masterPrice = findPriceFromMatrix(order, categorizedMasters.sp as CustomPriceMatrixRow[]);
-        if (masterPrice !== null) {
-          newPrice = masterPrice;
-        } else {
-          // 既存の共用テーブルチェック (SP対応済み)
-          const mappedPrice = findPriceFromMatrix(order, priceMatrix);
-          if (mappedPrice !== null) {
-            newPrice = mappedPrice;
-          }
-        }
-      } else if (isSticker) {
-        // シールマスターを優先チェック
-        const masterPrice = findPriceFromMatrix(order, categorizedMasters.sticker as CustomPriceMatrixRow[]);
-        if (masterPrice !== null) {
-          newPrice = masterPrice;
-        } else {
-          // シールも基本は別注と同じ扱いで単価表をチェック
-          const mappedPrice = findPriceFromMatrix(order, priceMatrix);
-          if (mappedPrice !== null) {
-            newPrice = mappedPrice;
-        }
-      } else if (isSP) {
-        // SPマスター（セレクトパック）を優先チェック
+        let spMatched = false;
         if (categorizedMasters.sp && categorizedMasters.sp.length > 0) {
-          const normalize = (s: any) => (!s ? '' : String(s).replace(/\s+/g, '').replace(/^0+/, '').toUpperCase());
+          const normalize = (s: unknown): string => (!s ? '' : String(s).replace(/\s+/g, '').replace(/^0+/, '').toUpperCase());
           const orderCode = normalize(order.productCode || order.absCode);
-          
-          const matches = categorizedMasters.sp.filter(m => 
+          const matches = (categorizedMasters.sp as SPMasterRow[]).filter(m => 
             m.catalogNos.some(no => orderCode.includes(normalize(no))) &&
             Number(m.weight) === Number(order.weight) &&
             (m.shape === order.shape || (order.shape === 'R' && m.shape === 'R') || (order.shape === '単袋' && m.shape === '単袋'))
           );
-
-          // 数量スライドの適用: 受注数以上の minQuantity を持つ中で最大のものを探す
           const matched = matches
             .filter(m => order.quantity >= m.minQuantity)
             .sort((a, b) => b.minQuantity - a.minQuantity)[0];
-
           if (matched) {
             const segment = readymadePrefs?.segment || 'uru';
             const colorCount = order.totalColorCount || (order.frontColorCount + order.backColorCount);
             const priceObj = matched.colorPrices[colorCount];
             if (priceObj) {
               const price = priceObj[segment];
-              if (price > 0) newPrice = price;
+              if (price > 0) { newPrice = price; spMatched = true; }
             }
           }
         }
+        if (!spMatched) {
+          const mappedPrice = findPriceFromMatrix(order, priceMatrix);
+          if (mappedPrice !== null) { newPrice = mappedPrice; }
+        }
+      } else if (isSticker) {
+        const masterPrice = findPriceFromMatrix(order, categorizedMasters.sticker as CustomPriceMatrixRow[]);
+        if (masterPrice !== null) {
+          newPrice = masterPrice;
+        } else {
+          const mappedPrice = findPriceFromMatrix(order, priceMatrix);
+          if (mappedPrice !== null) { newPrice = mappedPrice; }
+        }
       } else if (isReady) {
-        // 既製マスター（高度な価格表含む）を優先チェック
         const masterTable = categorizedMasters.readymade;
         if (masterTable.length > 0) {
           if ('campaign' in masterTable[0]) {
-            // ReadymadeMasterRow 型として処理
-            // 安全にスペースと先頭0を除去し、大文字化する正規化関数
-            const normalize = (s: any) => (!s ? '' : String(s).replace(/\s+/g, '').replace(/^0+/, '').toUpperCase());
-            const orderAbsCode = normalize(order.absCode);
+            const normalize = (s: unknown): string => (!s ? '' : String(s).replace(/\s+/g, '').replace(/^0+/, '').toUpperCase());
+            const orderCode = normalize(order.productCode || order.absCode);
+            // 商品コードまたはABSコードによる一致を確認
             const masterRows = masterTable as ReadymadeMasterRow[];
+            const matches = masterRows.filter(m => 
+              normalize(m.productCode) === orderCode || (m.absCode && normalize(m.absCode) === orderCode)
+            );
             
-            // ABSコードによる一致のみで照合を行う（先頭の0の違いは吸収）
-            const mapped = orderAbsCode 
-              ? masterRows.find(m => normalize(m.absCode) === orderAbsCode)
-              : undefined;
+            // 数量スライドの適用: 受注数以上の minQuantity を持つ中で最大のものを探す
+            const matched = matches
+              .filter(m => order.quantity >= (m.minQuantity || 0))
+              .sort((a, b) => (b.minQuantity || 0) - (a.minQuantity || 0))[0];
 
-            if (mapped && readymadePrefs) {
-              const priceGroup = readymadePrefs.type === 'campaign' ? mapped.campaign : mapped.normal;
+            if (matched && readymadePrefs) {
+              const priceGroup = readymadePrefs.type === 'campaign' ? matched.campaign : matched.normal;
               const price = priceGroup[readymadePrefs.segment];
               if (price > 0) newPrice = price;
             }
           } else {
-            // 標準の CustomPriceMatrixRow 型として処理
-            const mappedPrice = findPriceFromMatrix(order, masterTable as CustomPriceMatrixRow[]);
+            const mappedPrice = findPriceFromMatrix(order, masterTable as unknown as CustomPriceMatrixRow[]);
             if (mappedPrice !== null) newPrice = mappedPrice;
           }
         } else {
-          // 共用テーブル（Excel内）チェック
           const mappedPrice = findPriceFromMatrix(order, priceMatrix);
-          if (mappedPrice !== null) {
-            newPrice = mappedPrice;
-          }
+          if (mappedPrice !== null) { newPrice = mappedPrice; }
         }
       }
     }
 
-    // 端数処理前の「理想的な単価差額」を計算（営G計算用）
     const unroundedPriceDifference = Math.round((newPrice - order.currentPrice) * 100) / 100;
-
-    // 端数処理（手入力でない場合のみ適用）
     if (!isManualPrice) {
       if (conditions.roundingMode === 'half') {
-        // 0.5単位で丸める (.00 または .50)
         newPrice = Math.round(newPrice * 2) / 2;
       } else {
-        // 通常（小数点第2位あたりで四捨五入）
         newPrice = Math.round(newPrice * 100) / 100;
       }
     }
     
-    // 2. 改定後営Gの決定 (優先順位: 個別 > グループ > 差額加算)
     let resultSalesGroup: number;
     if (individual?.salesGroup !== undefined && individual.salesGroup !== 0) {
       resultSalesGroup = individual.salesGroup;
     } else if (group?.salesGroup !== undefined && group.salesGroup !== 0) {
       resultSalesGroup = group.salesGroup;
     } else {
-      // 丸め前の差額を使用して計算（営Gが単価の丸めに引きずられないようにする）
       resultSalesGroup = Math.round((order.salesGroup + unroundedPriceDifference) * 100) / 100;
     }
-
-    // JSの浮動小数点問題を避けるため
     const priceDifference = Math.round((newPrice - order.currentPrice) * 100) / 100;
     
-    // 3. 改定印刷代・改定印刷営Gの決定
     let newPrintingCost = order.printingCost;
     let newPrintingSalesGroup = order.printingSalesGroup;
-
     if (individual?.printingPrice !== undefined && individual.printingPrice !== 0) {
       newPrintingCost = individual.printingPrice;
     } else if (group?.printingPrice !== undefined && group.printingPrice !== 0) {
       newPrintingCost = group.printingPrice;
     }
-
     if (individual?.printingSalesGroup !== undefined && individual.printingSalesGroup !== 0) {
       newPrintingSalesGroup = individual.printingSalesGroup;
     } else if (group?.printingSalesGroup !== undefined && group.printingSalesGroup !== 0) {
@@ -197,30 +154,19 @@ export const calculateNewPrices = (
     }
 
     return {
-      ...order,
-      newPrice,
-      newSalesGroup: resultSalesGroup,
-      newPrintingCost,
-      newPrintingSalesGroup,
-      priceDifference,
+      ...order, newPrice, newSalesGroup: resultSalesGroup,
+      newPrintingCost, newPrintingSalesGroup, priceDifference,
       thickness: individual?.thickness
     };
   });
 };
 
-/**
- * 価格表から該当する条件の単価を検索する
- */
 const findPriceFromMatrix = (order: OrderRecord, matrix: CustomPriceMatrixRow[]): number | null => {
   const row = matrix.find(r => r.materialName === order.materialName && String(r.weight) === String(order.weight));
   if (!row) return null;
-  
   return row.colorPrices[order.totalColorCount] || null;
 };
 
-/**
- * 別注の一律値上げ計算を行う
- */
 const calculateCustomIncrease = (currentPrice: number, conditions: IncreaseSimulationConditions): number => {
   if (conditions.customIncreaseType === 'percentage') {
     return currentPrice * (1 + conditions.customIncreaseValue / 100);
