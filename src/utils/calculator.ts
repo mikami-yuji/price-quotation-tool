@@ -89,10 +89,6 @@ export const calculateNewPrices = (
             }
           }
         }
-        if (!spMatched) {
-          const mappedPrice = findPriceFromMatrix(order, priceMatrix);
-          if (mappedPrice !== null) { newPrice = mappedPrice; }
-        }
       } else if (isSticker) {
         const masterPrice = findPriceFromMatrix(order, categorizedMasters.sticker as CustomPriceMatrixRow[]);
         if (masterPrice !== null) {
