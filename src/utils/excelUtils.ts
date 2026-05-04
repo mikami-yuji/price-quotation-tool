@@ -45,7 +45,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
       const row = rows[r];
       if (!row || row.length === 0) continue;
       const firstCol = String(row[0] || '').trim();
-      if (firstCol && /^\d+/.test(firstCol) && !firstCol.includes('【') && !firstCol.includes('セレクト')) {
+      if (firstCol && /^[0-9△▲]/.test(firstCol) && !firstCol.includes('【') && !firstCol.includes('セレクト')) {
         currentCatalogNos = firstCol.split(/[\r\n\s・/]+/).map(s => s.trim()).filter(Boolean);
       }
       const priceHeaders: { idx: number; type: 'uru' | 'junD' | 'd' }[] = [];

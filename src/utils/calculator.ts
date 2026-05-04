@@ -65,7 +65,10 @@ export const calculateNewPrices = (
         if (categorizedMasters.sp && categorizedMasters.sp.length > 0) {
           const orderCode = normalize(order.productCode || order.absCode);
           const matches = (categorizedMasters.sp as SPMasterRow[]).filter(m => {
-            const codeMatch = m.catalogNos.some(no => orderCode.includes(normalize(no)));
+            const codeMatch = m.catalogNos.some(no => {
+              const normNo = normalize(no);
+              return orderCode.includes(normNo) || normNo.includes(orderCode);
+            });
             const weightMatch = Math.abs(Number(m.weight) - Number(order.weight)) < 0.1;
             const orderShape = String(order.shape || '').toUpperCase();
             const mShape = String(m.shape || '').toUpperCase();
