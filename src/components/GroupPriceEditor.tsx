@@ -90,7 +90,7 @@ export default function GroupPriceEditor({
                             />
                             <div className={styles.groupPriceDetail}>現行: ¥{group.currentSalesGroup.toFixed(2)}</div>
                           </div>
-                          {activeTab === 'sp' && (
+                          {(activeTab === 'sp' || activeTab === 'readymade') && (
                             <>
                               <div className={styles.inputWrapper}>
                                 <span className={styles.inputLabel}>印刷代</span>

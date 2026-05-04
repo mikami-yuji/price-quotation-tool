@@ -34,7 +34,7 @@ export default function OrderDataTable({
   lastIncreaseDate,
 }: OrderDataTableProps): React.ReactElement {
   const showMarginCols = activeTab === 'sp' || activeTab === 'custom';
-  const showPrintingCols = activeTab === 'sp';
+  const showPrintingCols = activeTab === 'sp' || activeTab === 'readymade';
 
   return (
     <div className={styles.tableCard}>
