@@ -69,6 +69,7 @@ export type SPMasterRow = {
   colorPrices: {
     [colorCount: number]: SPMasterPrice;
   };
+  materialHint?: string; // 材質特定用のヒント
 };
 
 export type ReadymadePriceType = 'normal' | 'campaign';
