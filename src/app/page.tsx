@@ -237,7 +237,7 @@ export default function Home(): React.ReactElement {
                   // Reset filters when switching tabs if needed
                 }}
               >
-                {tab === 'custom' ? '別注・ポリ別注' : tab === 'sp' ? 'SP・シルク' : tab === 'readymade' ? '既製・その他' : 'シール'} ({counts[tab]})
+                {tab === 'custom' ? '別注・ポリ別注' : tab === 'sp' ? 'SP' : tab === 'readymade' ? '既製・シルク' : 'シール'} ({counts[tab]})
               </button>
             ))}
           </div>

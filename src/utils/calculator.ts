@@ -33,7 +33,7 @@ export const calculateNewPrices = (
     const category = (order.category || '').trim();
     const isCustom = category.includes('別注') || category.includes('ポリ');
     const isSticker = category === 'シール' || category === 'シール（フルオーダー）' || category.includes('シール');
-    const isSP = category.includes('SP') || category.includes('ＳＰ');
+    const isSP = (category.includes('SP') || category.includes('ＳＰ')) && !category.includes('シルク');
     const isReady = !isCustom && !isSP && !isSticker && order.productCode !== '999999999';
     
     // グループキーの生成
