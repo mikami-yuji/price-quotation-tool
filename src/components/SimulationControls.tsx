@@ -142,25 +142,27 @@ export default function SimulationControls({
             <input type="date" value={lastIncreaseDate} onChange={(e) => setLastIncreaseDate(e.target.value)} className={styles.manualInput} style={{ width: '135px' }} title="これより前の受注日の商品は赤字になります" />
           </div>
 
-          {activeTab === 'readymade' && (
+          {(activeTab === 'readymade' || activeTab === 'sp') && (
             <>
-              <div className={styles.controlGroup}>
-                <span className={styles.controlLabel}>価格タイプ:</span>
-                <div className={styles.segmentedControl}>
-                  <button 
-                    className={`${styles.segmentButton} ${readymadePriceType === 'normal' ? styles.segmentActive : ''}`}
-                    onClick={() => setReadymadePriceType('normal')}
-                  >
-                    通常
-                  </button>
-                  <button 
-                    className={`${styles.segmentButton} ${readymadePriceType === 'campaign' ? styles.segmentActive : ''}`}
-                    onClick={() => setReadymadePriceType('campaign')}
-                  >
-                    CP
-                  </button>
+              {activeTab === 'readymade' && (
+                <div className={styles.controlGroup}>
+                  <span className={styles.controlLabel}>価格タイプ:</span>
+                  <div className={styles.segmentedControl}>
+                    <button 
+                      className={`${styles.segmentButton} ${readymadePriceType === 'normal' ? styles.segmentActive : ''}`}
+                      onClick={() => setReadymadePriceType('normal')}
+                    >
+                      通常
+                    </button>
+                    <button 
+                      className={`${styles.segmentButton} ${readymadePriceType === 'campaign' ? styles.segmentActive : ''}`}
+                      onClick={() => setReadymadePriceType('campaign')}
+                    >
+                      CP
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
               <div className={styles.controlGroup}>
                 <span className={styles.controlLabel}>客層区分:</span>
                 <div className={styles.segmentedControl}>
