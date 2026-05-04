@@ -131,7 +131,7 @@ const mapRowArrayToOrderRecord = (row: any[], header: any[]): OrderRecord => {
     orderNumber: getIdx(['受注№', '受注番号']),
     category: getIdx(['種別']),
     productCode: getIdx(['商品コード', '商品CD']),
-    productName: getIdx(['商品名']),
+    productName: getIdx(['商品名', '品名', '規格名', '摘要']),
     quantity: getIdx(['受注数', '数量', '個数']),
     currentPrice: getIdx(['単価']),
     salesGroup: getIdx(['営G']),
