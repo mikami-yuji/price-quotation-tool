@@ -71,9 +71,10 @@ export const calculateNewPrices = (
             
             let materialMatch = true;
             if (m.materialHint && order.materialName) {
-              const normM = normalize(order.materialName);
-              const normH = normalize(m.materialHint);
-              materialMatch = normM.includes(normH) || normH.includes(normM);
+              const normM = normalize(order.materialName).replace(/[【】]/g, '');
+              const normH = normalize(m.materialHint).replace(/[【】]/g, '');
+              // 材質名は前方一致で厳密に判定 (「ＳＦポリ」が「ポリ」にヒットしないように)
+              materialMatch = normM.startsWith(normH);
             }
             return codeMatch && weightMatch && shapeMatch && materialMatch;
           });
@@ -125,6 +126,21 @@ export const calculateNewPrices = (
     }
 
     const unroundedPriceDifference = Math.round((newPrice - order.currentPrice) * 100) / 100;
+    
+    // 商品名のクリーンアップ (特にSP)
+    let displayProductName = order.productName;
+    if (isSP && order.title) {
+      // 日付、重量(5k, 5kg, 1.4K等)、材質(ﾎﾟﾘﾎﾟﾘ, SFﾎﾟﾘ等)を除去
+      displayProductName = order.title
+        .replace(/^\d{4}-\d{2}-\d{2}\s*/, '') // 日付
+        .replace(/^[^\s]*\s*/, '') // 行頭の管理記号等
+        .replace(/^\d+(\.\d+)?[kK]([gG])?\s*/, '') // 重量
+        .replace(/^(ﾎ|ﾎﾟ)ﾘ(ﾎ|ﾎﾟ)ﾘ\s*/, '') // 材質
+        .replace(/^SF(ﾎ|ﾎﾟ)ﾘ\s*/, '') // 材質
+        .trim();
+      if (!displayProductName) displayProductName = order.productName;
+    }
+
     if (!isManualPrice) {
       if (conditions.roundingMode === 'half') {
         newPrice = Math.round(newPrice * 2) / 2;
@@ -154,7 +170,9 @@ export const calculateNewPrices = (
       newPrintingSalesGroup = group.printingSalesGroup;
     }
     return {
-      ...order, newPrice, newSalesGroup: resultSalesGroup,
+      ...order, 
+      productName: displayProductName,
+      newPrice, newSalesGroup: resultSalesGroup,
       newPrintingCost, newPrintingSalesGroup, priceDifference,
       thickness: individual?.thickness
     };
@@ -162,9 +180,31 @@ export const calculateNewPrices = (
 };
 
 const findPriceFromMatrix = (order: OrderRecord, matrix: CustomPriceMatrixRow[]): number | null => {
-  const row = matrix.find(r => r.materialName === order.materialName && String(r.weight) === String(order.weight));
+  const norm = (s: string) => s.replace(/[【】]/g, '').trim();
+  const oMat = norm(order.materialName);
+  
+  // 材質名と重量で検索 (前方一致を許容)
+  const row = matrix.find(r => {
+    const rMat = norm(r.materialName);
+    const matMatch = oMat.startsWith(rMat) || rMat.startsWith(oMat);
+    const weightMatch = String(r.weight) === String(order.weight);
+    return matMatch && weightMatch;
+  });
+  
   if (!row) return null;
-  return row.colorPrices[order.totalColorCount] || null;
+
+  // 指定の色数で検索
+  if (row.colorPrices[order.totalColorCount] !== undefined) {
+    return row.colorPrices[order.totalColorCount];
+  }
+
+  // 見つからない場合、ポリ系の特定ロジック(色数-1)を試行
+  if (oMat.includes('ポリ') && !oMat.includes('SF')) {
+    const offsetPrice = row.colorPrices[order.totalColorCount - 1];
+    if (offsetPrice !== undefined) return offsetPrice;
+  }
+
+  return null;
 };
 
 const calculateCustomIncrease = (currentPrice: number, conditions: IncreaseSimulationConditions): number => {

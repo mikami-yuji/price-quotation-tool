@@ -148,7 +148,8 @@ const mapRowArrayToOrderRecord = (row: any[], header: any[]): OrderRecord => {
     directDeliveryCode: getIdx(['直送先コード', '直送先CD']),
     directDeliveryName: getIdx(['直送先']),
     lastOrderDate: getIdx(['最終受注日']),
-    designName: getIdx(['デザイン名'])
+    designName: getIdx(['デザイン名']),
+    title: getIdx(['タイトル'])
   };
 
   const val = (idx: number) => (idx !== -1 ? row[idx] : '');
@@ -182,6 +183,6 @@ const mapRowArrayToOrderRecord = (row: any[], header: any[]): OrderRecord => {
     directDeliveryName: String(val(idxMap.directDeliveryName)),
     lastOrderDate: String(val(idxMap.lastOrderDate)),
     designName: String(val(idxMap.designName)),
-    title: ''
+    title: String(val(idxMap.title))
   };
 };
