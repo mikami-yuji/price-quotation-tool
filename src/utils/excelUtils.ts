@@ -47,33 +47,56 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
       if (firstCol && /^\d+/.test(firstCol) && !firstCol.includes('【') && !firstCol.includes('セレクト')) {
         currentCatalogNos = firstCol.split(/[\r\n\s・/]+/).map(s => s.trim()).filter(Boolean);
       }
-      const sellIndices: number[] = [];
-      row.forEach((cell, idx) => { if (String(cell).trim() === '売') sellIndices.push(idx); });
-      for (const sellIdx of sellIndices) {
+      const priceHeaders: { idx: number; type: 'uru' | 'junD' | 'd' }[] = [];
+      row.forEach((cell, idx) => {
+        const t = String(cell).trim();
+        if (t === '売') priceHeaders.push({ idx, type: 'uru' });
+        else if (t === '準D' || t === '準Ｄ') priceHeaders.push({ idx, type: 'junD' });
+        else if (t === 'D' || t === 'Ｄ') priceHeaders.push({ idx, type: 'd' });
+      });
+
+      // 各「売」または「単価列の起点」に対して処理
+      for (const pHeader of priceHeaders.filter(h => h.type === 'uru')) {
+        const sellIdx = pHeader.idx;
         let weight = 0;
+        // 重量の探索
         for (let i = sellIdx - 1; i >= Math.max(0, sellIdx - 10); i--) {
           const val = parseFloat(String(row[i]).replace(/[^\d.]/g, ''));
           if (!isNaN(val) && val > 0 && val < 100) { weight = val; break; }
         }
         if (weight > 0) currentWeight = weight;
+
         let minQuantity = 0;
         let shape: 'R' | '単袋' = 'R';
+        // 数量と形状の探索
         for (let i = sellIdx - 1; i >= 0; i--) {
           const t = String(row[i] || '').trim();
           if (t.includes('単袋')) shape = '単袋';
           else if (t.includes('R')) shape = 'R';
-          const q = parseInt(t.replace(/[^\d]/g, ''));
-          if (!isNaN(q) && q >= 100) { minQuantity = q; break; }
+          const q = parseInt(t.replace(/[^\d,]/g, ''));
+          if (!isNaN(q) && q >= 10) { // 10以上の数量を許容するように緩和
+            minQuantity = q;
+            break;
+          }
         }
+
         if (currentCatalogNos.length > 0 && minQuantity > 0) {
           const colorPrices: { [key: number]: SPMasterPrice } = {};
-          // 色数は7色目まで取得するように拡大
+          
+          // 客層区分ごとの列オフセットを特定（売の隣が準D, その次がDと仮定、または見つかったインデックスを使用）
+          const junDIdx = priceHeaders.find(h => h.type === 'junD' && h.idx > sellIdx)?.idx || (sellIdx + 8); // 暫定オフセット
+          const dIdx = priceHeaders.find(h => h.type === 'd' && h.idx > sellIdx)?.idx || (sellIdx + 16); // 暫定オフセット
+
           for (let c = 1; c <= 7; c++) {
-            const price = parseFloat(String(row[sellIdx + c]));
-            if (!isNaN(price) && price > 0) {
-              colorPrices[c] = { uru: price, junD: price, d: price };
+            const uruPrice = parseFloat(String(row[sellIdx + c]));
+            if (!isNaN(uruPrice) && uruPrice > 0) {
+              // 準D, Dの列が特定できていればそこから取得、なければ売と同じにする
+              const junDPrice = parseFloat(String(row[junDIdx + c])) || uruPrice;
+              const dPrice = parseFloat(String(row[dIdx + c])) || uruPrice;
+              colorPrices[c] = { uru: uruPrice, junD: junDPrice, d: dPrice };
             }
           }
+
           results.push({
             catalogNos: [...currentCatalogNos],
             weight: currentWeight,

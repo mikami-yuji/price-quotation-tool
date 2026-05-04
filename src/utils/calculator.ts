@@ -67,9 +67,10 @@ export const calculateNewPrices = (
           const matches = (categorizedMasters.sp as SPMasterRow[]).filter(m => {
             const codeMatch = m.catalogNos.some(no => orderCode.includes(normalize(no)));
             const weightMatch = Math.abs(Number(m.weight) - Number(order.weight)) < 0.1;
-            const orderShape = String(order.shape || '').toUpperCase().replace(/[ 　]/g, '');
+            const orderShape = String(order.shape || '').toUpperCase();
             const mShape = String(m.shape || '').toUpperCase();
-            const shapeMatch = orderShape.includes(mShape) || mShape.includes(orderShape);
+            // 形状列の内容に、マスターの形状(R or 単袋)が含まれているかのみで判断
+            const shapeMatch = mShape === 'R' ? orderShape.includes('R') : orderShape.includes(mShape);
             
             let materialMatch = true;
             if (m.materialHint && order.materialName) {
