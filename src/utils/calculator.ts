@@ -81,7 +81,13 @@ export const calculateNewPrices = (
               const normH = normalize(m.materialHint).replace(/[【】]/g, '');
               materialMatch = normM.includes(normH);
             }
-            return codeMatch && weightMatch && shapeMatch && materialMatch;
+            
+            // ユーザー指示：「10kなどは重量から確認するようにして」
+            // 10k等の汎用SP商品は、個別の商品コード（009201001など）がマスターに記載されておらず「△10K」などの表記になっているため、
+            // コードの一致を必須とせず、重量・形状・材質の一致でマッチングさせる
+            const isWeightBased = Number(order.weight) >= 5 || m.catalogNos.some(no => no.toUpperCase().includes('K'));
+            
+            return (codeMatch || isWeightBased) && weightMatch && shapeMatch && materialMatch;
           });
           const matched = matches.filter(m => order.quantity >= m.minQuantity).sort((a, b) => b.minQuantity - a.minQuantity)[0];
           if (matched) {

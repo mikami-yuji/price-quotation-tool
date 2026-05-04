@@ -37,7 +37,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
   for (const name of workbook.SheetNames) {
     const sheet = workbook.Sheets[name];
     const rows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, defval: '' });
-    const materialHint = name.replace(/^\d+_/, '').trim();
+    const materialHint = name.replace(/^\d+[kK]?[_\s]*/, '').trim();
     const sheetWeight = parseFloat(name.match(/^\d+/)?.[0] || '0');
     let currentCatalogNos: string[] = [];
     let currentWeight = sheetWeight;
