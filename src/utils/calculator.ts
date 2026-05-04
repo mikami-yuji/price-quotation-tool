@@ -63,16 +63,10 @@ export const calculateNewPrices = (
       } else if (isSP) {
         let spMatched = false;
         if (categorizedMasters.sp && categorizedMasters.sp.length > 0) {
-          const orderCode = normalize(order.productCode || order.absCode);
-          const matches = (categorizedMasters.sp as SPMasterRow[]).filter(m => {
-            const codeMatch = m.catalogNos.some(no => {
-              const normNo = normalize(no);
-              return orderCode.includes(normNo) || normNo.includes(orderCode);
-            });
+          const baseMatches = (categorizedMasters.sp as SPMasterRow[]).filter(m => {
             const weightMatch = Math.abs(Number(m.weight) - Number(order.weight)) < 0.1;
             const orderShape = String(order.shape || '').toUpperCase();
             const mShape = String(m.shape || '').toUpperCase();
-            // 形状列の内容に、マスターの形状(R or 単袋)が含まれているかのみで判断
             const shapeMatch = mShape === 'R' ? orderShape.includes('R') : orderShape.includes(mShape);
             
             let materialMatch = true;
@@ -81,14 +75,26 @@ export const calculateNewPrices = (
               const normH = normalize(m.materialHint).replace(/[【】]/g, '');
               materialMatch = normM.includes(normH);
             }
-            
-            // ユーザー指示：「10kなどは重量から確認するようにして」
-            // 10k等の汎用SP商品は、個別の商品コード（009201001など）がマスターに記載されておらず「△10K」などの表記になっているため、
-            // コードの一致を必須とせず、重量・形状・材質の一致でマッチングさせる
-            const isWeightBased = Number(order.weight) >= 5 || m.catalogNos.some(no => no.toUpperCase().includes('K'));
-            
-            return (codeMatch || isWeightBased) && weightMatch && shapeMatch && materialMatch;
+            return weightMatch && shapeMatch && materialMatch;
           });
+
+          // 1段階目：商品コードが一致するものを優先して探す
+          const orderCode = normalize(order.productCode || order.absCode);
+          let matches = baseMatches.filter(m => {
+            return m.catalogNos.some(no => {
+              const normNo = normalize(no);
+              return orderCode.includes(normNo) || normNo.includes(orderCode);
+            });
+          });
+
+          // 2段階目：コード一致が見つからず、かつ重量が5kg以上（10kなど）の場合は、コード一致を無視してフォールバック
+          if (matches.length === 0 && Number(order.weight) >= 5) {
+            matches = baseMatches.filter(m => m.catalogNos.some(no => no.toUpperCase().includes('K') || Number.isNaN(Number(normalize(no)))));
+            // マスター側に「△10K」などの表記がある汎用行を優先的に拾う
+            if (matches.length === 0) {
+               matches = baseMatches;
+            }
+          }
           const matched = matches.filter(m => order.quantity >= m.minQuantity).sort((a, b) => b.minQuantity - a.minQuantity)[0];
           if (matched) {
             const segment = readymadePrefs?.segment || 'uru';
