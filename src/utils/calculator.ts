@@ -71,9 +71,14 @@ export const calculateNewPrices = (
             
             let materialMatch = true;
             if (m.materialHint && order.materialName) {
-              const normM = normalize(order.materialName).replace(/[【】]/g, '');
+              let normM = normalize(order.materialName).replace(/[【】]/g, '');
+              // ユーザー指示：「ポリ透明はポリです。コンビポリやSFポリとは異なります」
+              // 部分一致だとSFポリもポリに合致してしまうため、完全一致に変更し、特定の表記ゆれを吸収する
+              if (normM === 'ポリ透明') {
+                normM = 'ポリ';
+              }
               const normH = normalize(m.materialHint).replace(/[【】]/g, '');
-              materialMatch = normM.includes(normH);
+              materialMatch = (normM === normH);
             }
             return weightMatch && shapeMatch && materialMatch;
           });
