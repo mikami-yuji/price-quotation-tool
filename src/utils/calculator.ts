@@ -76,7 +76,7 @@ export const calculateNewPrices = (
             if (m.materialHint && order.materialName) {
               const normM = normalize(order.materialName).replace(/[【】]/g, '');
               const normH = normalize(m.materialHint).replace(/[【】]/g, '');
-              materialMatch = normM.startsWith(normH);
+              materialMatch = normM.includes(normH);
             }
             return codeMatch && weightMatch && shapeMatch && materialMatch;
           });
