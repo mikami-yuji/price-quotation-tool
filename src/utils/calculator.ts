@@ -152,15 +152,23 @@ export const calculateNewPrices = (
                  effectiveQty = order.quantity * pcsPerMeter;
               }
               
-              if (effectiveQty >= m.minQuantity) score += 1;
+              const isFit = effectiveQty >= m.minQuantity;
+              if (isFit) score += 1;
 
-              return { m, score, weightDiff };
+              return { m, score, weightDiff, effectiveQty, isFit };
             });
 
-            // スコアの高い順にソート。スコアが同じなら重量差が小さい順
+            // スコアの高い順にソート。スコアが同じなら重量差が小さい順。さらに数量の適合性を考慮
             candidates.sort((a, b) => {
               if (b.score !== a.score) return b.score - a.score;
-              return a.weightDiff - b.weightDiff;
+              if (a.weightDiff !== b.weightDiff) return a.weightDiff - b.weightDiff;
+              
+              // 数量の適合性によるソート
+              // 基本的には effectiveQty を超えない最大のスライド（＝より条件に近い小口価格）を優先する
+              if (a.isFit !== b.isFit) return a.isFit ? -1 : 1;
+              
+              // 両方適合する場合、または両方不足する場合、minQuantity が大きい方を優先（より条件に近いほう）
+              return b.m.minQuantity - a.m.minQuantity;
             });
 
             // 最もスコアが高いもの

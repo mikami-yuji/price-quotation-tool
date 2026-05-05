@@ -43,174 +43,145 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
     const sheetWeightMatch = sheetName.match(/(\d+(\.\d+)?)\s*[kK㎏]/);
     if (sheetWeightMatch) sheetWeight = parseFloat(sheetWeightMatch[1]);
 
-    const priceHeaders: { col: number }[] = [];
-    let headerRowIdx = -1;
-    for (let r = 0; r < Math.min(rows.length, 100); r++) {
+    const headerRows: number[] = [];
+    for (let r = 0; r < Math.min(rows.length, 1000); r++) {
       const row = rows[r];
       if (Array.isArray(row) && row.some(c => {
         const t = String(c).trim();
-        return t === '売' || t === '売単価' || t === '通常' || t === 'うる';
+        return t === '売' || t === '売単価' || t === '通常' || t === 'うる' || t === '準';
       })) {
-        headerRowIdx = r;
-        row.forEach((cell, c) => {
-          const t = String(cell).trim();
-          if (t === '売' || t === '売単価' || t === '通常' || t === 'うる') priceHeaders.push({ col: c });
-        });
-        break;
+        headerRows.push(r);
       }
     }
-    if (headerRowIdx === -1) continue;
 
-    for (const header of priceHeaders) {
-      const sellIdx = header.col;
-      
-      const relativeOffsets: { [key: number]: number } = {};
-      const nextHeader = priceHeaders.find(h => h.col > sellIdx);
-      const limit = nextHeader ? nextHeader.col : 1000;
+    if (headerRows.length === 0) continue;
 
-      for (let i = 1; i <= 8; i++) {
-        const zenI = String(i).replace(/[0-9]/g, m => String.fromCharCode(m.charCodeAt(0) + 0xFEE0));
-        let found = false;
-        for (let r = Math.max(0, headerRowIdx - 5); r <= headerRowIdx + 1; r++) {
-          const row = rows[r];
-          if (!Array.isArray(row)) continue;
-          for (let c = sellIdx + 1; c < Math.min(row.length, limit); c++) {
-            const val = String(row[c] || '').trim().replace(/[0-9]/g, m => String.fromCharCode(m.charCodeAt(0) + 0xFEE0));
-            if (val.includes(`${zenI}色`) || (i <= 4 && val === zenI)) {
-              relativeOffsets[i] = c - sellIdx;
-              found = true;
-              break;
-            }
-          }
-          if (found) break;
+    for (const headerRowIdx of headerRows) {
+      const headerRow = rows[headerRowIdx] as unknown[];
+      const priceHeadersInRow: { col: number }[] = [];
+      headerRow.forEach((cell, c) => {
+        const t = String(cell).trim();
+        if (t === '売' || t === '売単価' || t === '通常' || t === 'うる' || t === '準') {
+          priceHeadersInRow.push({ col: c });
         }
-        
-        if (!found) {
-          if (i === 1) relativeOffsets[i] = 2;
-          else {
-            // 推測：1つ前の色からの間隔
-            const prevOff = relativeOffsets[i-1];
-            if (prevOff) {
-              // 間隔を推測（4か5が多い）
-              let gap = 5;
-              if (i === 2 && prevOff === 2) gap = 5;
-              else if (i > 2) {
-                const prevPrevOff = relativeOffsets[i-2];
-                if (prevPrevOff) gap = prevOff - prevPrevOff;
+      });
+
+      for (const header of priceHeadersInRow) {
+        const sellIdx = header.col;
+        const relativeOffsets: { [key: number]: number } = {};
+        const nextHeader = priceHeadersInRow.find(h => h.col > sellIdx);
+        const limit = nextHeader ? nextHeader.col : 1000;
+
+        for (let i = 1; i <= 8; i++) {
+          const zenI = String(i).replace(/[0-9]/g, m => String.fromCharCode(m.charCodeAt(0) + 0xFEE0));
+          let found = false;
+          for (let r = Math.max(0, headerRowIdx - 5); r <= headerRowIdx + 1; r++) {
+            const row = rows[r] as unknown[];
+            if (!Array.isArray(row)) continue;
+            for (let c = sellIdx + 1; c < Math.min(row.length, limit); c++) {
+              const val = String(row[c] || '').trim().replace(/[0-9]/g, m => String.fromCharCode(m.charCodeAt(0) + 0xFEE0));
+              if (val.includes(`${zenI}色`) || (i <= 4 && val === zenI)) {
+                relativeOffsets[i] = c - sellIdx;
+                found = true;
+                break;
               }
+            }
+            if (found) break;
+          }
+          if (!found) {
+            if (i === 1) relativeOffsets[i] = 2;
+            else {
+              const prevOff = relativeOffsets[i - 1] || (i - 1) * 5;
+              let gap = 5;
+              if (i === 2 && sheetName.includes('SF')) gap = 4;
               relativeOffsets[i] = prevOff + gap;
-            } else {
-              relativeOffsets[i] = i * 5;
             }
           }
         }
-      }
 
-      let lastCatalogNos: string[] = [];
-      let lastWeight = sheetWeight;
-      let lastShape: 'R' | '単袋' = 'R';
-      let lastMinQuantity = 0;
+        let lastCatalogNos: string[] = [];
+        let lastWeight = sheetWeight;
+        let lastShape: 'R' | '単袋' | null = (sheetName.includes('単袋') || sheetName.includes('（単）')) ? '単袋' : (sheetName.includes('ロール') || sheetName.includes('（R）') ? 'R' : null);
+        let lastMinQuantity = 0;
+        let lastUnit: 'm' | 'pcs' = 'm';
 
-      for (let r = headerRowIdx; r < rows.length; r++) {
-        const row = rows[r];
-        if (!Array.isArray(row)) continue;
+        for (let r = headerRowIdx + 1; r < rows.length; r++) {
+          const row = rows[r] as unknown[];
+          if (!Array.isArray(row)) continue;
+          if (headerRows.includes(r)) break;
 
-        if (row[sellIdx] === '' && r > headerRowIdx + 5) {
-           const hasOtherData = row.slice(Math.max(0, sellIdx - 10), sellIdx).some(c => String(c).trim().length > 0);
-           if (!hasOtherData && r > headerRowIdx + 20) break;
-           if (row.some(c => String(c).includes('※') || String(c).includes('★'))) break;
-           continue;
-        }
+          const rawVal = String(row[sellIdx] || '').trim();
+          const rowType = getSPRowType(rawVal);
+          const scanStart = Math.max(0, sellIdx - 15);
+          const scanEnd = sellIdx;
+          
+          let currentRowCatalogNos: string[] = [];
+          let currentRowWeight = 0;
+          let currentRowShape: 'R' | '単袋' | null = null;
+          let minQuantity = 0;
+          let currentUnit: 'm' | 'pcs' = 'm';
 
-        let currentRowCatalogNos: string[] = [];
-        let currentRowWeight = 0;
-        let currentRowShape: 'R' | '単袋' | null = null;
-        if (sheetName.includes('単袋') || sheetName.includes('（単）')) currentRowShape = '単袋';
-        else if (sheetName.includes('ロール') || sheetName.includes('（Ｒ）') || sheetName.includes('（R）')) currentRowShape = 'R';
+          for (let c = scanStart; c < scanEnd; c++) {
+            const val = String(row[c] || '').trim().replace(/[０-９]/g, m => String.fromCharCode(m.charCodeAt(0) - 0xFEE0)).replace(/[ｋＫ㎏]/g, 'k');
+            if (!val) continue;
 
-        let minQuantity = 0;
-        let currentUnit: 'm' | 'pcs' = 'm';
-
-        const scanStart = Math.max(0, sellIdx - 15);
-        const scanEnd = sellIdx;
-
-        for (let c = scanStart; c < scanEnd; c++) {
-          const rawVal = String(row[c] || '').trim();
-          if (!rawVal) continue;
-          const val = rawVal.replace(/[０-９]/g, m => String.fromCharCode(m.charCodeAt(0) - 0xFEE0)).replace(/[ｋＫ㎏]/g, 'k');
-
-          if (/^[0-9△▲]{3,4}$/.test(val)) {
-            currentRowCatalogNos.push(val.replace(/[△▲]/g, ''));
-          } else if (val.includes('\n') || val.includes(' ')) {
-             val.split(/[\n\s,、]+/).map(x => x.trim().replace(/[△▲]/g, '')).filter(x => /^\d{3,4}$/.test(x)).forEach(x => currentRowCatalogNos.push(x));
-          }
-
-          const wMatch = val.match(/^(\d+(\.\d+)?)\s*(k|kg)?$/i);
-          if (wMatch) {
-            const w = parseFloat(wMatch[1]);
-            if (w > 0 && w <= 30) currentRowWeight = w;
-          }
-
-          const qMatch = val.match(/(?:約|以上)?\s*(\d+)\s*(ｍ|m|枚)?(～|~)?$/);
-          if (qMatch && !val.includes('k')) {
-            const q = parseInt(qMatch[1]);
-            if (q >= 10) {
-              minQuantity = q;
-              currentUnit = (qMatch[2] === '枚' ? 'pcs' : 'm');
+            val.split(/[\n\s,、]+/).map(x => x.trim().replace(/[△▲]/g, '')).filter(x => /^\d{3,4}$/.test(x)).forEach(x => currentRowCatalogNos.push(x));
+            const wMatch = val.match(/^(\d+(?:\.\d+)?)\s*k$/i);
+            if (wMatch) {
+              const w = parseFloat(wMatch[1]);
+              if (w > 0 && w <= 30) currentRowWeight = w;
             }
-          }
-
-          if (val.includes('単袋')) currentRowShape = '単袋';
-          else if (val.includes('R') || val.includes('ロール')) currentRowShape = 'R';
-        }
-
-        if (currentRowCatalogNos.length === 0) currentRowCatalogNos = [...lastCatalogNos];
-        else lastCatalogNos = [...currentRowCatalogNos];
-        if (currentRowWeight === 0) currentRowWeight = lastWeight;
-        else lastWeight = currentRowWeight;
-        if (currentRowShape === null) currentRowShape = lastShape;
-        else lastShape = currentRowShape;
-
-        const cellVal = String(row[sellIdx]).trim();
-        const rowType = cellVal === '売' ? 'uru' : (cellVal === '準' ? 'junD' : (cellVal === 'Ｄ' || cellVal === 'D' ? 'd' : null));
-
-        if (rowType === 'uru') {
-          const spRow: SPMasterRow = {
-            catalogNos: [...currentRowCatalogNos],
-            weight: currentRowWeight,
-            shape: currentRowShape,
-            minQuantity: minQuantity > 0 ? minQuantity : lastMinQuantity,
-            unit: minQuantity > 0 ? currentUnit : (spMaster[spMaster.length-1]?.unit || 'm'),
-            colorPrices: {},
-            materialHint: sheetName
-          };
-
-          for (let i = 1; i <= 8; i++) {
-            const off = relativeOffsets[i];
-            if (!off) continue;
-            const pVal = String(row[sellIdx + off] || '').trim().replace(/,/g, '');
-            const p = parseFloat(pVal);
-            if (!isNaN(p) && p > 0) {
-              if (!spRow.colorPrices[i]) spRow.colorPrices[i] = { uru: 0, junD: 0, d: 0 };
-              spRow.colorPrices[i].uru = p;
+            const qMatch = val.match(/(?:約|以上)?\s*(\d+)\s*(ｍ|m|枚)?(～|~)?$/);
+            if (qMatch && !val.includes('k')) {
+              const q = parseInt(qMatch[1]);
+              if (q >= 10) {
+                minQuantity = q;
+                currentUnit = (qMatch[2] === '枚' ? 'pcs' : 'm');
+              }
             }
+            if (val.includes('単袋')) currentRowShape = '単袋';
+            else if (val.includes('R') || val.includes('ロール')) currentRowShape = 'R';
           }
 
-          if (spRow.catalogNos.length > 0 && spRow.minQuantity > 0) {
-            spMaster.push(spRow);
-            if (minQuantity > 0) lastMinQuantity = minQuantity;
-          }
-        } else if (rowType && spMaster.length > 0) {
-          const lastEntry = spMaster[spMaster.length - 1];
-          for (let i = 1; i <= 8; i++) {
-            const off = relativeOffsets[i];
-            if (!off) continue;
-            const pVal = String(row[sellIdx + off] || '').trim().replace(/,/g, '');
-            const p = parseFloat(pVal);
-            if (!isNaN(p) && p > 0) {
-              if (!lastEntry.colorPrices[i]) lastEntry.colorPrices[i] = { uru: 0, junD: 0, d: 0 };
-              if (rowType === 'junD') lastEntry.colorPrices[i].junD = p;
-              else if (rowType === 'd') lastEntry.colorPrices[i].d = p;
+          if (rowType === 'uru') {
+            if (currentRowCatalogNos.length === 0) currentRowCatalogNos = [...lastCatalogNos];
+            else lastCatalogNos = [...currentRowCatalogNos];
+            if (currentRowWeight === 0) currentRowWeight = lastWeight;
+            else lastWeight = currentRowWeight;
+            if (currentRowShape === null) currentRowShape = lastShape;
+            else lastShape = currentRowShape;
+            if (minQuantity === 0) minQuantity = lastMinQuantity;
+            else { lastMinQuantity = minQuantity; lastUnit = currentUnit; }
+
+            const spRow: SPMasterRow = {
+              catalogNos: [...currentRowCatalogNos],
+              weight: currentRowWeight,
+              shape: currentRowShape || 'R',
+              minQuantity: minQuantity,
+              unit: currentUnit,
+              colorPrices: {},
+              materialHint: sheetName
+            };
+            for (let i = 1; i <= 8; i++) {
+              const off = relativeOffsets[i];
+              if (!off) continue;
+              const p = parseFloat(String(row[sellIdx + off] || '').replace(/[^0-9.]/g, ''));
+              if (!isNaN(p) && p > 0) {
+                if (!spRow.colorPrices[i]) spRow.colorPrices[i] = { uru: 0, junD: 0, d: 0 };
+                spRow.colorPrices[i].uru = p;
+              }
+            }
+            if (spRow.catalogNos.length > 0 && spRow.minQuantity > 0) spMaster.push(spRow);
+          } else if (rowType && spMaster.length > 0) {
+            const lastEntry = spMaster[spMaster.length - 1];
+            for (let i = 1; i <= 8; i++) {
+              const off = relativeOffsets[i];
+              if (!off) continue;
+              const p = parseFloat(String(row[sellIdx + off] || '').replace(/[^0-9.]/g, ''));
+              if (!isNaN(p) && p > 0) {
+                if (!lastEntry.colorPrices[i]) lastEntry.colorPrices[i] = { uru: 0, junD: 0, d: 0 };
+                lastEntry.colorPrices[i][rowType] = p;
+              }
             }
           }
         }
