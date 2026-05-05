@@ -265,14 +265,10 @@ describe('Calculator Logic (Multilevel Precedence)', () => {
         salesGroup: 80
       }];
       const results = calculateNewPrices(customOrder, [], defaultConditions);
-      // 別注なのでデフォルトの10%アップが適用されること
       expect(results[0].newPrice).toBe(110);
     });
 
     it('全角数字や全角「ｋ」を含むマスター情報が正しく解析されること', () => {
-      // excelUtilsの内部ロジックをシミュレートするテスト
-      // 実際には excelUtils.ts の parseSPMasterFile を通じて検証するのが理想だが、
-      // ここでは calculator のマッチングが正常に行われることを確認
       const zenkakuMaster: SPMasterRow[] = [{
         catalogNos: ['999'],
         weight: 10,
@@ -281,19 +277,43 @@ describe('Calculator Logic (Multilevel Precedence)', () => {
         colorPrices: { 1: { uru: 150, junD: 140, d: 130 } },
         materialHint: 'ポリ'
       }];
-      
       const zenkakuOrder: OrderRecord[] = [{
         ...spOrders[0],
-        productCode: '009991001', // カタログ999, 10k, 単袋
+        productCode: '009991001',
         materialName: '【ポリ】透明',
         totalColorCount: 1
       }];
-
       const results = calculateNewPrices(zenkakuOrder, [], defaultConditions, {}, {}, {
         custom: [], sp: zenkakuMaster, sticker: [], readymade: []
       });
-      
       expect(results[0].newPrice).toBe(150);
+    });
+
+    it('「和紙 雲竜 窓有り」が「窓付雲竜」に正しくマッチすること', () => {
+      const unryuMaster: SPMasterRow[] = [{
+        catalogNos: ['810'],
+        weight: 2,
+        shape: '単袋',
+        minQuantity: 500,
+        colorPrices: { 1: { uru: 101, junD: 96, d: 93 } },
+        materialHint: '窓付雲竜'
+      }];
+      
+      const unryuOrder: OrderRecord[] = [{
+        ...spOrders[0],
+        category: 'SPオフセット',
+        productCode: '008100201', // カタログ810, 2kg, 単袋
+        materialName: '【和紙 雲竜】窓有り',
+        quantity: 500,
+        totalColorCount: 1
+      }];
+
+      const results = calculateNewPrices(unryuOrder, [], defaultConditions, {}, {}, {
+        custom: [], sp: unryuMaster, sticker: [], readymade: []
+      });
+      
+      // 正確な価格 101 が引用されること
+      expect(results[0].newPrice).toBe(101);
     });
   });
 });
