@@ -69,7 +69,8 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
       lastWeight: number, 
       lastMinQuantity: number, 
       lastUnit: 'm' | 'pcs',
-      lastShape: 'R' | '単袋' | null
+      lastShape: 'R' | '単袋' | null,
+      lastRowType: 'uru' | 'junD' | 'd' | null
     } } = {};
 
     let globalLastShape: 'R' | '単袋' | null = null;
@@ -112,7 +113,8 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
             lastWeight: sheetWeight,
             lastMinQuantity: 0,
             lastUnit: 'm',
-            lastShape: globalLastShape
+            lastShape: globalLastShape,
+            lastRowType: null
           };
         }
         const state = stateByCol[sellIdx];
@@ -147,13 +149,20 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
           }
         }
 
-        for (let r = headerRowIdx; r < rows.length; r++) {
+        for (let r = headerRowIdx + 1; r < rows.length; r++) {
           const row = rows[r] as unknown[];
           if (!Array.isArray(row)) continue;
-          if (r > headerRowIdx && headerRows.includes(r)) break;
+          if (headerRows.includes(r)) break;
 
           const rawVal = String(row[sellIdx] || '').trim();
-          const rowType = getSPRowType(rawVal);
+          let rowType = getSPRowType(rawVal);
+          
+          if (!rowType) {
+            if (state.lastRowType === 'uru') rowType = 'junD';
+            else if (state.lastRowType === 'junD') rowType = 'd';
+            else if (state.lastRowType === 'd' || !state.lastRowType) rowType = 'uru';
+          }
+          
           const scanStart = Math.max(0, sellIdx - 15);
           const scanEnd = sellIdx;
           
@@ -169,11 +178,9 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
 
             val.split(/[\n\s,、]+/).map(x => x.trim().replace(/[△▲]/g, '')).filter(x => /^\d{3,4}$/.test(x)).forEach(x => currentRowCatalogNos.push(x));
             
-            // 重量の検知 (2k, 5, 10 等)
             const wMatch = val.match(/^\s*(\d+(?:\.\d+)?)\s*(?:k|K|㎏)?\s*$/i);
             if (wMatch) {
               const w = parseFloat(wMatch[1]);
-              // 2kg〜30kgの範囲なら重量として扱う
               if (w >= 1.5 && w <= 35) currentRowWeight = w;
             }
             const qMatch = val.match(/(?:約|以上)?\s*(\d+)\s*(ｍ|m|枚)?(～|~)?$/);
@@ -183,7 +190,6 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
                 minQuantity = q;
                 const unitStr = qMatch[2] || '';
                 currentUnit = (unitStr === '枚' ? 'pcs' : 'm');
-                // 単位から形状を推測
                 if (unitStr === '枚') currentRowShape = '単袋';
                 else if (unitStr === 'ｍ' || unitStr === 'm') currentRowShape = 'R';
               }
@@ -211,6 +217,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
               colorPrices: {},
               materialHint: sheetName
             };
+            let hasPrice = false;
             for (let i = 1; i <= 8; i++) {
               const off = relativeOffsets[i];
               if (!off) continue;
@@ -218,13 +225,20 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
               if (!isNaN(p) && p > 0) {
                 if (!spRow.colorPrices[i]) spRow.colorPrices[i] = { uru: 0, junD: 0, d: 0 };
                 spRow.colorPrices[i].uru = p;
+                hasPrice = true;
               }
             }
-            if (spRow.catalogNos.length > 0 && spRow.minQuantity > 0) spMaster.push(spRow);
+            if (hasPrice) {
+              spMaster.push(spRow);
+              state.lastRowType = 'uru';
+            } else {
+              state.lastRowType = null;
+            }
           } else if (rowType && spMaster.length > 0) {
             const lastEntry = spMaster[spMaster.length - 1];
             const matchCata = (currentRowCatalogNos.length > 0 ? currentRowCatalogNos : state.lastCatalogNos).join(',');
             if (lastEntry.catalogNos.join(',') === matchCata) {
+              let hasPrice = false;
               for (let i = 1; i <= 8; i++) {
                 const off = relativeOffsets[i];
                 if (!off) continue;
@@ -232,8 +246,10 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
                 if (!isNaN(p) && p > 0) {
                   if (!lastEntry.colorPrices[i]) lastEntry.colorPrices[i] = { uru: 0, junD: 0, d: 0 };
                   lastEntry.colorPrices[i][rowType] = p;
+                  hasPrice = true;
                 }
               }
+              if (hasPrice) state.lastRowType = rowType;
             }
           }
         }
