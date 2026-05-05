@@ -56,6 +56,12 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
 
     if (headerRows.length === 0) continue;
 
+    let lastCatalogNos: string[] = [];
+    let lastWeight = sheetWeight;
+    let lastShape: 'R' | '単袋' | null = (sheetName.includes('単袋') || sheetName.includes('（単）') || /単袋/i.test(sheetName)) ? '単袋' : ((sheetName.includes('ロール') || sheetName.includes('（R）') || /R/i.test(sheetName)) ? 'R' : null);
+    let lastMinQuantity = 0;
+    let lastUnit: 'm' | 'pcs' = 'm';
+
     for (const headerRowIdx of headerRows) {
       const headerRow = rows[headerRowIdx] as unknown[];
       const priceHeadersInRow: { col: number }[] = [];
@@ -98,12 +104,6 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
             }
           }
         }
-
-        let lastCatalogNos: string[] = [];
-        let lastWeight = sheetWeight;
-        let lastShape: 'R' | '単袋' | null = (sheetName.includes('単袋') || sheetName.includes('（単）')) ? '単袋' : (sheetName.includes('ロール') || sheetName.includes('（R）') ? 'R' : null);
-        let lastMinQuantity = 0;
-        let lastUnit: 'm' | 'pcs' = 'm';
 
         for (let r = headerRowIdx; r < rows.length; r++) {
           const row = rows[r] as unknown[];
