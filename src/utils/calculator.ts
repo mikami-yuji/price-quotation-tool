@@ -104,7 +104,9 @@ export const calculateNewPrices = (
                 // 特定のキーワードが含まれているかどうかの不一致があれば除外
                 const keywords = ['マット', 'SF', 'ＳＦ', 'コンビ', 'バイオマス', 'ラミ', '真空'];
                 for (const k of keywords) {
-                  if (hintNorm.includes(k) !== tNorm.includes(k)) return false;
+                  const hHas = hintNorm.includes(k);
+                  const tHas = tNorm.includes(k);
+                  if (hHas !== tHas) return false;
                 }
                 
                 return hintNorm.includes(tNorm) || tNorm.includes(hintNorm);
@@ -114,7 +116,10 @@ export const calculateNewPrices = (
             });
 
             // 候補をスコアリングして最適なものを選ぶ
-            const targetWeight = decoded ? decoded.weight : Number(order.weight);
+            let targetWeight = decoded ? decoded.weight : Number(order.weight);
+            // ユーザー要望：8kgは10kgの判定にする
+            if (targetWeight === 8) targetWeight = 10;
+
             const targetShape = decoded ? decoded.shape : (String(order.shape || '').toUpperCase().includes('R') ? 'R' : '単袋');
             const orderCode = normalize(order.productCode || order.absCode);
 
