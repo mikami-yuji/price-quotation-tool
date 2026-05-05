@@ -80,40 +80,31 @@ export const calculateNewPrices = (
           
             const normMat = (s: string) => {
               return s.replace(/[ \s　【】（）()]/g, '')
-                      .replace(/窓(有り|あり|付)/g, '窓')
-                      .replace(/和紙/g, '')
-                      .replace(/単$/g, '')
-                      .replace(/単袋$/g, '');
+                      .replace(/窓(有り|あり|付)/g, '窓');
             };
+
 
             const baseMatches = (categorizedMasters.sp as SPMasterRow[]).filter(m => {
               // 材質チェック
               if (!m.materialHint || !order.materialName) return false;
               
               const targetNorm = normMat(order.materialName);
-              const normH = m.materialHint.replace(/^(SP|ＳＰ|SPNEW|ＳＰＮＥＷ)/, '');
+              // シート名からインデックス番号（例: "10_SP"）を除去
+              const normH = m.materialHint.replace(/^([0-9]{1,2}_)?(SP|ＳＰ|SPNEW|ＳＰＮＥＷ)/, '');
               const hints = normH.split(/[・/／\r\n]+/).map(h => h.trim()).filter(Boolean);
               
-              const materialMatch = hints.some(h => {
+              const materialMatch = hints.length === 0 || hints.some(h => {
                 const hintNorm = normMat(h);
-                // 完全一致または相互包含
-                if (hintNorm === targetNorm || hintNorm.includes(targetNorm) || targetNorm.includes(hintNorm)) return true;
-                
-                // 特定キーワード（雲竜、クラフト、ポリ等）が両方に含まれるか
-                const keywords = ['雲竜', 'クラフト', 'ポリ', 'マット', 'バイオ'];
-                for (const kw of keywords) {
-                  if (targetNorm.includes(kw) && hintNorm.includes(kw)) {
-                    // ただし、コンビポリとポリを混同しないようにする
-                    if (kw === 'ポリ') {
-                      const targetIsCombi = targetNorm.includes('コンビ');
-                      const hintIsCombi = hintNorm.includes('コンビ');
-                      if (targetIsCombi !== hintIsCombi) return false;
-                      const targetIsSF = targetNorm.includes('SF') || targetNorm.includes('ＳＦ');
-                      const hintIsSF = hintNorm.includes('SF') || hintNorm.includes('ＳＦ');
-                      if (targetIsSF !== hintIsSF) return false;
-                    }
-                    return true;
-                  }
+                // 基本的な包含関係のチェック
+                if (hintNorm.includes(targetNorm) || targetNorm.includes(hintNorm)) {
+                   // 「ポリ」の場合のみ、コンビポリやSFポリとの混同を防ぐ
+                   if (targetNorm.includes('ポリ') || hintNorm.includes('ポリ')) {
+                     const isCombi = (s: string) => s.includes('コンビ');
+                     const isSF = (s: string) => s.includes('SF') || s.includes('ＳＦ');
+                     if (isCombi(targetNorm) !== isCombi(hintNorm)) return false;
+                     if (isSF(targetNorm) !== isSF(hintNorm)) return false;
+                   }
+                   return true;
                 }
                 return false;
               });
