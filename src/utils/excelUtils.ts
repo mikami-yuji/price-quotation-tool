@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { OrderRecord, CustomPriceMatrixRow, ReadymadeMasterRow, SPMasterRow, SPMasterPrice } from '../types';
+import { OrderRecord, CustomPriceMatrixRow, ReadymadeMasterRow, SPMasterRow } from '../types';
 
 export const parseExcelFile = (arrayBuffer: ArrayBuffer): { 
   orders: OrderRecord[], 

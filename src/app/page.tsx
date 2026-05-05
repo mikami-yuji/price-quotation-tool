@@ -153,7 +153,7 @@ export default function Home(): React.ReactElement {
               className={styles.resetAllBtn} 
               onClick={() => {
                 if (window.confirm('すべての設定とマスターデータを消去して初期状態に戻しますか？')) {
-                  // @ts-ignore
+                  // @ts-expect-error: window.location.reload is valid but TS may flag it
                   window.location.reload();
                   localStorage.clear();
                 }

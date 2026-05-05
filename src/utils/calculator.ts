@@ -80,7 +80,7 @@ export const calculateNewPrices = (
           
             const normMat = (s: string) => {
               return s.replace(/[ \s　【】（）()]/g, '')
-                      .replace(/窓(有り|あり|付)/g, '窓')
+                      .replace(/窓(有り|あり|付|つき)?/g, '')
                       .replace(/[Ａ-Ｚａ-ｚ０-９]/g, m => String.fromCharCode(m.charCodeAt(0) - 0xFEE0))
                       .replace(/ＳＦ/g, 'SF') // 念のため
                       .toUpperCase();
@@ -91,7 +91,6 @@ export const calculateNewPrices = (
               // 材質チェック
               if (!m.materialHint || !order.materialName) return false;
               
-              const targetNorm = normMat(order.materialName);
               const normH = m.materialHint.replace(/^([0-9]{1,2}_)?(SP|ＳＰ|SPNEW|ＳＰＮＥＷ)/, '');
               const hints = normH.split(/[・/／\r\n]+/).map(h => h.trim()).filter(Boolean);
               
@@ -103,7 +102,7 @@ export const calculateNewPrices = (
                 if (hintNorm === tNorm) return true;
                 
                 // 特定のキーワードが含まれているかどうかの不一致があれば除外
-                const keywords = ['マット', 'SF', 'ＳＦ', 'コンビ', 'バイオマス', '乳白', '和紙', 'クラフト', 'ラミ', '真空', 'ソフクラ', '透明'];
+                const keywords = ['マット', 'SF', 'ＳＦ', 'コンビ', 'バイオマス', 'ラミ', '真空'];
                 for (const k of keywords) {
                   if (hintNorm.includes(k) !== tNorm.includes(k)) return false;
                 }
@@ -119,7 +118,7 @@ export const calculateNewPrices = (
             const targetShape = decoded ? decoded.shape : (String(order.shape || '').toUpperCase().includes('R') ? 'R' : '単袋');
             const orderCode = normalize(order.productCode || order.absCode);
 
-            let candidates = baseMatches.map(m => {
+            const candidates = baseMatches.map(m => {
               let score = 0;
               
               // 1. コード一致 (最優先)
@@ -198,14 +197,13 @@ export const calculateNewPrices = (
               }
             }
           }
-        }
-        
-        // マスターに一致しなかった場合はカスタム値上げを適用
-        if (!spMatched) {
-          newPrice = calculateCustomIncrease(order.currentPrice, conditions);
-        }
-      } else if (isSticker) {
-        const masterPrice = findPriceFromMatrix(order, categorizedMasters.sticker as CustomPriceMatrixRow[]);
+
+          // マスターに一致しなかった場合はカスタム値上げを適用
+          if (!spMatched) {
+            newPrice = calculateCustomIncrease(order.currentPrice, conditions);
+          }
+        } else if (isSticker) {
+          const masterPrice = findPriceFromMatrix(order, categorizedMasters.sticker as CustomPriceMatrixRow[]);
         if (masterPrice !== null) {
           newPrice = masterPrice;
         } else {
