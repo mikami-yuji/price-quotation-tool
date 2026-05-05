@@ -40,18 +40,24 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
     if (rows.length === 0) continue;
 
     const materialHint = name.replace(/^\d+[kK]?[_\s]*/, '').trim();
-    const sheetWeight = parseFloat(name.match(/^\d+/)?.[0] || '0');
+    
+    // シート名から重量を取得（例: "5k_SPポリ" -> 5）。ただし冒頭の "13_SP" のようなインデックスは無視する。
+    let sheetWeight = 0;
+    const sheetWeightMatch = name.match(/(\d+(\.\d+)?)\s*[kK㎏]/);
+    if (sheetWeightMatch) {
+      sheetWeight = parseFloat(sheetWeightMatch[1]);
+    }
 
-    // 1. シート全体のカタログ番号（3-4桁の数値）を収集（バックアップ・全体用）
+    // 1. シート全体からカタログ番号を収集
     const globalCatalogNos: string[] = [];
-    rows.slice(0, 100).forEach(row => {
+    rows.slice(0, 150).forEach(row => {
       if (Array.isArray(row)) {
         row.forEach(cell => {
-          const s = String(cell).trim();
+          const s = String(cell).trim().replace(/[０-９]/g, m => String.fromCharCode(m.charCodeAt(0) - 0xFEE0));
           if (/^\d{3,4}$/.test(s)) {
             globalCatalogNos.push(s);
-          } else if (s.includes('\n')) {
-             s.split(/[\n\s]+/).map(x => x.trim().replace(/[△▲]/g, '')).filter(x => /^\d{3,4}$/.test(x)).forEach(x => globalCatalogNos.push(x));
+          } else if (s.includes('\n') || s.includes(' ')) {
+             s.split(/[\n\s,、]+/).map(x => x.trim().replace(/[△▲]/g, '')).filter(x => /^\d{3,4}$/.test(x)).forEach(x => globalCatalogNos.push(x));
           }
         });
       }
@@ -59,7 +65,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
 
     // 2. 「売」ヘッダーの位置をすべて特定
     const priceHeaders: { row: number; col: number; type: 'uru' | 'junD' | 'd' }[] = [];
-    for (let r = 0; r < Math.min(rows.length, 300); r++) {
+    for (let r = 0; r < Math.min(rows.length, 400); r++) {
       const row = rows[r];
       if (!Array.isArray(row)) continue;
       row.forEach((cell, c) => {
@@ -81,9 +87,10 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
       // データ行の解析
       for (let r = uru.row + 1; r < rows.length; r++) {
         const row = rows[r];
-        if (!Array.isArray(row) || row[sellIdx] === '') {
-          // 行が空、または「売」列が空の場合は、そのテーブルが途切れたか空行
-          if (Array.isArray(row) && row.some(c => String(c).includes('※') || String(c).includes('★'))) break; // 注釈行で終了
+        if (!Array.isArray(row) || (row[sellIdx] === '' && r > uru.row + 10)) {
+          // 継続的に空の場合は終了（ただしヘッダー直後は少し許容）
+          if (Array.isArray(row) && row.some(c => String(c).includes('※') || String(c).includes('★'))) break;
+          if (r > uru.row + 100) break; // 安全策
           continue;
         }
 
@@ -92,29 +99,32 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
         let currentRowShape: 'R' | '単袋' | null = null;
         let minQuantity = 0;
 
-        // 「売」列の左側（最大15列）から情報を収集
-        const searchRange = Math.max(0, sellIdx - 15);
-        for (let c = searchRange; c < sellIdx; c++) {
-          const val = String(row[c] || '').trim();
-          if (!val) continue;
+        // 「売」列の左側すべてから情報を収集
+        for (let c = 0; c < sellIdx; c++) {
+          const rawVal = String(row[c] || '').trim();
+          if (!rawVal) continue;
+          
+          // 全角数字を半角に変換
+          const val = rawVal.replace(/[０-９]/g, m => String.fromCharCode(m.charCodeAt(0) - 0xFEE0))
+                            .replace(/[ｋＫ㎏]/g, 'k');
 
           // カタログ番号（3-4桁の数値、または△付）
           if (/^[0-9△▲]{3,4}$/.test(val)) {
             currentRowCatalogNos.push(val.replace(/[△▲]/g, ''));
-          } else if (val.includes('\n')) {
-             val.split(/[\n\s]+/).map(x => x.trim().replace(/[△▲]/g, '')).filter(x => /^\d{3,4}$/.test(x)).forEach(x => currentRowCatalogNos.push(x));
+          } else if (val.includes('\n') || val.includes(' ')) {
+             val.split(/[\n\s,、]+/).map(x => x.trim().replace(/[△▲]/g, '')).filter(x => /^\d{3,4}$/.test(x)).forEach(x => currentRowCatalogNos.push(x));
           }
 
-          // 重量
-          const wMatch = val.match(/^(\d+(\.\d+)?)\s*([kK][gG]?|㎏)?$/);
+          // 重量 (10k, 5, 2kg等)
+          const wMatch = val.match(/^(\d+(\.\d+)?)\s*(k|kg)?$/i);
           if (wMatch) {
             const w = parseFloat(wMatch[1]);
-            if (w > 0 && w < 100) currentRowWeight = w;
+            if (w > 0 && w <= 30) currentRowWeight = w;
           }
 
           // 数量
           const qMatch = val.match(/^(\d+)\s*(ｍ|m|枚)?(～|~)?$/);
-          if (qMatch && !val.includes('K')) { // K(kg)と混同しないよう注意
+          if (qMatch && !val.includes('k')) {
             const q = parseInt(qMatch[1]);
             if (q >= 10) minQuantity = q;
           }
