@@ -48,7 +48,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
       const row = rows[r];
       if (Array.isArray(row) && row.some(c => {
         const t = String(c).trim();
-        return t === '売' || t === '売単価' || t === '通常' || t === 'うる' || t === '準';
+        return t === '売' || t === '売単価' || t === '通常' || t === 'うる';
       })) {
         headerRows.push(r);
       }
@@ -61,7 +61,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
       const priceHeadersInRow: { col: number }[] = [];
       headerRow.forEach((cell, c) => {
         const t = String(cell).trim();
-        if (t === '売' || t === '売単価' || t === '通常' || t === 'うる' || t === '準') {
+        if (t === '売' || t === '売単価' || t === '通常' || t === 'うる') {
           priceHeadersInRow.push({ col: c });
         }
       });
@@ -93,7 +93,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
             else {
               const prevOff = relativeOffsets[i - 1] || (i - 1) * 5;
               let gap = 5;
-              if (i === 2 && sheetName.includes('SF')) gap = 4;
+              if (i === 2 && (sheetName.includes('SF') || sheetName.includes('ＳＦ'))) gap = 4;
               relativeOffsets[i] = prevOff + gap;
             }
           }
@@ -105,10 +105,10 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
         let lastMinQuantity = 0;
         let lastUnit: 'm' | 'pcs' = 'm';
 
-        for (let r = headerRowIdx + 1; r < rows.length; r++) {
+        for (let r = headerRowIdx; r < rows.length; r++) {
           const row = rows[r] as unknown[];
           if (!Array.isArray(row)) continue;
-          if (headerRows.includes(r)) break;
+          if (r > headerRowIdx && headerRows.includes(r)) break;
 
           const rawVal = String(row[sellIdx] || '').trim();
           const rowType = getSPRowType(rawVal);
@@ -158,7 +158,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
               weight: currentRowWeight,
               shape: currentRowShape || 'R',
               minQuantity: minQuantity,
-              unit: currentUnit,
+              unit: lastUnit,
               colorPrices: {},
               materialHint: sheetName
             };
