@@ -80,18 +80,22 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
       globalLastShape = 'R';
     }
 
-    // シート名で判別できない場合、最初の数行をスキャンしてキーワードを探す
-    if (!globalLastShape) {
-      for (let r = 0; r < Math.min(rows.length, 20); r++) {
-        const rowText = JSON.stringify(rows[r]);
-        if (rowText.includes('単袋') || rowText.includes('（単）')) {
-          globalLastShape = '単袋';
-          break;
-        } else if (rowText.includes('ロール') || rowText.includes('ロール用')) {
-          globalLastShape = 'R';
-          break;
+    // シート全体の共通カタログ番号をスキャン (冒頭20行)
+    const sheetGlobalCatalogNos: string[] = [];
+    for (let r = 0; r < Math.min(rows.length, 20); r++) {
+      const row = rows[r];
+      if (!Array.isArray(row)) continue;
+      row.forEach(cell => {
+        const val = String(cell || '').trim();
+        if (!val) return;
+        // 3〜4桁の数字を抽出 (カタログ番号)
+        const matches = val.match(/\d{3,4}/g);
+        if (matches) {
+          matches.forEach(m => {
+            if (!sheetGlobalCatalogNos.includes(m)) sheetGlobalCatalogNos.push(m);
+          });
         }
-      }
+      });
     }
 
     for (const headerRowIdx of headerRows) {
@@ -109,7 +113,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
         
         if (!stateByCol[sellIdx]) {
           stateByCol[sellIdx] = {
-            lastCatalogNos: [],
+            lastCatalogNos: [...sheetGlobalCatalogNos],
             lastWeight: sheetWeight,
             lastMinQuantity: 0,
             lastUnit: 'm',
