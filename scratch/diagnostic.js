@@ -1,49 +1,26 @@
-import * as XLSX from 'xlsx';
-import { OrderRecord, CustomPriceMatrixRow, ReadymadeMasterRow, SPMasterRow, SPMasterPrice } from '../types';
 
-export const parseExcelFile = (arrayBuffer: ArrayBuffer): { 
-  orders: OrderRecord[], 
-  priceMatrix: CustomPriceMatrixRow[],
-  readymadeMaster: ReadymadeMasterRow[]
-} => {
+const XLSX = require('xlsx');
+
+const getSPRowType = (val) => {
+  if (val === '売' || val === 'うる' || val === '通常') return 'uru';
+  if (val === '準' || val === '準D' || val === '準Ｄ') return 'junD';
+  if (val === 'Ｄ' || val === 'D') return 'd';
+  return null;
+}
+
+const parseSPMasterFile = (arrayBuffer) => {
   const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-  const orders: OrderRecord[] = [];
-  const priceMatrix: CustomPriceMatrixRow[] = [];
-  const readymadeMaster: ReadymadeMasterRow[] = [];
+  const spMaster = [];
   for (const sheetName of workbook.SheetNames) {
     const sheet = workbook.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
-    if (sheetName.includes('既製品') || sheetName.includes('価格表') || sheetName.includes('マスター') || sheetName.toUpperCase().includes('READYMADE')) {
-      readymadeMaster.push(...parseReadymadeMaster(rows));
-    } else if (sheetName.includes('別注') || sheetName.includes('単価表')) {
-      priceMatrix.push(...parsePriceMatrix(rows));
-    } else if (rows.length > 0) {
-      const headerRow = rows.find(r => Array.isArray(r) && (r.includes('受注№') || r.includes('種別'))) as unknown[] | undefined;
-      if (headerRow) {
-        const headerIdx = rows.indexOf(headerRow);
-        for (let i = headerIdx + 1; i < rows.length; i++) {
-          const order = mapRowArrayToOrderRecord(rows[i] as unknown[], headerRow);
-          if (order.orderNumber) orders.push(order);
-        }
-      }
-    }
-  }
-  return { orders, priceMatrix, readymadeMaster };
-};
-
-export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
-  const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-  const spMaster: SPMasterRow[] = [];
-  for (const sheetName of workbook.SheetNames) {
-    const sheet = workbook.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
     if (rows.length === 0) continue;
 
     let sheetWeight = 0;
     const sheetWeightMatch = sheetName.match(/(\d+(\.\d+)?)\s*[kK㎏]/);
     if (sheetWeightMatch) sheetWeight = parseFloat(sheetWeightMatch[1]);
 
-    const headerRows: number[] = [];
+    const headerRows = [];
     for (let r = 0; r < Math.min(rows.length, 1000); r++) {
       const row = rows[r];
       if (Array.isArray(row) && row.some(c => {
@@ -56,22 +33,13 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
 
     if (headerRows.length === 0) continue;
 
-    const stateByCol: { [sellIdx: number]: { 
-      lastCatalogNos: string[], 
-      lastWeight: number, 
-      lastMinQuantity: number, 
-      lastUnit: 'm' | 'pcs',
-      lastShape: 'R' | '単袋' | null
-    } } = {};
-
-    let globalLastShape: 'R' | '単袋' | null = null;
+    const stateByCol = {};
+    let globalLastShape = null;
     if (sheetName.includes('単袋') || sheetName.includes('（単）') || /単袋/.test(sheetName)) {
       globalLastShape = '単袋';
     } else if (sheetName.includes('ロール') || sheetName.includes('（R）') || /ロール|Ｒ|R/.test(sheetName)) {
       globalLastShape = 'R';
     }
-
-    // シート名で判別できない場合、最初の数行をスキャンしてキーワードを探す
     if (!globalLastShape) {
       for (let r = 0; r < Math.min(rows.length, 20); r++) {
         const rowText = JSON.stringify(rows[r]);
@@ -86,8 +54,8 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
     }
 
     for (const headerRowIdx of headerRows) {
-      const headerRow = rows[headerRowIdx] as unknown[];
-      const priceHeadersInRow: { col: number }[] = [];
+      const headerRow = rows[headerRowIdx];
+      const priceHeadersInRow = [];
       headerRow.forEach((cell, c) => {
         const t = String(cell).trim();
         if (t === '売' || t === '売単価' || t === '通常' || t === 'うる') {
@@ -97,7 +65,6 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
 
       for (const header of priceHeadersInRow) {
         const sellIdx = header.col;
-        
         if (!stateByCol[sellIdx]) {
           stateByCol[sellIdx] = {
             lastCatalogNos: [],
@@ -108,7 +75,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
           };
         }
         const state = stateByCol[sellIdx];
-        const relativeOffsets: { [key: number]: number } = {};
+        const relativeOffsets = {};
         const nextHeader = priceHeadersInRow.find(h => h.col > sellIdx);
         const limit = nextHeader ? nextHeader.col : 1000;
 
@@ -116,7 +83,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
           const zenI = String(i).replace(/[0-9]/g, m => String.fromCharCode(m.charCodeAt(0) + 0xFEE0));
           let found = false;
           for (let r = Math.max(0, headerRowIdx - 5); r <= headerRowIdx + 1; r++) {
-            const row = rows[r] as unknown[];
+            const row = rows[r];
             if (!Array.isArray(row)) continue;
             for (let c = sellIdx + 1; c < Math.min(row.length, limit); c++) {
               const val = String(row[c] || '').trim().replace(/[0-9]/g, m => String.fromCharCode(m.charCodeAt(0) + 0xFEE0));
@@ -140,7 +107,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
         }
 
         for (let r = headerRowIdx; r < rows.length; r++) {
-          const row = rows[r] as unknown[];
+          const row = rows[r];
           if (!Array.isArray(row)) continue;
           if (r > headerRowIdx && headerRows.includes(r)) break;
 
@@ -149,16 +116,15 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
           const scanStart = Math.max(0, sellIdx - 15);
           const scanEnd = sellIdx;
           
-          let currentRowCatalogNos: string[] = [];
+          let currentRowCatalogNos = [];
           let currentRowWeight = 0;
-          let currentRowShape: 'R' | '単袋' | null = null;
+          let currentRowShape = null;
           let minQuantity = 0;
-          let currentUnit: 'm' | 'pcs' = 'm';
+          let currentUnit = 'm';
 
           for (let c = scanStart; c < scanEnd; c++) {
             const val = String(row[c] || '').trim().replace(/[０-９]/g, m => String.fromCharCode(m.charCodeAt(0) - 0xFEE0)).replace(/[ｋＫ㎏]/g, 'k');
             if (!val) continue;
-
             val.split(/[\n\s,、]+/).map(x => x.trim().replace(/[△▲]/g, '')).filter(x => /^\d{3,4}$/.test(x)).forEach(x => currentRowCatalogNos.push(x));
             
             // 重量の検知 (2k, 5, 10 等)
@@ -175,7 +141,6 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
                 minQuantity = q;
                 const unitStr = qMatch[2] || '';
                 currentUnit = (unitStr === '枚' ? 'pcs' : 'm');
-                // 単位から形状を推測
                 if (unitStr === '枚') currentRowShape = '単袋';
                 else if (unitStr === 'ｍ' || unitStr === 'm') currentRowShape = 'R';
               }
@@ -194,7 +159,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
             if (minQuantity === 0) minQuantity = state.lastMinQuantity;
             else { state.lastMinQuantity = minQuantity; state.lastUnit = currentUnit; }
 
-            const spRow: SPMasterRow = {
+            const spRow = {
               catalogNos: [...currentRowCatalogNos],
               weight: currentRowWeight,
               shape: currentRowShape || 'R',
@@ -235,102 +200,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
   return spMaster;
 };
 
-const parseReadymadeMaster = (rows: unknown[]): ReadymadeMasterRow[] => {
-  const results: ReadymadeMasterRow[] = [];
-  const header = (Array.isArray(rows[0]) ? rows[0] : []) as unknown[];
-  const getIdx = (keywords: string[]) => header.findIndex((c: unknown) => keywords.some(k => String(c).includes(k)));
-  const idx = { code: getIdx(['SP@', 'PP@m', 'ABS']), minQty: getIdx(['個数', '最小数量', '数量', '枚数']), uru: getIdx(['売単価', 'うる', '通常', '標準']), junD: getIdx(['準Ｄ', '準D']), d: getIdx(['Ｄ単価', 'D単価', 'バラ', 'D']) };
-  if (idx.code === -1) return [];
-  for (let i = 1; i < rows.length; i++) {
-    const row = rows[i];
-    if (!Array.isArray(row)) continue;
-    const code = String(row[idx.code] || '').trim();
-    if (!code) continue;
-    const minQty = parseInt(String(row[idx.minQty] || '0')) || 0;
-    const uru = parseFloat(String(row[idx.uru] || '0')) || 0;
-    const junD = parseFloat(String(row[idx.junD] || '0')) || uru;
-    const d = parseFloat(String(row[idx.d] || '0')) || uru;
-    if (uru === 0) continue;
-    results.push({ productCode: code, absCode: code, minQuantity: minQty, normal: { uru, junD, d }, campaign: { uru, junD, d } });
-  }
-  return results;
-};
-
-const parsePriceMatrix = (rows: unknown[]): CustomPriceMatrixRow[] => {
-  const matrix: CustomPriceMatrixRow[] = [];
-  for (const row of rows) {
-    if (!Array.isArray(row) || row.length < 5) continue;
-    const materialName = String(row[0] || '').trim();
-    const weight = parseFloat(String(row[1]));
-    if (!materialName || isNaN(weight)) continue;
-    const colorPrices: { [key: number]: number } = {};
-    for (let i = 1; i <= 7; i++) {
-      const price = parseFloat(String(row[i + 1]));
-      if (!isNaN(price)) colorPrices[i] = price;
-    }
-    matrix.push({ materialName, weight, colorPrices });
-  }
-  return matrix;
-};
-
-const mapRowArrayToOrderRecord = (row: unknown[], header: unknown[]): OrderRecord => {
-  const getIdx = (keywords: string[]) => header.findIndex((c: unknown) => keywords.some(k => String(c).includes(k)));
-  const idxMap = {
-    orderNumber: getIdx(['受注№', '受注番号']),
-    category: getIdx(['種別']),
-    productCode: getIdx(['商品コード', '商品CD']),
-    productName: getIdx(['商品名', '品名', '規格名', '摘要']),
-    quantity: getIdx(['受注数', '数量', '個数']),
-    currentPrice: getIdx(['単価']),
-    salesGroup: getIdx(['営G']),
-    weight: getIdx(['重量', '㎏', 'kg']),
-    shape: getIdx(['形状']),
-    materialName: getIdx(['材質', '材質名称']),
-    printCode: getIdx(['印刷コード', '印CD', '印コード']),
-    frontColorCount: getIdx(['表色数']),
-    backColorCount: getIdx(['裏色数']),
-    totalColorCount: getIdx(['色数', '総色数']),
-    printingCost: getIdx(['印刷代']),
-    printingSalesGroup: getIdx(['印刷営G']),
-    janCode: getIdx(['JAN']),
-    directDeliveryCode: getIdx(['直送先コード', '直送先CD']),
-    directDeliveryName: getIdx(['直送先']),
-    lastOrderDate: getIdx(['最終受注日']),
-    designName: getIdx(['デザイン名']),
-    title: getIdx(['タイトル'])
-  };
-
-  const val = (idx: number) => (idx !== -1 && Array.isArray(row) ? row[idx] : '');
-  const num = (idx: number) => {
-    const v = val(idx);
-    return v === '' ? 0 : Number(String(v).replace(/[^\d.]/g, '')) || 0;
-  };
-
-  const pCode = String(val(idxMap.productCode));
-
-  return {
-    category: String(val(idxMap.category) || '既製品').trim(),
-    orderNumber: String(val(idxMap.orderNumber)),
-    productCode: pCode,
-    absCode: pCode.replace(/\s+/g, ''),
-    productName: String(val(idxMap.productName)),
-    materialName: String(val(idxMap.materialName)),
-    printCode: String(val(idxMap.printCode)),
-    quantity: num(idxMap.quantity),
-    currentPrice: num(idxMap.currentPrice),
-    salesGroup: num(idxMap.salesGroup),
-    weight: num(idxMap.weight),
-    shape: String(val(idxMap.shape)),
-    frontColorCount: num(idxMap.frontColorCount),
-    backColorCount: num(idxMap.backColorCount),
-    totalColorCount: num(idxMap.totalColorCount),
-    printingCost: num(idxMap.printingCost),
-    printingSalesGroup: num(idxMap.printingSalesGroup),
-    janCode: String(val(idxMap.janCode)),
-    directDeliveryCode: String(val(idxMap.directDeliveryCode)),
-    directDeliveryName: String(val(idxMap.directDeliveryName)),
-    lastOrderDate: String(val(idxMap.lastOrderDate)),
-    designName: String(val(idxMap.designName)),
-    title: String(val(idxMap.title))
-  };
-};
+const fs = require('fs');
+const data = parseSPMasterFile(fs.readFileSync('sp_master.xlsx'));
+const targets = data.filter(m => m.catalogNos.includes('852'));
+console.log(JSON.stringify(targets, null, 2));

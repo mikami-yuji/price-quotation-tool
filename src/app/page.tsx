@@ -145,12 +145,27 @@ export default function Home(): React.ReactElement {
       <header className={styles.header}>
         <div className={styles.headerTop}>
           <div className={styles.titleArea}>
-            <h1 className={styles.title}>価格改定見積書・作成ツール</h1>
+            <h1 className={styles.title}>価格改定見積書・作成ツール <span className={styles.versionTag}>Ver 1.2.1</span></h1>
             <p className={styles.subtitle}>得意先別のExcelを読み込み、新しい見積価格を簡単にシミュレーションできます。</p>
           </div>
-          <button className={styles.themeToggle} onClick={toggleTheme}>
-            {theme === 'light' ? '🌙' : '☀️'}
-          </button>
+          <div className={styles.headerActions}>
+            <button 
+              className={styles.resetAllBtn} 
+              onClick={() => {
+                if (window.confirm('すべての設定とマスターデータを消去して初期状態に戻しますか？')) {
+                  // @ts-ignore
+                  window.location.reload();
+                  localStorage.clear();
+                }
+              }}
+              title="動作が不安定な場合に試してください"
+            >
+              🔄 データを全初期化
+            </button>
+            <button className={styles.themeToggle} onClick={toggleTheme}>
+              {theme === 'light' ? '🌙' : '☀️'}
+            </button>
+          </div>
         </div>
       </header>
 
