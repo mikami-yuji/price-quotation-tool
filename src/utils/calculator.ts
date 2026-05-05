@@ -163,26 +163,35 @@ export const calculateNewPrices = (
               return a.weightDiff - b.weightDiff;
             });
 
-            // 最もスコアが高いもの、かつ最低限コードか重量が一致しているもの
+            // 最もスコアが高いもの
             let matchedEntry = candidates[0];
             
-            // もしコード一致がない場合、かつ重量も全然違う場合は、10kなどのフォールバックを試みる
-            if (matchedEntry && matchedEntry.score < 100 && targetWeight >= 5) {
-               const fallback = candidates.find(c => c.m.catalogNos.some(no => no.toUpperCase().includes('K')));
-               if (fallback) matchedEntry = fallback;
+            // 重要：カタログ番号一致がない場合は、10kなどの特殊なフォールバック以外はマッチングさせない
+            // これにより、材質と重量だけで全く別の商品をマッチングしてしまうのを防ぐ
+            if (matchedEntry && matchedEntry.score < 1000) {
+               const is10kFallback = targetWeight >= 5 && matchedEntry.m.catalogNos.some(no => no.toUpperCase().includes('K'));
+               if (!is10kFallback) {
+                 matchedEntry = null;
+               }
             }
 
             const matched = matchedEntry ? matchedEntry.m : null;
             if (matched) {
-            const segment = readymadePrefs?.segment || 'uru';
-            const colorCount = order.totalColorCount || (order.frontColorCount + order.backColorCount);
-            
-            const priceObj = matched.colorPrices[colorCount];
-            if (priceObj) {
-              const price = priceObj[segment];
-              if (price > 0) { 
-                newPrice = price; 
-                spMatched = true; 
+              const segment = readymadePrefs?.segment || 'uru';
+              let colorCount = order.totalColorCount || (order.frontColorCount + order.backColorCount);
+              
+              // SPの色数オフセットが有効な場合は色数を-1する（ただし最低1色）
+              if (conditions.spColorOffset && colorCount > 1) {
+                colorCount = Math.max(1, colorCount - 1);
+              }
+              
+              const priceObj = matched.colorPrices[colorCount];
+              if (priceObj) {
+                const price = priceObj[segment];
+                if (price > 0) { 
+                  newPrice = price; 
+                  spMatched = true; 
+                }
               }
             }
           }
