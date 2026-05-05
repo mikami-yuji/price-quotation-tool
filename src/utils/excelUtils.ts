@@ -32,10 +32,11 @@ export const parseExcelFile = (arrayBuffer: ArrayBuffer): {
 };
 
 const getSPRowType = (val: string): 'uru' | 'junD' | 'd' | null => {
-  const v = String(val || '');
+  const v = String(val || '').trim();
   if (v.includes('売')) return 'uru';
   if (v.includes('準')) return 'junD';
-  if (v.includes('Ｄ') || v.includes('D')) return 'd';
+  // D判定は厳格に（DHやDHT等の誤検出を防ぐ）
+  if (v === 'Ｄ' || v === 'D' || v === 'Ｄ単価' || v === 'D単価') return 'd';
   return null;
 };
 
@@ -170,10 +171,32 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
           const rawVal = String(row[sellIdx] || '').trim();
           let rowType = getSPRowType(rawVal);
           
+          // ラベル省略時のサイクル推論（直前が明示的に検出された場合のみ）
+          // uru → junD → d の順でのみ推論する。uru の推論はしない（必ず明示ラベルが必要）
+          if (!rowType && state.lastRowType === 'uru') {
+            // 直前が売なので、この行は準（junD）かもしれない
+            // ただし価格列にデータがあるか確認してから確定する
+            const hasAnyData = Array.from({ length: 8 }, (_, i) => i + 1).some(i => {
+              const off = relativeOffsets[i];
+              if (!off) return false;
+              const p = parseFloat(String(row[sellIdx + off] || '').replace(/[^0-9.]/g, ''));
+              return !isNaN(p) && p > 0;
+            });
+            if (hasAnyData) rowType = 'junD';
+          } else if (!rowType && state.lastRowType === 'junD') {
+            const hasAnyData = Array.from({ length: 8 }, (_, i) => i + 1).some(i => {
+              const off = relativeOffsets[i];
+              if (!off) return false;
+              const p = parseFloat(String(row[sellIdx + off] || '').replace(/[^0-9.]/g, ''));
+              return !isNaN(p) && p > 0;
+            });
+            if (hasAnyData) rowType = 'd';
+          }
+          
+          // ラベルもなく推論もできなかった場合はスキップ
           if (!rowType) {
-            if (state.lastRowType === 'uru') rowType = 'junD';
-            else if (state.lastRowType === 'junD') rowType = 'd';
-            else if (state.lastRowType === 'd' || !state.lastRowType) rowType = 'uru';
+            state.lastRowType = null;
+            continue;
           }
           
           const scanStart = Math.max(0, sellIdx - 15);
