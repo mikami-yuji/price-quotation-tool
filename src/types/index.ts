@@ -66,6 +66,7 @@ export type SPMasterRow = {
   weight: number;
   shape: 'R' | '単袋';
   minQuantity: number; // 数量スライド用の最小数量
+  unit?: 'm' | 'pcs'; // 数量の単位 (m or 枚)
   colorPrices: {
     [colorCount: number]: SPMasterPrice;
   };

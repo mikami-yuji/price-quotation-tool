@@ -125,7 +125,11 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
         let currentRowCatalogNos: string[] = [];
         let currentRowWeight = 0;
         let currentRowShape: 'R' | '単袋' | null = null;
+        if (sheetName.includes('単袋') || sheetName.includes('（単）')) currentRowShape = '単袋';
+        else if (sheetName.includes('ロール') || sheetName.includes('（Ｒ）') || sheetName.includes('（R）')) currentRowShape = 'R';
+
         let minQuantity = 0;
+        let currentUnit: 'm' | 'pcs' = 'm';
 
         const scanStart = Math.max(0, sellIdx - 15);
         const scanEnd = sellIdx;
@@ -150,7 +154,10 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
           const qMatch = val.match(/(?:約|以上)?\s*(\d+)\s*(ｍ|m|枚)?(～|~)?$/);
           if (qMatch && !val.includes('k')) {
             const q = parseInt(qMatch[1]);
-            if (q >= 10) minQuantity = q;
+            if (q >= 10) {
+              minQuantity = q;
+              currentUnit = (qMatch[2] === '枚' ? 'pcs' : 'm');
+            }
           }
 
           if (val.includes('単袋')) currentRowShape = '単袋';
@@ -173,6 +180,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
             weight: currentRowWeight,
             shape: currentRowShape,
             minQuantity: minQuantity > 0 ? minQuantity : lastMinQuantity,
+            unit: minQuantity > 0 ? currentUnit : (spMaster[spMaster.length-1]?.unit || 'm'),
             colorPrices: {},
             materialHint: sheetName
           };

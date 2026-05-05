@@ -80,7 +80,10 @@ export const calculateNewPrices = (
           
             const normMat = (s: string) => {
               return s.replace(/[ \s　【】（）()]/g, '')
-                      .replace(/窓(有り|あり|付)/g, '窓');
+                      .replace(/窓(有り|あり|付)/g, '窓')
+                      .replace(/[Ａ-Ｚａ-ｚ０-９]/g, m => String.fromCharCode(m.charCodeAt(0) - 0xFEE0))
+                      .replace(/ＳＦ/g, 'SF') // 念のため
+                      .toUpperCase();
             };
 
 
@@ -134,8 +137,22 @@ export const calculateNewPrices = (
               // 3. 形状一致
               if (m.shape === targetShape) score += 10;
               
-              // 4. 数量の適合性
-              if (order.quantity >= m.minQuantity) score += 1;
+              // 4. 数量の適合性 (単位変換を考慮)
+              let effectiveQty = order.quantity;
+              const masterUnit = m.unit || 'm';
+              const orderUnit = (order.shape === 'R' ? 'm' : 'pcs');
+              
+              if (masterUnit === 'm' && orderUnit === 'pcs') {
+                 // 枚 -> m 変換 (5k=0.2m, 10k=0.25m と仮定)
+                 const metersPerPcs = targetWeight >= 5 ? 0.25 : 0.2;
+                 effectiveQty = order.quantity * metersPerPcs;
+              } else if (masterUnit === 'pcs' && orderUnit === 'm') {
+                 // m -> 枚 変換
+                 const pcsPerMeter = targetWeight >= 5 ? 4 : 5;
+                 effectiveQty = order.quantity * pcsPerMeter;
+              }
+              
+              if (effectiveQty >= m.minQuantity) score += 1;
 
               return { m, score, weightDiff };
             });
