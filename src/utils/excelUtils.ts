@@ -39,7 +39,6 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
     const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
     if (rows.length === 0) continue;
 
-    // シート全体の情報を初期化
     let sheetWeight = 0;
     const sheetWeightMatch = sheetName.match(/(\d+(\.\d+)?)\s*[kK㎏]/);
     if (sheetWeightMatch) sheetWeight = parseFloat(sheetWeightMatch[1]);
@@ -62,10 +61,51 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
     }
     if (headerRowIdx === -1) continue;
 
-    const offset = 5;
-
     for (const header of priceHeaders) {
       const sellIdx = header.col;
+      
+      const relativeOffsets: { [key: number]: number } = {};
+      const nextHeader = priceHeaders.find(h => h.col > sellIdx);
+      const limit = nextHeader ? nextHeader.col : 1000;
+
+      for (let i = 1; i <= 8; i++) {
+        const zenI = String(i).replace(/[0-9]/g, m => String.fromCharCode(m.charCodeAt(0) + 0xFEE0));
+        let found = false;
+        for (let r = Math.max(0, headerRowIdx - 5); r <= headerRowIdx + 1; r++) {
+          const row = rows[r];
+          if (!Array.isArray(row)) continue;
+          for (let c = sellIdx + 1; c < Math.min(row.length, limit); c++) {
+            const val = String(row[c] || '').trim().replace(/[0-9]/g, m => String.fromCharCode(m.charCodeAt(0) + 0xFEE0));
+            if (val.includes(`${zenI}色`) || (i <= 4 && val === zenI)) {
+              relativeOffsets[i] = c - sellIdx;
+              found = true;
+              break;
+            }
+          }
+          if (found) break;
+        }
+        
+        if (!found) {
+          if (i === 1) relativeOffsets[i] = 2;
+          else {
+            // 推測：1つ前の色からの間隔
+            const prevOff = relativeOffsets[i-1];
+            if (prevOff) {
+              // 間隔を推測（4か5が多い）
+              let gap = 5;
+              if (i === 2 && prevOff === 2) gap = 5;
+              else if (i > 2) {
+                const prevPrevOff = relativeOffsets[i-2];
+                if (prevPrevOff) gap = prevOff - prevPrevOff;
+              }
+              relativeOffsets[i] = prevOff + gap;
+            } else {
+              relativeOffsets[i] = i * 5;
+            }
+          }
+        }
+      }
+
       let lastCatalogNos: string[] = [];
       let lastWeight = sheetWeight;
       let lastShape: 'R' | '単袋' = 'R';
@@ -75,10 +115,10 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
         const row = rows[r];
         if (!Array.isArray(row)) continue;
 
-        // 終了判定
-        if (row[sellIdx] === '' && r > headerRowIdx + 10) {
+        if (row[sellIdx] === '' && r > headerRowIdx + 5) {
+           const hasOtherData = row.slice(Math.max(0, sellIdx - 10), sellIdx).some(c => String(c).trim().length > 0);
+           if (!hasOtherData && r > headerRowIdx + 20) break;
            if (row.some(c => String(c).includes('※') || String(c).includes('★'))) break;
-           if (r > headerRowIdx + 100) break;
            continue;
         }
 
@@ -87,10 +127,8 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
         let currentRowShape: 'R' | '単袋' | null = null;
         let minQuantity = 0;
 
-        // その行から情報を抽出（sellIdx近辺のみ。横並びテーブル対応）
-        // スキャン範囲を sellIdx の前後 15 列程度に制限
         const scanStart = Math.max(0, sellIdx - 15);
-        const scanEnd = Math.min(row.length, sellIdx + 1);
+        const scanEnd = sellIdx;
 
         for (let c = scanStart; c < scanEnd; c++) {
           const rawVal = String(row[c] || '').trim();
@@ -119,7 +157,6 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
           else if (val.includes('R') || val.includes('ロール')) currentRowShape = 'R';
         }
 
-        // 継承
         if (currentRowCatalogNos.length === 0) currentRowCatalogNos = [...lastCatalogNos];
         else lastCatalogNos = [...currentRowCatalogNos];
         if (currentRowWeight === 0) currentRowWeight = lastWeight;
@@ -141,7 +178,9 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
           };
 
           for (let i = 1; i <= 8; i++) {
-            const pVal = String(row[sellIdx + i * offset] || '').trim().replace(/,/g, '');
+            const off = relativeOffsets[i];
+            if (!off) continue;
+            const pVal = String(row[sellIdx + off] || '').trim().replace(/,/g, '');
             const p = parseFloat(pVal);
             if (!isNaN(p) && p > 0) {
               if (!spRow.colorPrices[i]) spRow.colorPrices[i] = { uru: 0, junD: 0, d: 0 };
@@ -156,12 +195,14 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
         } else if (rowType && spMaster.length > 0) {
           const lastEntry = spMaster[spMaster.length - 1];
           for (let i = 1; i <= 8; i++) {
-            const pVal = String(row[sellIdx + i * offset] || '').trim().replace(/,/g, '');
+            const off = relativeOffsets[i];
+            if (!off) continue;
+            const pVal = String(row[sellIdx + off] || '').trim().replace(/,/g, '');
             const p = parseFloat(pVal);
             if (!isNaN(p) && p > 0) {
               if (!lastEntry.colorPrices[i]) lastEntry.colorPrices[i] = { uru: 0, junD: 0, d: 0 };
               if (rowType === 'junD') lastEntry.colorPrices[i].junD = p;
-              else lastEntry.colorPrices[i].d = p;
+              else if (rowType === 'd') lastEntry.colorPrices[i].d = p;
             }
           }
         }
