@@ -64,7 +64,26 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
       lastShape: 'R' | '単袋' | null
     } } = {};
 
-    let globalLastShape: 'R' | '単袋' | null = (sheetName.includes('単袋') || sheetName.includes('（単）') || /単袋/i.test(sheetName)) ? '単袋' : ((sheetName.includes('ロール') || sheetName.includes('（R）') || /R/i.test(sheetName)) ? 'R' : null);
+    let globalLastShape: 'R' | '単袋' | null = null;
+    if (sheetName.includes('単袋') || sheetName.includes('（単）') || /単袋/.test(sheetName)) {
+      globalLastShape = '単袋';
+    } else if (sheetName.includes('ロール') || sheetName.includes('（R）') || /ロール|Ｒ|R/.test(sheetName)) {
+      globalLastShape = 'R';
+    }
+
+    // シート名で判別できない場合、最初の数行をスキャンしてキーワードを探す
+    if (!globalLastShape) {
+      for (let r = 0; r < Math.min(rows.length, 20); r++) {
+        const rowText = JSON.stringify(rows[r]);
+        if (rowText.includes('単袋') || rowText.includes('（単）')) {
+          globalLastShape = '単袋';
+          break;
+        } else if (rowText.includes('ロール') || rowText.includes('ロール用')) {
+          globalLastShape = 'R';
+          break;
+        }
+      }
+    }
 
     for (const headerRowIdx of headerRows) {
       const headerRow = rows[headerRowIdx] as unknown[];
@@ -151,7 +170,11 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
               const q = parseInt(qMatch[1]);
               if (q >= 10) {
                 minQuantity = q;
-                currentUnit = (qMatch[2] === '枚' ? 'pcs' : 'm');
+                const unitStr = qMatch[2] || '';
+                currentUnit = (unitStr === '枚' ? 'pcs' : 'm');
+                // 単位から形状を推測
+                if (unitStr === '枚') currentRowShape = '単袋';
+                else if (unitStr === 'ｍ' || unitStr === 'm') currentRowShape = 'R';
               }
             }
             if (val.includes('単袋')) currentRowShape = '単袋';
