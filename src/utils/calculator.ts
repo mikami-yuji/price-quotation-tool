@@ -178,12 +178,7 @@ export const calculateNewPrices = (
             const matched = matchedEntry ? matchedEntry.m : null;
             if (matched) {
               const segment = readymadePrefs?.segment || 'uru';
-              let colorCount = order.totalColorCount || (order.frontColorCount + order.backColorCount);
-              
-              // SPの色数オフセットが有効な場合は色数を-1する（ただし最低1色）
-              if (conditions.spColorOffset && colorCount > 1) {
-                colorCount = Math.max(1, colorCount - 1);
-              }
+              const colorCount = order.totalColorCount || (order.frontColorCount + order.backColorCount);
               
               const priceObj = matched.colorPrices[colorCount];
               if (priceObj) {
