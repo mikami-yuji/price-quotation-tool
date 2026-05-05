@@ -240,9 +240,20 @@ describe('Calculator Logic (Multilevel Precedence)', () => {
         custom: [], sp: spMaster, sticker: [], readymade: []
       });
       // 一致しないのでデフォルトの10%アップ: 100 * 1.1 = 110
-      // ただし、現在コード一致ロジックは材質チェックの「外」にあるか確認が必要
-      // 実装では baseMatches (材質チェックあり) をフィルタリングしているので、110になるはず
       expect(results[0].newPrice).toBe(110);
+    });
+
+    it('「乳白Ｕ－0.5」は価格改定の対象外（現状維持）となること', () => {
+      const excludedOrder: OrderRecord[] = [{
+        ...spOrders[0],
+        materialName: '【ポリ】乳白Ｕ－0.5',
+        currentPrice: 100,
+        salesGroup: 80
+      }];
+      const results = calculateNewPrices(excludedOrder, [], defaultConditions);
+      // シミュレーション条件（10%アップ）に関わらず、価格が維持されること
+      expect(results[0].newPrice).toBe(100);
+      expect(results[0].priceDifference).toBe(0);
     });
   });
 });
