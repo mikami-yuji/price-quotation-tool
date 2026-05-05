@@ -79,35 +79,45 @@ export const calculateNewPrices = (
           const decoded = decodeSPProductCode(order.productCode);
           
             const normMat = (s: string) => {
-              return s.replace(/[ \s　【】]/g, '')
+              return s.replace(/[ \s　【】（）()]/g, '')
                       .replace(/窓(有り|あり|付)/g, '窓')
-                      .replace(/和紙/g, '');
+                      .replace(/和紙/g, '')
+                      .replace(/単$/g, '')
+                      .replace(/単袋$/g, '');
             };
 
             const baseMatches = (categorizedMasters.sp as SPMasterRow[]).filter(m => {
               // 材質チェック
-              let materialMatch = true;
-              if (m.materialHint && order.materialName) {
-                const targetNorm = normMat(order.materialName);
+              if (!m.materialHint || !order.materialName) return false;
+              
+              const targetNorm = normMat(order.materialName);
+              const normH = m.materialHint.replace(/^(SP|ＳＰ|SPNEW|ＳＰＮＥＷ)/, '');
+              const hints = normH.split(/[・/／\r\n]+/).map(h => h.trim()).filter(Boolean);
+              
+              const materialMatch = hints.some(h => {
+                const hintNorm = normMat(h);
+                // 完全一致または相互包含
+                if (hintNorm === targetNorm || hintNorm.includes(targetNorm) || targetNorm.includes(hintNorm)) return true;
                 
-                // マスター側のヒントから "SP" プレフィックスを除去し、区切り文字で分割
-                const normH = m.materialHint.replace(/^(SP|ＳＰ)/, '');
-                const hints = normH.split(/[・/／\r\n]+/).map(h => h.trim()).filter(Boolean);
-                
-                materialMatch = hints.length === 0 || hints.some(h => {
-                  const hintNorm = normMat(h);
-                  // 部分一致（包含関係）を許容
-                  return hintNorm.includes(targetNorm) || targetNorm.includes(hintNorm);
-                });
-
-                // 特別な例外：ポリ透明はポリ
-                if (!materialMatch) {
-                   const simpleNorm = order.materialName.replace(/[ \s　【】]/g, '');
-                   if (simpleNorm.includes('ポリ透明') && hints.some(h => h.includes('ポリ') && !h.includes('SF') && !h.includes('コンビ'))) {
-                     materialMatch = true;
-                   }
+                // 特定キーワード（雲竜、クラフト、ポリ等）が両方に含まれるか
+                const keywords = ['雲竜', 'クラフト', 'ポリ', 'マット', 'バイオ'];
+                for (const kw of keywords) {
+                  if (targetNorm.includes(kw) && hintNorm.includes(kw)) {
+                    // ただし、コンビポリとポリを混同しないようにする
+                    if (kw === 'ポリ') {
+                      const targetIsCombi = targetNorm.includes('コンビ');
+                      const hintIsCombi = hintNorm.includes('コンビ');
+                      if (targetIsCombi !== hintIsCombi) return false;
+                      const targetIsSF = targetNorm.includes('SF') || targetNorm.includes('ＳＦ');
+                      const hintIsSF = hintNorm.includes('SF') || hintNorm.includes('ＳＦ');
+                      if (targetIsSF !== hintIsSF) return false;
+                    }
+                    return true;
+                  }
                 }
-              }
+                return false;
+              });
+
               if (!materialMatch) return false;
 
             // 重量と形状のチェック

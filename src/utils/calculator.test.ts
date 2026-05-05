@@ -289,31 +289,67 @@ describe('Calculator Logic (Multilevel Precedence)', () => {
       expect(results[0].newPrice).toBe(150);
     });
 
-    it('「和紙 雲竜 窓有り」が「窓付雲竜」に正しくマッチすること', () => {
-      const unryuMaster: SPMasterRow[] = [{
-        catalogNos: ['810'],
-        weight: 2,
+    it('「クラフト 窓有り」が「クラフト（単）」に正しくマッチすること', () => {
+      const craftMaster: SPMasterRow[] = [{
+        catalogNos: ['811'],
+        weight: 3,
         shape: '単袋',
-        minQuantity: 500,
-        colorPrices: { 1: { uru: 101, junD: 96, d: 93 } },
-        materialHint: '窓付雲竜'
+        minQuantity: 1000,
+        colorPrices: { 1: { uru: 125, junD: 119, d: 113.5 } },
+        materialHint: 'クラフト（単）'
       }];
+      
+      const craftOrder: OrderRecord[] = [{
+        ...spOrders[0],
+        category: 'SPオフセット',
+        productCode: '008110301', // カタログ811, 3kg, 単袋
+        materialName: '【クラフト】窓有り',
+        quantity: 1000,
+        totalColorCount: 1
+      }];
+
+      const results = calculateNewPrices(craftOrder, [], defaultConditions, {}, {}, {
+        custom: [], sp: craftMaster, sticker: [], readymade: []
+      });
+      
+      expect(results[0].newPrice).toBe(125);
+    });
+
+    it('「和紙 雲竜」の1000枚価格が正しく引用されること', () => {
+      const unryuMaster: SPMasterRow[] = [
+        {
+          catalogNos: ['810'],
+          weight: 5,
+          shape: '単袋',
+          minQuantity: 500,
+          colorPrices: { 2: { uru: 154, junD: 146.5, d: 141 } },
+          materialHint: '窓付雲竜'
+        },
+        {
+          catalogNos: ['810'],
+          weight: 5,
+          shape: '単袋',
+          minQuantity: 1000,
+          colorPrices: { 2: { uru: 143, junD: 136, d: 130 } },
+          materialHint: '窓付雲竜'
+        }
+      ];
       
       const unryuOrder: OrderRecord[] = [{
         ...spOrders[0],
         category: 'SPオフセット',
-        productCode: '008100201', // カタログ810, 2kg, 単袋
+        productCode: '008100501', // カタログ810, 5kg, 単袋
         materialName: '【和紙 雲竜】窓有り',
-        quantity: 500,
-        totalColorCount: 1
+        quantity: 1000,
+        totalColorCount: 2
       }];
 
       const results = calculateNewPrices(unryuOrder, [], defaultConditions, {}, {}, {
         custom: [], sp: unryuMaster, sticker: [], readymade: []
       });
       
-      // 正確な価格 101 が引用されること
-      expect(results[0].newPrice).toBe(101);
+      // 1000枚の価格 143 が引用されること
+      expect(results[0].newPrice).toBe(143);
     });
   });
 });
