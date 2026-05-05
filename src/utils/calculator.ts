@@ -138,36 +138,40 @@ export const calculateNewPrices = (
               
               // 4. 数量の適合性 (単位変換を考慮)
               let effectiveQty = order.quantity;
-              const masterUnit = m.unit || 'm';
+              const masterUnit = m.unit || (m.shape === '単袋' ? 'pcs' : 'm');
               const orderUnit = (order.shape === 'R' ? 'm' : 'pcs');
               
               if (masterUnit === 'm' && orderUnit === 'pcs') {
-                 // 枚 -> m 変換 (5k=0.2m, 10k=0.25m と仮定)
-                 const metersPerPcs = targetWeight >= 5 ? 0.25 : 0.2;
+                 // 枚 -> m 変換 (画像に基づき修正: 10k=0.6m, 5k=0.4m)
+                 const metersPerPcs = targetWeight >= 5 ? 0.6 : 0.4;
                  effectiveQty = order.quantity * metersPerPcs;
               } else if (masterUnit === 'pcs' && orderUnit === 'm') {
                  // m -> 枚 変換
-                 const pcsPerMeter = targetWeight >= 5 ? 4 : 5;
+                 const pcsPerMeter = targetWeight >= 5 ? 1.66 : 2.5;
                  effectiveQty = order.quantity * pcsPerMeter;
               }
               
-              const isFit = effectiveQty >= m.minQuantity;
+              const isFit = effectiveQty >= (m.minQuantity - 0.1); // 浮動小数の誤差を考慮
               if (isFit) score += 1;
 
               return { m, score, weightDiff, effectiveQty, isFit };
             });
 
-            // スコアの高い順にソート。スコアが同じなら重量差が小さい順。さらに数量の適合性を考慮
+            // スコアの高い順にソート。
             candidates.sort((a, b) => {
               if (b.score !== a.score) return b.score - a.score;
               if (a.weightDiff !== b.weightDiff) return a.weightDiff - b.weightDiff;
               
               // 数量の適合性によるソート
-              // 基本的には effectiveQty を超えない最大のスライド（＝より条件に近い小口価格）を優先する
               if (a.isFit !== b.isFit) return a.isFit ? -1 : 1;
               
-              // 両方適合する場合、または両方不足する場合、minQuantity が大きい方を優先（より条件に近いほう）
-              return b.m.minQuantity - a.m.minQuantity;
+              if (a.isFit) {
+                // 両方適合する場合、より条件に近い（minQuantityが大きい＝より安い）方を優先
+                return b.m.minQuantity - a.m.minQuantity;
+              } else {
+                // 両方適合しない場合、ベース価格（minQuantityが小さい方）を優先
+                return a.m.minQuantity - b.m.minQuantity;
+              }
             });
 
             // 最もスコアが高いもの
