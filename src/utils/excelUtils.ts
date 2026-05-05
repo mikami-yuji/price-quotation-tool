@@ -56,11 +56,15 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
 
     if (headerRows.length === 0) continue;
 
-    let lastCatalogNos: string[] = [];
-    let lastWeight = sheetWeight;
-    let lastShape: 'R' | '単袋' | null = (sheetName.includes('単袋') || sheetName.includes('（単）') || /単袋/i.test(sheetName)) ? '単袋' : ((sheetName.includes('ロール') || sheetName.includes('（R）') || /R/i.test(sheetName)) ? 'R' : null);
-    let lastMinQuantity = 0;
-    let lastUnit: 'm' | 'pcs' = 'm';
+    const stateByCol: { [sellIdx: number]: { 
+      lastCatalogNos: string[], 
+      lastWeight: number, 
+      lastMinQuantity: number, 
+      lastUnit: 'm' | 'pcs',
+      lastShape: 'R' | '単袋' | null
+    } } = {};
+
+    let globalLastShape: 'R' | '単袋' | null = (sheetName.includes('単袋') || sheetName.includes('（単）') || /単袋/i.test(sheetName)) ? '単袋' : ((sheetName.includes('ロール') || sheetName.includes('（R）') || /R/i.test(sheetName)) ? 'R' : null);
 
     for (const headerRowIdx of headerRows) {
       const headerRow = rows[headerRowIdx] as unknown[];
@@ -74,6 +78,17 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
 
       for (const header of priceHeadersInRow) {
         const sellIdx = header.col;
+        
+        if (!stateByCol[sellIdx]) {
+          stateByCol[sellIdx] = {
+            lastCatalogNos: [],
+            lastWeight: sheetWeight,
+            lastMinQuantity: 0,
+            lastUnit: 'm',
+            lastShape: globalLastShape
+          };
+        }
+        const state = stateByCol[sellIdx];
         const relativeOffsets: { [key: number]: number } = {};
         const nextHeader = priceHeadersInRow.find(h => h.col > sellIdx);
         const limit = nextHeader ? nextHeader.col : 1000;
@@ -144,21 +159,21 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
           }
 
           if (rowType === 'uru') {
-            if (currentRowCatalogNos.length === 0) currentRowCatalogNos = [...lastCatalogNos];
-            else lastCatalogNos = [...currentRowCatalogNos];
-            if (currentRowWeight === 0) currentRowWeight = lastWeight;
-            else lastWeight = currentRowWeight;
-            if (currentRowShape === null) currentRowShape = lastShape;
-            else lastShape = currentRowShape;
-            if (minQuantity === 0) minQuantity = lastMinQuantity;
-            else { lastMinQuantity = minQuantity; lastUnit = currentUnit; }
+            if (currentRowCatalogNos.length === 0) currentRowCatalogNos = [...state.lastCatalogNos];
+            else state.lastCatalogNos = [...currentRowCatalogNos];
+            if (currentRowWeight === 0) currentRowWeight = state.lastWeight;
+            else state.lastWeight = currentRowWeight;
+            if (currentRowShape === null) currentRowShape = state.lastShape;
+            else state.lastShape = currentRowShape;
+            if (minQuantity === 0) minQuantity = state.lastMinQuantity;
+            else { state.lastMinQuantity = minQuantity; state.lastUnit = currentUnit; }
 
             const spRow: SPMasterRow = {
               catalogNos: [...currentRowCatalogNos],
               weight: currentRowWeight,
               shape: currentRowShape || 'R',
               minQuantity: minQuantity,
-              unit: lastUnit,
+              unit: state.lastUnit,
               colorPrices: {},
               materialHint: sheetName
             };
@@ -174,13 +189,16 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
             if (spRow.catalogNos.length > 0 && spRow.minQuantity > 0) spMaster.push(spRow);
           } else if (rowType && spMaster.length > 0) {
             const lastEntry = spMaster[spMaster.length - 1];
-            for (let i = 1; i <= 8; i++) {
-              const off = relativeOffsets[i];
-              if (!off) continue;
-              const p = parseFloat(String(row[sellIdx + off] || '').replace(/[^0-9.]/g, ''));
-              if (!isNaN(p) && p > 0) {
-                if (!lastEntry.colorPrices[i]) lastEntry.colorPrices[i] = { uru: 0, junD: 0, d: 0 };
-                lastEntry.colorPrices[i][rowType] = p;
+            const matchCata = (currentRowCatalogNos.length > 0 ? currentRowCatalogNos : state.lastCatalogNos).join(',');
+            if (lastEntry.catalogNos.join(',') === matchCata) {
+              for (let i = 1; i <= 8; i++) {
+                const off = relativeOffsets[i];
+                if (!off) continue;
+                const p = parseFloat(String(row[sellIdx + off] || '').replace(/[^0-9.]/g, ''));
+                if (!isNaN(p) && p > 0) {
+                  if (!lastEntry.colorPrices[i]) lastEntry.colorPrices[i] = { uru: 0, junD: 0, d: 0 };
+                  lastEntry.colorPrices[i][rowType] = p;
+                }
               }
             }
           }
