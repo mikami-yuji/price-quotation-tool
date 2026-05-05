@@ -45,8 +45,8 @@ export const calculateNewPrices = (
       
     const group = (isCustom || isSP || isSticker || isReady) ? groupSettings[groupKey] : null;
 
-    // 特定の除外材質のチェック（「乳白Ｕ－0.5」は価格表がないため改定対象外とする）
-    if (order.materialName.includes('乳白Ｕ－0.5')) {
+    // 特定の除外材質のチェック（SP商品の「乳白Ｕ－0.5」は価格表がないため改定対象外とする）
+    if (isSP && order.materialName.includes('乳白Ｕ－0.5')) {
       return {
         ...order,
         newPrice: order.currentPrice,
