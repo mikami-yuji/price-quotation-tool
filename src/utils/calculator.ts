@@ -182,13 +182,10 @@ export const calculateNewPrices = (
             // 最もスコアが高いもの
             let matchedEntry: { m: SPMasterRow; score: number; weightDiff: number; effectiveQty: number; isFit: boolean; } | null = candidates[0] || null;
             
-            // 重要：カタログ番号一致がない場合は、10kなどの特殊なフォールバック以外はマッチングさせない
-            // これにより、材質と重量だけで全く別の商品をマッチングしてしまうのを防ぐ
-            if (matchedEntry && matchedEntry.score < 1000) {
-               const is10kFallback = targetWeight >= 5 && matchedEntry.m.catalogNos.some(no => no.toUpperCase().includes('K'));
-               if (!is10kFallback) {
-                 matchedEntry = null;
-               }
+            // 材質は既にフィルタ済みなので、重量+形状の一致（score >= 110）があればマッチとする
+            // カタログ番号一致（+1000）があればさらに確実
+            if (matchedEntry && matchedEntry.score < 110) {
+               matchedEntry = null;
             }
 
             const matched = matchedEntry ? matchedEntry.m : null;

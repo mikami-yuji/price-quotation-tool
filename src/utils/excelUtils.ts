@@ -80,15 +80,24 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
       globalLastShape = 'R';
     }
 
-    // シート全体の共通カタログ番号をスキャン (冒頭20行)
+    // シート全体の共通カタログ番号をスキャン＋形状検出 (冒頭20行)
     const sheetGlobalCatalogNos: string[] = [];
     for (let r = 0; r < Math.min(rows.length, 20); r++) {
       const row = rows[r];
       if (!Array.isArray(row)) continue;
+      const rowText = JSON.stringify(row);
+      // 形状検出（シート名で判別できなかった場合）
+      if (!globalLastShape) {
+        if (rowText.includes('単袋') || rowText.includes('（単）')) {
+          globalLastShape = '単袋';
+        } else if (rowText.includes('ロール') || rowText.includes('ロール用')) {
+          globalLastShape = 'R';
+        }
+      }
+      // カタログ番号抽出
       row.forEach(cell => {
         const val = String(cell || '').trim();
         if (!val) return;
-        // 3〜4桁の数字を抽出 (カタログ番号)
         const matches = val.match(/\d{3,4}/g);
         if (matches) {
           matches.forEach(m => {
