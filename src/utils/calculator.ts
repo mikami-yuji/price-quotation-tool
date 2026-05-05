@@ -171,7 +171,7 @@ export const calculateNewPrices = (
             });
 
             // 最もスコアが高いもの
-            let matchedEntry = candidates[0];
+            let matchedEntry: { m: SPMasterRow; score: number; weightDiff: number; effectiveQty: number; isFit: boolean; } | null = candidates[0] || null;
             
             // 重要：カタログ番号一致がない場合は、10kなどの特殊なフォールバック以外はマッチングさせない
             // これにより、材質と重量だけで全く別の商品をマッチングしてしまうのを防ぐ

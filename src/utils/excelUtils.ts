@@ -31,6 +31,14 @@ export const parseExcelFile = (arrayBuffer: ArrayBuffer): {
   return { orders, priceMatrix, readymadeMaster };
 };
 
+const getSPRowType = (val: string): 'uru' | 'junD' | 'd' | null => {
+  const v = String(val || '');
+  if (v.includes('売')) return 'uru';
+  if (v.includes('準')) return 'junD';
+  if (v.includes('Ｄ') || v.includes('D')) return 'd';
+  return null;
+};
+
 export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
   const workbook = XLSX.read(arrayBuffer, { type: 'array' });
   const spMaster: SPMasterRow[] = [];
