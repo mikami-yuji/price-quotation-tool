@@ -44,14 +44,14 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
 
     // 1. シート全体のカタログ番号（3-4桁の数値）を収集（バックアップ・全体用）
     const globalCatalogNos: string[] = [];
-    rows.slice(0, 25).forEach(row => {
+    rows.slice(0, 100).forEach(row => {
       if (Array.isArray(row)) {
         row.forEach(cell => {
           const s = String(cell).trim();
           if (/^\d{3,4}$/.test(s)) {
             globalCatalogNos.push(s);
           } else if (s.includes('\n')) {
-             s.split(/[\n\s]+/).map(x => x.trim()).filter(x => /^\d{3,4}$/.test(x)).forEach(x => globalCatalogNos.push(x));
+             s.split(/[\n\s]+/).map(x => x.trim().replace(/[△▲]/g, '')).filter(x => /^\d{3,4}$/.test(x)).forEach(x => globalCatalogNos.push(x));
           }
         });
       }
@@ -59,7 +59,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
 
     // 2. 「売」ヘッダーの位置をすべて特定
     const priceHeaders: { row: number; col: number; type: 'uru' | 'junD' | 'd' }[] = [];
-    for (let r = 0; r < Math.min(rows.length, 60); r++) {
+    for (let r = 0; r < Math.min(rows.length, 300); r++) {
       const row = rows[r];
       if (!Array.isArray(row)) continue;
       row.forEach((cell, c) => {
