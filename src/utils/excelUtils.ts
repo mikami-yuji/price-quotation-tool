@@ -12,17 +12,17 @@ export const parseExcelFile = (arrayBuffer: ArrayBuffer): {
   const readymadeMaster: ReadymadeMasterRow[] = [];
   for (const sheetName of workbook.SheetNames) {
     const sheet = workbook.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, defval: '' });
+    const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
     if (sheetName.includes('既製品') || sheetName.includes('価格表') || sheetName.includes('マスター') || sheetName.toUpperCase().includes('READYMADE')) {
       readymadeMaster.push(...parseReadymadeMaster(rows));
     } else if (sheetName.includes('別注') || sheetName.includes('単価表')) {
       priceMatrix.push(...parsePriceMatrix(rows));
     } else if (rows.length > 0) {
-      const headerRow = rows.find(r => Array.isArray(r) && (r.includes('受注№') || r.includes('種別')));
+      const headerRow = rows.find(r => Array.isArray(r) && (r.includes('受注№') || r.includes('種別'))) as unknown[] | undefined;
       if (headerRow) {
         const headerIdx = rows.indexOf(headerRow);
         for (let i = headerIdx + 1; i < rows.length; i++) {
-          const order = mapRowArrayToOrderRecord(rows[i], headerRow);
+          const order = mapRowArrayToOrderRecord(rows[i] as unknown[], headerRow);
           if (order.orderNumber) orders.push(order);
         }
       }
@@ -36,81 +36,136 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
   const results: SPMasterRow[] = [];
   for (const name of workbook.SheetNames) {
     const sheet = workbook.Sheets[name];
-    const rows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, defval: '' });
+    const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
+    if (rows.length === 0) continue;
+
     const materialHint = name.replace(/^\d+[kK]?[_\s]*/, '').trim();
     const sheetWeight = parseFloat(name.match(/^\d+/)?.[0] || '0');
-    let currentCatalogNos: string[] = [];
-    let currentWeight = sheetWeight;
-    for (let r = 0; r < rows.length; r++) {
-      const row = rows[r];
-      if (!row || row.length === 0) continue;
-      const firstCol = String(row[0] || '').trim();
-      if (firstCol && /^[0-9△▲]/.test(firstCol) && !firstCol.includes('【') && !firstCol.includes('セレクト')) {
-        currentCatalogNos = firstCol.split(/[\r\n\s・/]+/).map(s => s.trim()).filter(Boolean);
-      }
-      const priceHeaders: { idx: number; type: 'uru' | 'junD' | 'd' }[] = [];
-      row.forEach((cell, idx) => {
-        const t = String(cell).trim();
-        if (t === '売') priceHeaders.push({ idx, type: 'uru' });
-        else if (t === '準D' || t === '準Ｄ') priceHeaders.push({ idx, type: 'junD' });
-        else if (t === 'D' || t === 'Ｄ') priceHeaders.push({ idx, type: 'd' });
-      });
 
-      // 各「売」または「単価列の起点」に対して処理
-      for (const pHeader of priceHeaders.filter(h => h.type === 'uru')) {
-        const sellIdx = pHeader.idx;
-        let weight = 0;
-        // 重量の探索
-        for (let i = sellIdx - 1; i >= Math.max(0, sellIdx - 10); i--) {
-          const val = parseFloat(String(row[i]).replace(/[^\d.]/g, ''));
-          if (!isNaN(val) && val > 0 && val < 100) { weight = val; break; }
-        }
-        if (weight > 0) {
-          currentWeight = weight;
-        } else {
-          // 行に重量がない場合はシート名の数値を使用
-          currentWeight = sheetWeight;
-        }
-
-        let minQuantity = 0;
-        let shape: 'R' | '単袋' = 'R';
-        // 数量と形状の探索
-        for (let i = sellIdx - 1; i >= 0; i--) {
-          const t = String(row[i] || '').trim();
-          if (t.includes('単袋')) shape = '単袋';
-          else if (t.includes('R')) shape = 'R';
-          const q = parseInt(String(row[i]).replace(/[^\d]/g, ''));
-          if (!isNaN(q) && q >= 10) { 
-            minQuantity = q;
-            break;
+    // 1. シート全体のカタログ番号（3-4桁の数値）を収集（バックアップ・全体用）
+    const globalCatalogNos: string[] = [];
+    rows.slice(0, 25).forEach(row => {
+      if (Array.isArray(row)) {
+        row.forEach(cell => {
+          const s = String(cell).trim();
+          if (/^\d{3,4}$/.test(s)) {
+            globalCatalogNos.push(s);
+          } else if (s.includes('\n')) {
+             s.split(/[\n\s]+/).map(x => x.trim()).filter(x => /^\d{3,4}$/.test(x)).forEach(x => globalCatalogNos.push(x));
           }
+        });
+      }
+    });
+
+    // 2. 「売」ヘッダーの位置をすべて特定
+    const priceHeaders: { row: number; col: number; type: 'uru' | 'junD' | 'd' }[] = [];
+    for (let r = 0; r < Math.min(rows.length, 60); r++) {
+      const row = rows[r];
+      if (!Array.isArray(row)) continue;
+      row.forEach((cell, c) => {
+        const t = String(cell).trim();
+        if (t === '売') priceHeaders.push({ row: r, col: c, type: 'uru' });
+        else if (t === '準D' || t === '準Ｄ') priceHeaders.push({ row: r, col: c, type: 'junD' });
+        else if (t === 'D' || t === 'Ｄ' || t === '単価') priceHeaders.push({ row: r, col: c, type: 'd' });
+      });
+    }
+
+    // 3. 各「売」列（テーブル）に対して処理
+    const uruHeaders = priceHeaders.filter(h => h.type === 'uru');
+    for (const uru of uruHeaders) {
+      const sellIdx = uru.col;
+      let lastCatalogNos: string[] = [];
+      let lastWeight = sheetWeight;
+      let lastShape: 'R' | '単袋' = 'R';
+
+      // データ行の解析
+      for (let r = uru.row + 1; r < rows.length; r++) {
+        const row = rows[r];
+        if (!Array.isArray(row) || row[sellIdx] === '') {
+          // 行が空、または「売」列が空の場合は、そのテーブルが途切れたか空行
+          if (Array.isArray(row) && row.some(c => String(c).includes('※') || String(c).includes('★'))) break; // 注釈行で終了
+          continue;
         }
 
-        if (currentCatalogNos.length > 0 && minQuantity > 0) {
+        let currentRowCatalogNos: string[] = [];
+        let currentRowWeight = 0;
+        let currentRowShape: 'R' | '単袋' | null = null;
+        let minQuantity = 0;
+
+        // 「売」列の左側（最大15列）から情報を収集
+        const searchRange = Math.max(0, sellIdx - 15);
+        for (let c = searchRange; c < sellIdx; c++) {
+          const val = String(row[c] || '').trim();
+          if (!val) continue;
+
+          // カタログ番号（3-4桁の数値、または△付）
+          if (/^[0-9△▲]{3,4}$/.test(val)) {
+            currentRowCatalogNos.push(val.replace(/[△▲]/g, ''));
+          } else if (val.includes('\n')) {
+             val.split(/[\n\s]+/).map(x => x.trim().replace(/[△▲]/g, '')).filter(x => /^\d{3,4}$/.test(x)).forEach(x => currentRowCatalogNos.push(x));
+          }
+
+          // 重量
+          const wMatch = val.match(/^(\d+(\.\d+)?)\s*([kK][gG]?|㎏)?$/);
+          if (wMatch) {
+            const w = parseFloat(wMatch[1]);
+            if (w > 0 && w < 100) currentRowWeight = w;
+          }
+
+          // 数量
+          const qMatch = val.match(/^(\d+)\s*(ｍ|m|枚)?(～|~)?$/);
+          if (qMatch && !val.includes('K')) { // K(kg)と混同しないよう注意
+            const q = parseInt(qMatch[1]);
+            if (q >= 10) minQuantity = q;
+          }
+
+          // 形状
+          if (val.includes('単袋')) currentRowShape = '単袋';
+          else if (val.includes('R') || val.includes('ロール')) currentRowShape = 'R';
+        }
+
+        // 情報の補完
+        if (currentRowCatalogNos.length === 0) {
+          currentRowCatalogNos = lastCatalogNos.length > 0 ? lastCatalogNos : [...globalCatalogNos];
+        }
+        if (currentRowWeight === 0) currentRowWeight = lastWeight;
+        if (currentRowShape === null) currentRowShape = lastShape;
+
+        // 状態の更新
+        if (currentRowCatalogNos.length > 0) lastCatalogNos = [...currentRowCatalogNos];
+        if (currentRowWeight > 0) lastWeight = currentRowWeight;
+        if (currentRowShape !== null) lastShape = currentRowShape;
+
+        if (currentRowCatalogNos.length > 0 && minQuantity > 0) {
           const colorPrices: { [key: number]: SPMasterPrice } = {};
           
-          // 客層区分ごとの列オフセットを特定（売の隣が準D, その次がDと仮定、または見つかったインデックスを使用）
-          const junDIdx = priceHeaders.find(h => h.type === 'junD' && h.idx > sellIdx)?.idx || (sellIdx + 8); // 暫定オフセット
-          const dIdx = priceHeaders.find(h => h.type === 'd' && h.idx > sellIdx)?.idx || (sellIdx + 16); // 暫定オフセット
+          // 準D, Dの列を特定
+          const junDHeader = priceHeaders.find(h => h.type === 'junD' && h.row === uru.row && h.col > sellIdx && h.col < sellIdx + 12);
+          const dHeader = priceHeaders.find(h => h.type === 'd' && h.row === uru.row && h.col > sellIdx && h.col < sellIdx + 20);
+          
+          const junDOffset = junDHeader ? junDHeader.col - sellIdx : 0;
+          const dOffset = dHeader ? dHeader.col - sellIdx : 0;
 
           for (let c = 1; c <= 7; c++) {
-            const uruPrice = parseFloat(String(row[sellIdx + c]));
+            const priceVal = row[sellIdx + c];
+            const uruPrice = parseFloat(String(priceVal));
             if (!isNaN(uruPrice) && uruPrice > 0) {
-              // 準D, Dの列が特定できていればそこから取得、なければ売と同じにする
-              const junDPrice = parseFloat(String(row[junDIdx + c])) || uruPrice;
-              const dPrice = parseFloat(String(row[dIdx + c])) || uruPrice;
+              const junDPrice = (junDOffset > 0) ? parseFloat(String(row[sellIdx + junDOffset + c])) || uruPrice : uruPrice;
+              const dPrice = (dOffset > 0) ? parseFloat(String(row[sellIdx + dOffset + c])) || uruPrice : uruPrice;
               colorPrices[c] = { uru: uruPrice, junD: junDPrice, d: dPrice };
             }
           }
 
-          results.push({
-            catalogNos: [...currentCatalogNos],
-            weight: currentWeight,
-            shape,
-            minQuantity,
-            colorPrices,
-            materialHint
-          });
+          if (Object.keys(colorPrices).length > 0) {
+            results.push({
+              catalogNos: currentRowCatalogNos,
+              weight: currentRowWeight,
+              shape: currentRowShape || 'R',
+              minQuantity,
+              colorPrices,
+              materialHint
+            });
+          }
         }
       }
     }
@@ -118,14 +173,15 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
   return results;
 };
 
-const parseReadymadeMaster = (rows: any[]): ReadymadeMasterRow[] => {
+const parseReadymadeMaster = (rows: unknown[]): ReadymadeMasterRow[] => {
   const results: ReadymadeMasterRow[] = [];
-  const header = rows[0] || [];
-  const getIdx = (keywords: string[]) => header.findIndex((c: any) => keywords.some(k => String(c).includes(k)));
+  const header = (Array.isArray(rows[0]) ? rows[0] : []) as unknown[];
+  const getIdx = (keywords: string[]) => header.findIndex((c: unknown) => keywords.some(k => String(c).includes(k)));
   const idx = { code: getIdx(['SP@', 'PP@m', 'ABS']), minQty: getIdx(['個数', '最小数量', '数量', '枚数']), uru: getIdx(['売単価', 'うる', '通常', '標準']), junD: getIdx(['準Ｄ', '準D']), d: getIdx(['Ｄ単価', 'D単価', 'バラ', 'D']) };
   if (idx.code === -1) return [];
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
+    if (!Array.isArray(row)) continue;
     const code = String(row[idx.code] || '').trim();
     if (!code) continue;
     const minQty = parseInt(String(row[idx.minQty] || '0')) || 0;
@@ -138,10 +194,10 @@ const parseReadymadeMaster = (rows: any[]): ReadymadeMasterRow[] => {
   return results;
 };
 
-const parsePriceMatrix = (rows: any[]): CustomPriceMatrixRow[] => {
+const parsePriceMatrix = (rows: unknown[]): CustomPriceMatrixRow[] => {
   const matrix: CustomPriceMatrixRow[] = [];
   for (const row of rows) {
-    if (row.length < 5) continue;
+    if (!Array.isArray(row) || row.length < 5) continue;
     const materialName = String(row[0] || '').trim();
     const weight = parseFloat(String(row[1]));
     if (!materialName || isNaN(weight)) continue;
@@ -155,8 +211,8 @@ const parsePriceMatrix = (rows: any[]): CustomPriceMatrixRow[] => {
   return matrix;
 };
 
-const mapRowArrayToOrderRecord = (row: any[], header: any[]): OrderRecord => {
-  const getIdx = (keywords: string[]) => header.findIndex((c: any) => keywords.some(k => String(c).includes(k)));
+const mapRowArrayToOrderRecord = (row: unknown[], header: unknown[]): OrderRecord => {
+  const getIdx = (keywords: string[]) => header.findIndex((c: unknown) => keywords.some(k => String(c).includes(k)));
   const idxMap = {
     orderNumber: getIdx(['受注№', '受注番号']),
     category: getIdx(['種別']),
@@ -182,7 +238,7 @@ const mapRowArrayToOrderRecord = (row: any[], header: any[]): OrderRecord => {
     title: getIdx(['タイトル'])
   };
 
-  const val = (idx: number) => (idx !== -1 ? row[idx] : '');
+  const val = (idx: number) => (idx !== -1 && Array.isArray(row) ? row[idx] : '');
   const num = (idx: number) => {
     const v = val(idx);
     return v === '' ? 0 : Number(String(v).replace(/[^\d.]/g, '')) || 0;

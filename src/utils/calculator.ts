@@ -9,6 +9,7 @@ import {
   ReadymadeSegment,
   SPMasterRow
 } from '../types';
+import { decodeSPProductCode } from './stringUtils';
 
 /**
  * 全オーダーレコードに対してシミュレーション結果を計算する
@@ -63,53 +64,89 @@ export const calculateNewPrices = (
       } else if (isSP) {
         let spMatched = false;
         if (categorizedMasters.sp && categorizedMasters.sp.length > 0) {
+          const decoded = decodeSPProductCode(order.productCode);
+          
           const baseMatches = (categorizedMasters.sp as SPMasterRow[]).filter(m => {
-            const weightMatch = Math.abs(Number(m.weight) - Number(order.weight)) < 0.1;
-            const orderShape = String(order.shape || '').toUpperCase();
-            const mShape = String(m.shape || '').toUpperCase();
-            const shapeMatch = mShape === 'R' ? orderShape.includes('R') : orderShape.includes(mShape);
-            
+            // 材質チェック
             let materialMatch = true;
             if (m.materialHint && order.materialName) {
               let normM = normalize(order.materialName).replace(/[【】]/g, '');
               // ユーザー指示：「ポリ透明はポリです。コンビポリやSFポリとは異なります」
-              // 部分一致だとSFポリもポリに合致してしまうため、完全一致に変更し、特定の表記ゆれを吸収する
-              if (normM === 'ポリ透明') {
-                normM = 'ポリ';
+              if (normM === 'ポリ透明') normM = 'ポリ';
+              
+              // マスター側のヒントから "SP" プレフィックスを除去し、区切り文字で分割
+              const normH = normalize(m.materialHint).replace(/[【】]/g, '').replace(/^(SP|ＳＰ)/, '');
+              const hints = normH.split(/[・/／\r\n]+/).map(h => h.trim()).filter(Boolean);
+              
+              // 完全一致、または「ポリ」等の基本名称が一致するかを確認
+              materialMatch = hints.length === 0 || hints.some(h => {
+                if (normM === h) return true;
+                // 特定の材質（ポリ、ラミ等）については、部分一致を許容しつつ混同を避ける
+                if (normM === 'ポリ' && h === 'ポリ') return true;
+                if (normM === 'ポリポリ' && h === 'ポリポリ') return true;
+                return false;
+              });
+
+              // 特別ルール：ヒントが複数の材質を含む場合（例：14_SPNEWマットポリ・マットポリ・コンビポリ）
+              if (!materialMatch && hints.length > 1) {
+                materialMatch = hints.includes(normM);
               }
-              const normH = normalize(m.materialHint).replace(/[【】]/g, '');
-              materialMatch = (normM === normH);
             }
-            return weightMatch && shapeMatch && materialMatch;
+            if (!materialMatch) return false;
+
+            // 重量と形状のチェック
+            const targetWeight = decoded ? decoded.weight : Number(order.weight);
+            const targetShape = decoded ? decoded.shape : (String(order.shape || '').toUpperCase().includes('R') ? 'R' : '単袋');
+            
+            const weightMatch = Math.abs(Number(m.weight) - targetWeight) < 0.1;
+            const shapeMatch = m.shape === targetShape;
+            
+            return weightMatch && shapeMatch;
           });
 
-          // 1段階目：商品コードが一致するものを優先して探す
-          const orderCode = normalize(order.productCode || order.absCode);
-          let matches = baseMatches.filter(m => {
-            return m.catalogNos.some(no => {
-              const normNo = normalize(no);
-              return orderCode.includes(normNo) || normNo.includes(orderCode);
+          // 1段階目：商品コード/カタログ番号が一致するものを優先して探す
+          let matches: SPMasterRow[] = [];
+          if (decoded) {
+            matches = baseMatches.filter(m => m.catalogNos.includes(decoded.catalogNo));
+          }
+          
+          if (matches.length === 0) {
+            const orderCode = normalize(order.productCode || order.absCode);
+            matches = baseMatches.filter(m => {
+              return m.catalogNos.some(no => {
+                const normNo = normalize(no);
+                return orderCode.includes(normNo) || normNo.includes(orderCode);
+              });
             });
-          });
+          }
 
           // 2段階目：コード一致が見つからず、かつ重量が5kg以上（10kなど）の場合は、コード一致を無視してフォールバック
           if (matches.length === 0 && Number(order.weight) >= 5) {
             matches = baseMatches.filter(m => m.catalogNos.some(no => no.toUpperCase().includes('K') || Number.isNaN(Number(normalize(no)))));
-            // マスター側に「△10K」などの表記がある汎用行を優先的に拾う
             if (matches.length === 0) {
                matches = baseMatches;
             }
           }
+
           const matched = matches.filter(m => order.quantity >= m.minQuantity).sort((a, b) => b.minQuantity - a.minQuantity)[0];
           if (matched) {
             const segment = readymadePrefs?.segment || 'uru';
             const colorCount = order.totalColorCount || (order.frontColorCount + order.backColorCount);
+            
             const priceObj = matched.colorPrices[colorCount];
             if (priceObj) {
               const price = priceObj[segment];
-              if (price > 0) { newPrice = price; spMatched = true; }
+              if (price > 0) { 
+                newPrice = price; 
+                spMatched = true; 
+              }
             }
           }
+        }
+        
+        // マスターに一致しなかった場合はカスタム値上げを適用
+        if (!spMatched) {
+          newPrice = calculateCustomIncrease(order.currentPrice, conditions);
         }
       } else if (isSticker) {
         const masterPrice = findPriceFromMatrix(order, categorizedMasters.sticker as CustomPriceMatrixRow[]);
@@ -118,6 +155,9 @@ export const calculateNewPrices = (
         } else {
           const mappedPrice = findPriceFromMatrix(order, priceMatrix);
           if (mappedPrice !== null) { newPrice = mappedPrice; }
+          else {
+            newPrice = calculateCustomIncrease(order.currentPrice, conditions);
+          }
         }
       } else if (isReady) {
         const masterTable = categorizedMasters.readymade;
@@ -148,7 +188,6 @@ export const calculateNewPrices = (
     // 商品名のクリーンアップ (特にSP)
     let displayProductName = order.productName;
     if (isSP && order.title) {
-      // 日付、重量(5k, 5kg, 1.4K等)、材質(ﾎﾟﾘﾎﾟﾘ, SFﾎﾟﾘ等)を除去
       displayProductName = order.title
         .replace(/^\d{4}-\d{2}-\d{2}\s*/, '') // 日付
         .replace(/^[^\s]*\s*/, '') // 行頭の管理記号等
@@ -201,7 +240,6 @@ const findPriceFromMatrix = (order: OrderRecord, matrix: CustomPriceMatrixRow[])
   const norm = (s: string) => s.replace(/[【】]/g, '').trim();
   const oMat = norm(order.materialName);
   
-  // 材質名と重量で検索 (前方一致を許容)
   const row = matrix.find(r => {
     const rMat = norm(r.materialName);
     const matMatch = oMat.startsWith(rMat) || rMat.startsWith(oMat);
@@ -211,12 +249,10 @@ const findPriceFromMatrix = (order: OrderRecord, matrix: CustomPriceMatrixRow[])
   
   if (!row) return null;
 
-  // 指定の色数で検索
   if (row.colorPrices[order.totalColorCount] !== undefined) {
     return row.colorPrices[order.totalColorCount];
   }
 
-  // 見つからない場合、ポリ系の特定ロジック(色数-1)を試行
   if (oMat.includes('ポリ') && !oMat.includes('SF')) {
     const offsetPrice = row.colorPrices[order.totalColorCount - 1];
     if (offsetPrice !== undefined) return offsetPrice;

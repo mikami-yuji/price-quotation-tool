@@ -166,4 +166,83 @@ describe('Calculator Logic (Multilevel Precedence)', () => {
       expect(results[1].newPrice).toBe(40);
     });
   });
+
+  describe('SPマスターマッチングの検証', () => {
+    const spOrders: OrderRecord[] = [
+      { 
+        orderNumber: 'SP1', 
+        category: 'SP', 
+        productCode: '008100501', // カタログ810, 重量5kg, 形状01(単袋)
+        quantity: 1000, 
+        currentPrice: 100, 
+        productName: 'SP 810', 
+        materialName: 'ポリ', 
+        weight: 5,
+        totalColorCount: 1,
+        shape: '単袋',
+        printingCost: 0, salesGroup: 80, printingSalesGroup: 0, printCode: '', frontColorCount: 1, backColorCount: 0, janCode: '', directDeliveryCode: '', directDeliveryName: '', lastOrderDate: '' 
+      },
+      { 
+        orderNumber: 'SP2', 
+        category: 'SP', 
+        productCode: '008100202', // カタログ810, 重量2kg, 形状02(R)
+        quantity: 1000, 
+        currentPrice: 100, 
+        productName: 'SP 810 R', 
+        materialName: 'ポリ', 
+        weight: 2,
+        totalColorCount: 2,
+        shape: 'R',
+        printingCost: 0, salesGroup: 80, printingSalesGroup: 0, printCode: '', frontColorCount: 2, backColorCount: 0, janCode: '', directDeliveryCode: '', directDeliveryName: '', lastOrderDate: '' 
+      },
+    ];
+
+    const spMaster = [
+      {
+        catalogNos: ['810'],
+        weight: 5,
+        shape: '単袋' as const,
+        minQuantity: 500,
+        colorPrices: {
+          1: { uru: 120, junD: 110, d: 100 },
+          2: { uru: 140, junD: 130, d: 120 }
+        },
+        materialHint: 'ポリ'
+      },
+      {
+        catalogNos: ['810'],
+        weight: 2,
+        shape: 'R' as const,
+        minQuantity: 500,
+        colorPrices: {
+          1: { uru: 110, junD: 100, d: 90 },
+          2: { uru: 130, junD: 120, d: 110 }
+        },
+        materialHint: 'ポリ'
+      }
+    ];
+
+    it('商品コードデコードに基づく正確なマッチングが行われること', () => {
+      const results = calculateNewPrices(spOrders, [], defaultConditions, {}, {}, {
+        custom: [], sp: spMaster, sticker: [], readymade: []
+      }, { type: 'normal', segment: 'uru' });
+
+      // SP1: カタログ810, 5kg, 単袋, 1色 -> 120
+      expect(results[0].newPrice).toBe(120);
+      
+      // SP2: カタログ810, 2kg, R, 2色 -> 130
+      expect(results[1].newPrice).toBe(130);
+    });
+
+    it('材質が一致しない場合はマッチしないこと', () => {
+      const mismatchedOrders = [{ ...spOrders[0], materialName: 'SFポリ' }];
+      const results = calculateNewPrices(mismatchedOrders, [], defaultConditions, {}, {}, {
+        custom: [], sp: spMaster, sticker: [], readymade: []
+      });
+      // 一致しないのでデフォルトの10%アップ: 100 * 1.1 = 110
+      // ただし、現在コード一致ロジックは材質チェックの「外」にあるか確認が必要
+      // 実装では baseMatches (材質チェックあり) をフィルタリングしているので、110になるはず
+      expect(results[0].newPrice).toBe(110);
+    });
+  });
 });

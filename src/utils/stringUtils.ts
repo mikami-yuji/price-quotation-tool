@@ -1,3 +1,5 @@
+import { DecodedProductCode } from '../types';
+
 /**
  * SP・シルク等の長い商品名（タイトル）から管理用コードや技術スペックを除去し、
  * ブランド核心部のみを抽出して短縮するユーティリティ
@@ -30,4 +32,32 @@ export const normalizeCustomerName = (name: string): string => {
   if (!name) return '';
   // (株), （株）, (㈱), （㈱）を「株式会社」に置換
   return name.replace(/[(\uFF08][\u682A\u3231][)\uFF09]/g, '株式会社');
+};
+
+/**
+ * SPの商品コード（9桁）をデコードする
+ * 例: 008100501 -> 00810(カタログNo 810), 05(5kg), 01(単袋)
+ * 末尾 01=単袋, 02/03=R
+ */
+export const decodeSPProductCode = (code: string): DecodedProductCode | null => {
+  if (!code) return null;
+  // 空白を除去
+  const cleanCode = code.replace(/\s+/g, '');
+  if (cleanCode.length !== 9 || !/^\d+$/.test(cleanCode)) return null;
+
+  const catalogNo = parseInt(cleanCode.substring(0, 5), 10).toString();
+  const weight = parseInt(cleanCode.substring(5, 7), 10);
+  const shapeCode = cleanCode.substring(7, 9);
+
+  let shape: 'R' | '単袋' = 'R';
+  if (shapeCode === '01') {
+    shape = '単袋';
+  } else if (shapeCode === '02' || shapeCode === '03') {
+    shape = 'R';
+  } else {
+    // 01以外は基本Rとするが、将来的に他のコードがあればここに追加
+    shape = 'R';
+  }
+
+  return { catalogNo, weight, shape };
 };

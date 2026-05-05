@@ -132,3 +132,9 @@ export type IndividualManualSetting = {
     thickness?: string;
   };
 };
+
+export type DecodedProductCode = {
+  catalogNo: string;
+  weight: number;
+  shape: 'R' | '単袋';
+};
