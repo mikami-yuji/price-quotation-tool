@@ -147,7 +147,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
             if (w > 0 && w <= 30) currentRowWeight = w;
           }
 
-          const qMatch = val.match(/^(\d+)\s*(ｍ|m|枚)?(～|~)?$/);
+          const qMatch = val.match(/(?:約|以上)?\s*(\d+)\s*(ｍ|m|枚)?(～|~)?$/);
           if (qMatch && !val.includes('k')) {
             const q = parseInt(qMatch[1]);
             if (q >= 10) minQuantity = q;

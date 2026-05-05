@@ -89,64 +89,74 @@ export const calculateNewPrices = (
               if (!m.materialHint || !order.materialName) return false;
               
               const targetNorm = normMat(order.materialName);
-              // シート名からインデックス番号（例: "10_SP"）を除去
               const normH = m.materialHint.replace(/^([0-9]{1,2}_)?(SP|ＳＰ|SPNEW|ＳＰＮＥＷ)/, '');
               const hints = normH.split(/[・/／\r\n]+/).map(h => h.trim()).filter(Boolean);
               
               const materialMatch = hints.length === 0 || hints.some(h => {
                 const hintNorm = normMat(h);
-                // 基本的な包含関係のチェック
-                if (hintNorm.includes(targetNorm) || targetNorm.includes(hintNorm)) {
-                   // 「ポリ」の場合のみ、コンビポリやSFポリとの混同を防ぐ
-                   if (targetNorm.includes('ポリ') || hintNorm.includes('ポリ')) {
-                     const isCombi = (s: string) => s.includes('コンビ');
-                     const isSF = (s: string) => s.includes('SF') || s.includes('ＳＦ');
-                     if (isCombi(targetNorm) !== isCombi(hintNorm)) return false;
-                     if (isSF(targetNorm) !== isSF(hintNorm)) return false;
-                   }
-                   return true;
+                const tNorm = normMat(order.materialName);
+                
+                // 完全一致
+                if (hintNorm === tNorm) return true;
+                
+                // 特定のキーワードが含まれているかどうかの不一致があれば除外
+                const keywords = ['マット', 'SF', 'ＳＦ', 'コンビ', 'バイオマス', '乳白', '和紙', 'クラフト', 'ラミ', '真空', 'ソフクラ', '透明'];
+                for (const k of keywords) {
+                  if (hintNorm.includes(k) !== tNorm.includes(k)) return false;
                 }
-                return false;
+                
+                return hintNorm.includes(tNorm) || tNorm.includes(hintNorm);
               });
+              
+              return materialMatch;
+            });
 
-              if (!materialMatch) return false;
-
-            // 重量と形状のチェック
+            // 候補をスコアリングして最適なものを選ぶ
             const targetWeight = decoded ? decoded.weight : Number(order.weight);
             const targetShape = decoded ? decoded.shape : (String(order.shape || '').toUpperCase().includes('R') ? 'R' : '単袋');
-            
-            const weightMatch = Math.abs(Number(m.weight) - targetWeight) < 0.1;
-            const shapeMatch = m.shape === targetShape;
-            
-            return weightMatch && shapeMatch;
-          });
-
-          // 1段階目：商品コード/カタログ番号が一致するものを優先して探す
-          let matches: SPMasterRow[] = [];
-          if (decoded) {
-            matches = baseMatches.filter(m => m.catalogNos.includes(decoded.catalogNo));
-          }
-          
-          if (matches.length === 0) {
             const orderCode = normalize(order.productCode || order.absCode);
-            matches = baseMatches.filter(m => {
-              return m.catalogNos.some(no => {
+
+            let candidates = baseMatches.map(m => {
+              let score = 0;
+              
+              // 1. コード一致 (最優先)
+              const hasCode = m.catalogNos.some(no => {
                 const normNo = normalize(no);
-                return orderCode.includes(normNo) || normNo.includes(orderCode);
+                return orderCode.includes(normNo) || (normNo.length >= 3 && orderCode.startsWith(normNo));
               });
+              if (hasCode) score += 1000;
+              
+              // 2. 重量一致
+              const weightDiff = Math.abs(Number(m.weight) - targetWeight);
+              if (weightDiff < 0.1) score += 100;
+              else if (weightDiff < 2.1) score += 50;
+              
+              // 3. 形状一致
+              if (m.shape === targetShape) score += 10;
+              
+              // 4. 数量の適合性
+              if (order.quantity >= m.minQuantity) score += 1;
+
+              return { m, score, weightDiff };
             });
-          }
 
-          // 2段階目：コード一致が見つからず、かつ重量が5kg以上（10kなど）の場合は、コード一致を無視してフォールバック
-          if (matches.length === 0 && Number(order.weight) >= 5) {
-            matches = baseMatches.filter(m => m.catalogNos.some(no => no.toUpperCase().includes('K') || Number.isNaN(Number(normalize(no)))));
-            if (matches.length === 0) {
-               matches = baseMatches;
+            // スコアの高い順にソート。スコアが同じなら重量差が小さい順
+            candidates.sort((a, b) => {
+              if (b.score !== a.score) return b.score - a.score;
+              return a.weightDiff - b.weightDiff;
+            });
+
+            // 最もスコアが高いもの、かつ最低限コードか重量が一致しているもの
+            let matchedEntry = candidates[0];
+            
+            // もしコード一致がない場合、かつ重量も全然違う場合は、10kなどのフォールバックを試みる
+            if (matchedEntry && matchedEntry.score < 100 && targetWeight >= 5) {
+               const fallback = candidates.find(c => c.m.catalogNos.some(no => no.toUpperCase().includes('K')));
+               if (fallback) matchedEntry = fallback;
             }
-          }
 
-          const matched = matches.filter(m => order.quantity >= m.minQuantity).sort((a, b) => b.minQuantity - a.minQuantity)[0];
-          if (matched) {
+            const matched = matchedEntry ? matchedEntry.m : null;
+            if (matched) {
             const segment = readymadePrefs?.segment || 'uru';
             const colorCount = order.totalColorCount || (order.frontColorCount + order.backColorCount);
             
