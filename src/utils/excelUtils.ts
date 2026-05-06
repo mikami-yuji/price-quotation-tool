@@ -261,8 +261,6 @@ const mapRowArrayToOrderRecord = (row: unknown[], header: unknown[]): OrderRecor
     backColorCount: getIdx(['裏色数']),
     totalColorCount: getIdx(['色数', '総色数']),
     printingCost: getIdx(['印刷代']),
-    janCode: getIdx(['JAN']),
-    directDeliveryName: getIdx(['直送先'])
     printingSalesGroup: getIdx(['印刷営G']),
     janCode: getIdx(['JAN']),
     directDeliveryCode: getIdx(['直送先コード', '直送先CD']),
