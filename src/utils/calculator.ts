@@ -148,9 +148,14 @@ export const calculateNewPrices = (
             const hasCode = m.catalogNos.some(no => {
               const normNo = normalize(no);
               if (normNo.length <= 2) return false;
-              return orderCode === normNo || orderCode.startsWith(normNo) || (normNo.length >= 4 && orderCode.includes(normNo));
+              // 完全一致または前方一致を高く評価
+              return orderCode === normNo || orderCode.startsWith(normNo);
             });
-            if (hasCode) score += 2000;
+            if (hasCode) score += 3000;
+            
+            // 部分一致も一応考慮
+            const partialCode = m.catalogNos.some(no => normalize(no).length >= 4 && orderCode.includes(normalize(no)));
+            if (partialCode && !hasCode) score += 500;
 
             // 材質のキーワード一致ボーナス
             const hintNorm = normMat(m.materialHint || '');

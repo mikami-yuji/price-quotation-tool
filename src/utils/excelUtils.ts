@@ -98,6 +98,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
 
       for (let c = 0; c < row.length; c++) {
         const raw = String(row[c] || '').trim();
+        const isHeaderLabel = (s: string) => /ロット|数量|最小|以上|以下|GP|利益|原価|理想|コスト|サイズ|形状|材質|品名|商品|コード|No|重量|kg|色|枚|m|~|～/.test(s);
         const type = getSPRowType(raw);
         if (type) { continue; }
 
@@ -113,22 +114,22 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
           }
         });
 
-        // 重量を抽出
-        const wMatch = val.match(/^(\d+(?:\.\d+)?)\s*k?$/i);
+        // 重量
+        const wMatch = val.match(/^(\d+(\.\d+)?)k/i);
         const w = wMatch ? parseFloat(wMatch[1]) : 0;
 
-        // 商品名（材質ヒント）を抽出
-        const m = raw.match(/【(.*?)】/);
-        const isColumnUTitle = c === 20 && raw.length > 2;
+        // 材質ヒント
+        const isColumnUTitle = r <= catalogLabelRow + 2 && c >= 15; 
+        const m = val.match(/【(.+?)】/);
         const mat = m ? m[0] : (isColumnUTitle ? raw : '');
 
-        if (cats.length > 0 || w > 0 || mat) {
+        if (isHeaderLabel(raw) || cats.length > 0 || w > 0 || mat) {
           rowHeaderInfo.push({
             catalogNos: cats,
             weight: w,
             shape: val.includes('単袋') ? '単袋' : 'R',
-            minQty: (val.match(/(\d+)m/) || val.match(/(\d+)枚/)) ? parseInt((val.match(/(\d+)/) || ['0','0'])[1]) : 0,
-            lotType: val.includes('以上') ? 'above' : 'below',
+            minQty: (val.match(/(\d+)/) ? parseInt(val.match(/(\d+)/)![1]) : 0),
+            lotType: val.includes('以上') || val.includes('~') || val.includes('～') ? 'above' : 'below',
             unit: val.includes('枚') ? 'pcs' : 'm',
             materialHint: mat,
             col: c
@@ -177,19 +178,23 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
             }
           });
 
-          // タイプを特定
+          // タイプを特定（最も近いものを探す）
           let detectedType: 'uru' | 'junD' | 'd' | null = null;
+          let minLabelDist = 999;
+
           for (let dr = 0; dr <= 15; dr++) {
             if (r - dr < 0) break;
-            detectedType = getSPRowType(String(rows[r - dr][c] || '').trim());
-            if (detectedType) break;
+            const t = getSPRowType(String(rows[r - dr][c] || '').trim());
+            if (t) { detectedType = t; minLabelDist = dr; break; }
           }
-          // 縦に見つからなければ、同じ行の左側を探す（売 | 純 | D の並びに対応）
-          if (!detectedType) {
-            for (let dc = 1; dc <= 3; dc++) {
-              if (c - dc < 0) break;
-              detectedType = getSPRowType(String(row[c - dc] || '').trim());
-              if (detectedType) break;
+          // 縦に見つからなければ、同じ行の左側を探す
+          for (let dc = 1; dc <= 3; dc++) {
+            if (c - dc < 0) break;
+            const t = getSPRowType(String(row[c - dc] || '').trim());
+            if (t && dc < minLabelDist) {
+              detectedType = t;
+              minLabelDist = dc;
+              break;
             }
           }
 
