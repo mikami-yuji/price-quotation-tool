@@ -56,9 +56,9 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
     const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
     if (rows.length === 0) continue;
 
-    let sheetGlobalCatalogNos: string[] = [];
-    let sheetWeight = 0;
-    let globalLastShape: 'R' | '単袋' = 'R';
+    const sheetGlobalCatalogNos: string[] = [];
+    const sheetWeight = 0;
+    const globalLastShape: 'R' | '単袋' = 'R';
 
     // 1. 各行をスキャンして「カタログ」ラベルが含まれるヘッダー行を特定（ブロックの開始）
     const headerRows = rows.map((row, i) => {
@@ -106,7 +106,15 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
     
     diagnostics.push(`${sheetName}: 構造ヘッダ ${structuralHeaders.length}件 (${structuralHeaders.map(h => h.rowIdx).join(',')})`);
 
-    const stateByCol: { [col: number]: any } = {};
+    type ColumnState = {
+      lastCatalogNos: string[];
+      lastWeight: number;
+      lastMinQuantity: number;
+      lastUnit: 'm' | 'pcs';
+      lastShape: 'R' | '単袋' | null;
+      lastRowType: 'uru' | 'junD' | 'd' | null;
+    };
+    const stateByCol: { [col: number]: ColumnState } = {};
 
     for (let sh = 0; sh < structuralHeaders.length; sh++) {
       const header = structuralHeaders[sh];
