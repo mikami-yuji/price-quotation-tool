@@ -58,6 +58,7 @@ export const calculateNewPrices = (
     }
 
     let isManualPrice = false;
+    let spMatched = false; // SPマスター価格に一致したかのフラグ
     if (individual?.price !== undefined && individual.price !== 0) {
       newPrice = individual.price;
       isManualPrice = true;
@@ -74,7 +75,6 @@ export const calculateNewPrices = (
           newPrice = calculateCustomIncrease(order.currentPrice, conditions);
         }
       } else if (isSP) {
-        let spMatched = false;
         if (categorizedMasters.sp && categorizedMasters.sp.length > 0) {
           const decoded = decodeSPProductCode(order.productCode);
           
@@ -285,7 +285,8 @@ export const calculateNewPrices = (
       productName: displayProductName,
       newPrice, newSalesGroup: resultSalesGroup,
       newPrintingCost, newPrintingSalesGroup, priceDifference,
-      thickness: individual?.thickness
+      thickness: individual?.thickness,
+      spMasterMatched: isSP ? spMatched : undefined
     };
   });
 };

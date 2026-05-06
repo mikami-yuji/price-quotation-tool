@@ -33,6 +33,7 @@ export type OrderRecord = {
   newPrintingSalesGroup?: number;
   priceDifference?: number;
   thickness?: string;
+  spMasterMatched?: boolean; // SPマスター価格に一致したか
 };
 
 // 別注単価表の1行を表すデータ

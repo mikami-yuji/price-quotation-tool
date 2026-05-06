@@ -114,8 +114,17 @@ export default function OrderDataTable({
                 new Date(order.lastOrderDate).getTime() <= new Date(lastIncreaseDate).getTime()
               );
               
+              // SPマスターに未マッチの行を検出
+              const isUnmatched = order.spMasterMatched === false;
+              
+              // 行のCSSクラスを決定
+              const rowClasses = [
+                isInactive ? styles.inactiveRow : '',
+                isUnmatched ? styles.unmatchedRow : ''
+              ].filter(Boolean).join(' ');
+              
               return (
-                <tr key={i} className={isInactive ? styles.inactiveRow : ''}>
+                <tr key={i} className={rowClasses}>
                   <td style={{ fontSize: '0.8rem', opacity: 0.7 }}>{order.category}</td>
                   <td style={{ fontSize: '0.8rem' }}>{order.orderNumber}</td>
                   <td>{order.directDeliveryName}</td>

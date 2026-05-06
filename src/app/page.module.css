@@ -864,6 +864,20 @@
   background: rgba(239, 68, 68, 0.12) !important;
 }
 
+/* SPマスター未マッチ行 */
+.unmatchedRow {
+  background: rgba(245, 158, 11, 0.08) !important;
+  border-left: 3px solid #f59e0b;
+}
+
+.unmatchedRow td {
+  color: #d97706 !important;
+}
+
+.unmatchedRow:hover {
+  background: rgba(245, 158, 11, 0.16) !important;
+}
+
 
 /* Column Filter Styles */
 .filterContainer {
