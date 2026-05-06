@@ -117,6 +117,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
 
     // --- 行スキャン ---
     let sheetRecordCount = 0;
+    let totalTempRows = 0; // デバッグ用カウンタ
     // 列ごとの状態保持（カタログNo、重量、形状）
     const colState: { [col: number]: { catalogNos: string[], weight: number, shape: 'R' | '単袋', minQty: number, lotType: 'above' | 'below', unit: 'm' | 'pcs', materialHint: string, isHeaderCol?: boolean } } = {};
     
@@ -257,6 +258,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
       });
 
       Object.values(tempSPRows).forEach(newRow => {
+        totalTempRows++; // デバッグ用
         const existingIdx = spMaster.findIndex(ex => 
           ex.catalogNos.join(',') === newRow.catalogNos.join(',') &&
           ex.weight === newRow.weight &&
@@ -278,7 +280,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
         }
       });
     }
-    diagnostics.push(`${sheetName}: ${sheetRecordCount}件 (${Object.keys(colState).length}列解析)`);
+    diagnostics.push(`${sheetName}: ${sheetRecordCount}件 (列:${Object.keys(colState).length}/色:${Object.keys(colorLabelMap).length}/カ:${[...catalogColumnSet].join(',')}/T:${totalTempRows})`);
   }
 
   diagnostics.push(`完了 合計: ${spMaster.length}件`);
