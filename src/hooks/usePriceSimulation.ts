@@ -78,13 +78,25 @@ export const usePriceSimulation = () => {
   }, []);
 
   const simulatedOrders = useMemo(() => {
-    return calculateNewPrices(orders, priceMatrix, conditions, manualSettings, individualSettings, {
-      custom: customMaster,
-      sp: spMaster,
-      readymade: readymadeMaster as ReadymadeMasterRow[],
-      sticker: stickerMaster
-    }, { type: readymadePriceType, segment: readymadeSegment });
-  }, [orders, priceMatrix, conditions, manualSettings, individualSettings, customMaster, spMaster, readymadeMaster, stickerMaster, readymadePriceType, readymadeSegment]);
+    return calculateNewPrices(
+      orders, 
+      priceMatrix, 
+      conditions,
+      manualSettings,
+      individualSettings,
+      {
+        custom: customMaster,
+        sp: spMaster,
+        readymade: readymadeMaster as ReadymadeMasterRow[],
+        sticker: stickerMaster
+      },
+      {
+        spPriceIncrease: 10, // 必要に応じて調整
+        readymadePriceIncrease: conditions.customIncreaseType === 'fixed' ? conditions.customIncreaseValue : 0,
+        segment: readymadeSegment,
+      }
+    );
+  }, [orders, priceMatrix, conditions, manualSettings, individualSettings, customMaster, spMaster, readymadeMaster, stickerMaster, readymadeSegment]);
 
   const counts = useMemo(() => ({
     custom: getTabOrders('custom', simulatedOrders).length,
