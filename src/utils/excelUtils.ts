@@ -188,7 +188,8 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
           Object.keys(colorLabelMap).forEach(colStr => {
             const col = parseInt(colStr);
             const dist = c - col;
-            if (dist >= 0 && dist <= 4 && dist < minDist) {
+            // 横に広いレイアウトに対応するため、探索範囲を 8列に拡大
+            if (dist >= 0 && dist <= 8 && dist < minDist) {
               color = colorLabelMap[col];
               minDist = dist;
             }
@@ -208,7 +209,8 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
               const t = getSPRowType(String(rows[r - dr][c] || '').trim());
               if (t) { detectedType = t; minLabelDist = dr; break; }
             }
-            for (let dc = 1; dc <= 3; dc++) {
+            // 横方向の探索範囲を 10列に拡大（01_SPZIP などの広い表に対応）
+            for (let dc = 1; dc <= 10; dc++) {
               if (c - dc < 0) break;
               const t = getSPRowType(String(row[c - dc] || '').trim());
               if (t && dc < minLabelDist) { detectedType = t; minLabelDist = dc; break; }
