@@ -40,35 +40,47 @@ const getSPRowType = (val: string): 'uru' | 'junD' | 'd' | null => {
   return null;
 };
 
-export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
+// 診断情報付きの解析結果
+export type SPParseResult = {
+  data: SPMasterRow[];
+  diagnostics: string[];
+};
+
+export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
   const workbook = XLSX.read(arrayBuffer, { type: 'array' });
   const spMaster: SPMasterRow[] = [];
-  console.log('[SP Parser] シート一覧:', workbook.SheetNames);
+  const diagnostics: string[] = [];
+  diagnostics.push(`シート数: ${workbook.SheetNames.length}`);
+  diagnostics.push(`シート名: ${workbook.SheetNames.join(', ')}`);
   for (const sheetName of workbook.SheetNames) {
     const sheet = workbook.Sheets[sheetName];
     const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
-    if (rows.length === 0) { console.log(`[SP Parser] ${sheetName}: 空シート、スキップ`); continue; }
+    if (rows.length === 0) { diagnostics.push(`${sheetName}: 空`); continue; }
 
     let sheetWeight = 0;
     const sheetWeightMatch = sheetName.match(/(\d+(\.\d+)?)\s*[kK㎏]/);
     if (sheetWeightMatch) sheetWeight = parseFloat(sheetWeightMatch[1]);
 
+    // ヘッダー検出: 「売」を含むセルを探す（includes で柔軟に検出）
     const headerRows: number[] = [];
     for (let r = 0; r < Math.min(rows.length, 1000); r++) {
       const row = rows[r];
       if (Array.isArray(row) && row.some(c => {
         const t = String(c).trim();
-        return t === '売' || t === '売単価' || t === '通常' || t === 'うる';
+        // 「売」を含む（ただし「販売」「売上」は除外）
+        if (t.includes('売') && !t.includes('販売') && !t.includes('売上')) return true;
+        if (t === '通常' || t === 'うる') return true;
+        return false;
       })) {
         headerRows.push(r);
       }
     }
 
     if (headerRows.length === 0) {
-      console.log(`[SP Parser] ${sheetName}: ヘッダー行なし（「売」が見つからない）、スキップ`);
+      diagnostics.push(`${sheetName}: 「売」なし(${rows.length}行)`);
       continue;
     }
-    console.log(`[SP Parser] ${sheetName}: ヘッダー行 ${headerRows.length}件 at rows [${headerRows.join(', ')}]`);
+    diagnostics.push(`${sheetName}: ヘッダ${headerRows.length}件`);
 
     const stateByCol: { [sellIdx: number]: { 
       lastCatalogNos: string[], 
@@ -118,11 +130,10 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
       const priceHeadersInRow: { col: number }[] = [];
       headerRow.forEach((cell, c) => {
         const t = String(cell).trim();
-        if (t === '売' || t === '売単価' || t === '通常' || t === 'うる') {
+        if ((t.includes('売') && !t.includes('販売') && !t.includes('売上')) || t === '通常' || t === 'うる') {
           priceHeadersInRow.push({ col: c });
         }
       });
-      console.log(`[SP Parser] ${sheetName}: row=${headerRowIdx}, 「売」列 ${priceHeadersInRow.length}件 at cols [${priceHeadersInRow.map(h => h.col).join(', ')}]`);
 
       for (const header of priceHeadersInRow) {
         const sellIdx = header.col;
@@ -299,8 +310,10 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
         }
       }
     }
+    diagnostics.push(`${sheetName}: 完了(累計${spMaster.length}件)`);
   }
-  return spMaster;
+  diagnostics.push(`合計: ${spMaster.length}件`);
+  return { data: spMaster, diagnostics };
 };
 
 const parseReadymadeMaster = (rows: unknown[]): ReadymadeMasterRow[] => {

@@ -123,7 +123,8 @@ export const usePriceSimulation = () => {
       console.log(`Master Upload Start - Mode: ${type}, File: ${file.name}`);
 
       // 1. まず SP マスターとして解析を試みる（「売」の文字を探す強力な方式）
-      const spData = parseSPMasterFile(buffer);
+      const spResult = parseSPMasterFile(buffer);
+      const spData = spResult.data;
       
       // もし SP タブが選ばれている、あるいは SP データらしきものが 10 件以上見つかった場合
       if (type === 'sp' || (spData && spData.length > 10)) {
@@ -132,7 +133,7 @@ export const usePriceSimulation = () => {
           alert(`SPマスターを${spData.length}件読み込みました。`);
           return;
         } else if (type === 'sp') {
-          alert('SPマスター形式のデータが見つかりませんでした。Excel内の「売」「準」「Ｄ」という文字を確認してください。');
+          alert(`SPマスター形式のデータが見つかりませんでした。\n\n【診断情報】\n${spResult.diagnostics.join('\n')}`);
           return;
         }
       }
