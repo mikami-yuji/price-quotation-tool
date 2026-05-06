@@ -115,6 +115,10 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
           }
         });
 
+        // 重量を抽出
+        const wMatch = val.match(/^(\d+(?:\.\d+)?)\s*k?$/i);
+        const w = wMatch ? parseFloat(wMatch[1]) : 0;
+
         // 商品名（材質ヒント）を抽出
         const m = raw.match(/【(.*?)】/);
         const isColumnUTitle = c === 20 && raw.length > 2;
