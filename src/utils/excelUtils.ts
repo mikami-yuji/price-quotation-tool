@@ -35,12 +35,10 @@ const getSPRowType = (val: string): 'uru' | 'junD' | 'd' | null => {
   const v = String(val || '').trim();
   if (v.includes('売')) return 'uru';
   if (v.includes('準')) return 'junD';
-  // D判定は厳格に（DHやDHT等の誤検出を防ぐ）
   if (v === 'Ｄ' || v === 'D' || v === 'Ｄ単価' || v === 'D単価') return 'd';
   return null;
 };
 
-// 診断情報付きの解析結果
 export type SPParseResult = {
   data: SPMasterRow[];
   diagnostics: string[];
@@ -50,135 +48,66 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
   const workbook = XLSX.read(arrayBuffer, { type: 'array' });
   const spMaster: SPMasterRow[] = [];
   const diagnostics: string[] = [];
-  diagnostics.push(`シート数: ${workbook.SheetNames.length}`);
+  
   diagnostics.push(`シート名: ${workbook.SheetNames.join(', ')}`);
+
   for (const sheetName of workbook.SheetNames) {
     const sheet = workbook.Sheets[sheetName];
     const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
-    if (rows.length === 0) { diagnostics.push(`${sheetName}: 空`); continue; }
+    if (rows.length === 0) continue;
 
+    let sheetGlobalCatalogNos: string[] = [];
     let sheetWeight = 0;
-    const sheetWeightMatch = sheetName.match(/(\d+(\.\d+)?)\s*[kK㎏]/);
-    if (sheetWeightMatch) sheetWeight = parseFloat(sheetWeightMatch[1]);
+    let globalLastShape: 'R' | '単袋' = 'R';
 
-    // ヘッダー検出: 「売」を含むセルを探す（includes で柔軟に検出）
-    const headerRows: number[] = [];
-    for (let r = 0; r < Math.min(rows.length, 1000); r++) {
-      const row = rows[r];
-      if (Array.isArray(row) && row.some(c => {
-        const t = String(c).trim();
-        // 「売」を含む（ただし「販売」「売上」は除外）
-        if (t.includes('売') && !t.includes('販売') && !t.includes('売上')) return true;
-        if (t === '通常' || t === 'うる') return true;
-        return false;
-      })) {
-        headerRows.push(r);
-      }
-    }
-
-    if (headerRows.length === 0) {
-      diagnostics.push(`${sheetName}: 「売」なし(${rows.length}行)`);
-      continue;
-    }
-    diagnostics.push(`${sheetName}: ヘッダ${headerRows.length}件`);
-
-    const stateByCol: { [sellIdx: number]: { 
-      lastCatalogNos: string[], 
-      lastWeight: number, 
-      lastMinQuantity: number, 
-      lastUnit: 'm' | 'pcs',
-      lastShape: 'R' | '単袋' | null,
-      lastRowType: 'uru' | 'junD' | 'd' | null
-    } } = {};
-
-    let globalLastShape: 'R' | '単袋' | null = null;
-    if (sheetName.includes('単袋') || sheetName.includes('（単）') || /単袋/.test(sheetName)) {
-      globalLastShape = '単袋';
-    } else if (sheetName.includes('ロール') || sheetName.includes('（R）') || /ロール|Ｒ|R/.test(sheetName)) {
-      globalLastShape = 'R';
-    }
-
-    // シート全体の共通カタログ番号をスキャン＋形状検出 (冒頭20行)
-    const sheetGlobalCatalogNos: string[] = [];
-    for (let r = 0; r < Math.min(rows.length, 20); r++) {
-      const row = rows[r];
-      if (!Array.isArray(row)) continue;
-      const rowText = JSON.stringify(row);
-      // 形状検出（シート名で判別できなかった場合）
-      if (!globalLastShape) {
-        if (rowText.includes('単袋') || rowText.includes('（単）')) {
-          globalLastShape = '単袋';
-        } else if (rowText.includes('ロール') || rowText.includes('ロール用')) {
-          globalLastShape = 'R';
-        }
-      }
-      // カタログ番号抽出
-      row.forEach(cell => {
-        const val = String(cell || '').trim();
-        if (!val) return;
-        const matches = val.match(/\d{3,4}/g);
-        if (matches) {
-          matches.forEach(m => {
-            if (!sheetGlobalCatalogNos.includes(m)) sheetGlobalCatalogNos.push(m);
-          });
-        }
+    // 1. 各行をスキャンして「カタログ」ラベルが含まれるヘッダー行を特定（ブロックの開始）
+    const headerRows = rows.map((row, i) => {
+      if (!Array.isArray(row)) return null;
+      const hasBlockMarker = row.some(c => {
+        const val = String(c || '').trim();
+        return val === 'ｶﾀﾛｸﾞ№' || val === 'カタログ№' || 
+               val === 'ｶﾀﾛｸﾞNo' || val === 'カタログNo';
       });
-    }
+      return hasBlockMarker ? i : null;
+    }).filter((idx): idx is number => idx !== null);
 
-    // 構造ヘッダー（「色」ラベルを含む行）とデータ行を分離する
-    // 構造ヘッダー = 「売」を含み、同じ行に「1色」「2色」等のカラムラベルもある行
-    // データ行 = 「売」「準」「D」のラベルと価格データがある行
-    type StructuralHeader = {
-      rowIdx: number;
-      sellColumns: number[];  // 「売」の列位置（複数テーブル対応）
-    };
-    const structuralHeaders: StructuralHeader[] = [];
-    
-    for (const hRowIdx of headerRows) {
-      const hRow = rows[hRowIdx] as unknown[];
-      if (!Array.isArray(hRow)) continue;
+    // 2. 各ヘッダー行に対して、次のヘッダーまでの範囲で「売」が含まれるすべての列（アンカー列）を特定
+    const structuralHeaders: { rowIdx: number; sellColumns: number[] }[] = [];
+    for (let i = 0; i < headerRows.length; i++) {
+      const rowIdx = headerRows[i];
+      const nextH = headerRows[i + 1] || rows.length;
+      const sellColumns = new Set<number>();
       
-      // この行に「色」ラベルがあるか確認
-      const hasColorLabel = hRow.some(c => {
-        const t = String(c || '').trim();
-        return /[１-８1-8]色/.test(t) || t === '１' || t === '１色';
-      });
-      
-      if (hasColorLabel) {
-        // 構造ヘッダー: 列位置を記録
-        const sellCols: number[] = [];
-        hRow.forEach((cell, c) => {
-          const t = String(cell).trim();
-          if ((t.includes('売') && !t.includes('販売') && !t.includes('売上')) || t === '通常' || t === 'うる') {
-            sellCols.push(c);
+      for (let r = rowIdx + 1; r < nextH; r++) {
+        const row = rows[r] as unknown[];
+        if (!Array.isArray(row)) continue;
+        row.forEach((c, idx) => {
+          const val = String(c || '').trim();
+          if (val === '売' || val === '（売）' || val === '売価' || val === '売 価') {
+            sellColumns.add(idx);
           }
         });
-        if (sellCols.length > 0) {
-          structuralHeaders.push({ rowIdx: hRowIdx, sellColumns: sellCols });
-        }
       }
-    }
-    
-    // 構造ヘッダーが見つからない場合、最初のヘッダー行を構造ヘッダーとして扱う
-    if (structuralHeaders.length === 0 && headerRows.length > 0) {
-      const firstRow = rows[headerRows[0]] as unknown[];
-      if (Array.isArray(firstRow)) {
-        const sellCols: number[] = [];
-        firstRow.forEach((cell, c) => {
-          const t = String(cell).trim();
-          if ((t.includes('売') && !t.includes('販売') && !t.includes('売上')) || t === '通常' || t === 'うる') {
-            sellCols.push(c);
+      
+      if (sellColumns.size === 0) {
+        const row = rows[rowIdx] as unknown[];
+        row.forEach((c, idx) => {
+          const val = String(c || '').trim();
+          if (val.includes('売') || val === '単価' || val === '価格') {
+            sellColumns.add(idx);
           }
         });
-        if (sellCols.length > 0) {
-          structuralHeaders.push({ rowIdx: headerRows[0], sellColumns: sellCols });
-        }
+      }
+
+      if (sellColumns.size > 0) {
+        structuralHeaders.push({ rowIdx, sellColumns: Array.from(sellColumns).sort((a, b) => a - b) });
       }
     }
     
-    diagnostics.push(`${sheetName}: 構造ヘッダ${structuralHeaders.length}件`);
-    
-    // 各構造ヘッダーブロックを処理
+    diagnostics.push(`${sheetName}: 構造ヘッダ ${structuralHeaders.length}件 (${structuralHeaders.map(h => h.rowIdx).join(',')})`);
+
+    const stateByCol: { [col: number]: any } = {};
+
     for (let sh = 0; sh < structuralHeaders.length; sh++) {
       const header = structuralHeaders[sh];
       const nextHeader = structuralHeaders[sh + 1];
@@ -197,21 +126,19 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
         }
         const state = stateByCol[sellIdx];
         
-        // 列オフセット計算（構造ヘッダー行から「色」ラベルを探す）
         const relativeOffsets: { [key: number]: number } = {};
         const nextSellCol = header.sellColumns.find(c => c > sellIdx);
-        const limit = nextSellCol ? nextSellCol : 1000;
+        const limit = nextSellCol ? nextSellCol : rows[header.rowIdx].length;
         
         for (let i = 1; i <= 8; i++) {
           const zenI = String(i).replace(/[0-9]/g, m => String.fromCharCode(m.charCodeAt(0) + 0xFEE0));
           let found = false;
-          // 構造ヘッダー行とその前後でカラムラベルを探す
-          for (let r = Math.max(0, header.rowIdx - 5); r <= Math.min(rows.length - 1, header.rowIdx + 2); r++) {
+          for (let r = Math.max(0, header.rowIdx - 2); r <= Math.min(rows.length - 1, header.rowIdx + 2); r++) {
             const row = rows[r] as unknown[];
             if (!Array.isArray(row)) continue;
             for (let c = sellIdx + 1; c < Math.min(row.length, limit); c++) {
               const val = String(row[c] || '').trim().replace(/[0-9]/g, m => String.fromCharCode(m.charCodeAt(0) + 0xFEE0));
-              if (val.includes(`${zenI}色`) || (i <= 4 && val === zenI)) {
+              if (val.includes(`${zenI}色`) || (i <= 4 && (val === zenI || val === String(i)))) {
                 relativeOffsets[i] = c - sellIdx;
                 found = true;
                 break;
@@ -220,17 +147,12 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
             if (found) break;
           }
           if (!found) {
-            if (i === 1) relativeOffsets[i] = 2;
-            else {
-              const prevOff = relativeOffsets[i - 1] || (i - 1) * 5;
-              let gap = 5;
-              if (i === 2 && (sheetName.includes('SF') || sheetName.includes('ＳＦ'))) gap = 4;
-              relativeOffsets[i] = prevOff + gap;
-            }
+            const prevOff = relativeOffsets[i - 1];
+            if (prevOff !== undefined) relativeOffsets[i] = prevOff + 4;
+            else if (i === 1) relativeOffsets[1] = 2;
           }
         }
         
-        // データ行を処理（構造ヘッダーの次の行から、次の構造ヘッダーまで）
         for (let r = header.rowIdx + 1; r < endRow; r++) {
           const row = rows[r] as unknown[];
           if (!Array.isArray(row)) continue;
@@ -238,7 +160,6 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
           const rawVal = String(row[sellIdx] || '').trim();
           let rowType = getSPRowType(rawVal);
           
-          // ラベル省略時のサイクル推論（直前が明示的に検出された場合のみ）
           if (!rowType && state.lastRowType === 'uru') {
             const hasAnyData = Array.from({ length: 8 }, (_, i) => i + 1).some(i => {
               const off = relativeOffsets[i];
@@ -262,7 +183,6 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
             continue;
           }
           
-          // 行データのスキャン（sellIdx の左側からカタログ番号、重量、数量等を取得）
           const scanStart = Math.max(0, sellIdx - 15);
           const scanEnd = sellIdx;
           
@@ -356,8 +276,8 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
       }
     }
     diagnostics.push(`${sheetName}: 完了(累計${spMaster.length}件)`);
-
   }
+
   diagnostics.push(`合計: ${spMaster.length}件`);
   return { data: spMaster, diagnostics };
 };
@@ -418,13 +338,8 @@ const mapRowArrayToOrderRecord = (row: unknown[], header: unknown[]): OrderRecor
     backColorCount: getIdx(['裏色数']),
     totalColorCount: getIdx(['色数', '総色数']),
     printingCost: getIdx(['印刷代']),
-    printingSalesGroup: getIdx(['印刷営G']),
     janCode: getIdx(['JAN']),
-    directDeliveryCode: getIdx(['直送先コード', '直送先CD']),
-    directDeliveryName: getIdx(['直送先']),
-    lastOrderDate: getIdx(['最終受注日']),
-    designName: getIdx(['デザイン名']),
-    title: getIdx(['タイトル'])
+    directDeliveryName: getIdx(['直送先'])
   };
 
   const val = (idx: number) => (idx !== -1 && Array.isArray(row) ? row[idx] : '');
@@ -452,12 +367,6 @@ const mapRowArrayToOrderRecord = (row: unknown[], header: unknown[]): OrderRecor
     backColorCount: num(idxMap.backColorCount),
     totalColorCount: num(idxMap.totalColorCount),
     printingCost: num(idxMap.printingCost),
-    printingSalesGroup: num(idxMap.printingSalesGroup),
-    janCode: String(val(idxMap.janCode)),
-    directDeliveryCode: String(val(idxMap.directDeliveryCode)),
-    directDeliveryName: String(val(idxMap.directDeliveryName)),
-    lastOrderDate: String(val(idxMap.lastOrderDate)),
-    designName: String(val(idxMap.designName)),
-    title: String(val(idxMap.title))
+    spMasterMatched: false
   };
 };
