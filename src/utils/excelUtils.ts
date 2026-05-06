@@ -33,9 +33,9 @@ export const parseExcelFile = (arrayBuffer: ArrayBuffer): {
 
 const getSPRowType = (val: string): 'uru' | 'junD' | 'd' | null => {
   const v = String(val || '').trim();
-  if (v.includes('売') || v === '通常' || v === 'うる') return 'uru';
-  if (v.includes('準')) return 'junD';
-  if (v === 'Ｄ' || v === 'D' || v === 'Ｄ単価' || v === 'D単価') return 'd';
+  if (v === '売' || v === '通常' || v === 'うる' || v === '（売）' || v === '売価') return 'uru';
+  if (v === '準' || v === '準Ｄ' || v === '準D' || v === '（準）') return 'junD';
+  if (v === 'Ｄ' || v === 'D' || v === 'Ｄ単価' || v === 'D単価' || v === '（Ｄ）') return 'd';
   return null;
 };
 
@@ -62,7 +62,6 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
     const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
     if (rows.length === 0) continue;
 
-    // 1. ブロック開始（カタログ№）の特定
     const blockStartRows = rows.map((row, i) => {
       if (!Array.isArray(row)) return null;
       return row.some(c => {
@@ -71,13 +70,18 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
       }) ? i : null;
     }).filter((idx): idx is number => idx !== null);
 
-    if (blockStartRows.length === 0) continue;
+    if (blockStartRows.length === 0) {
+      // カタログ№がないシートでも、特定条件でパースを試みる（例: 全体重量指定など）
+      diagnostics.push(`${sheetName}: カタログ№なし`);
+      continue;
+    }
+
+    let sheetRecordCount = 0;
 
     for (let b = 0; b < blockStartRows.length; b++) {
       const startRow = blockStartRows[b];
       const endRow = blockStartRows[b + 1] || rows.length;
       
-      // 2. このブロック内の「売/準/D」列と「色」の対応を特定
       const colInfos: ColumnInfo[] = [];
       const searchEndRow = Math.min(startRow + 10, endRow);
       
@@ -88,15 +92,13 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
         row.forEach((cell, c) => {
           const type = getSPRowType(String(cell));
           if (type) {
-            // 色の特定（周囲をスキャン）
             let color = 1;
-            for (let dr = -2; dr <= 2; dr++) {
+            for (let dr = -3; dr <= 3; dr++) {
               const r2 = r + dr;
               if (r2 < startRow || r2 >= endRow) continue;
               const row2 = rows[r2] as unknown[];
               if (!Array.isArray(row2)) continue;
-              // sellIdx から左に 5 列、右に 5 列の範囲で「色」を探す
-              for (let dc = -5; dc <= 5; dc++) {
+              for (let dc = -4; dc <= 4; dc++) {
                 const c2 = c + dc;
                 if (c2 < 0 || c2 >= row2.length) continue;
                 const v = String(row2[c2] || '').trim().replace(/[０-９]/g, m => String.fromCharCode(m.charCodeAt(0) - 0xFEE0));
@@ -111,14 +113,16 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
               }
               if (color > 1) break;
             }
-            colInfos.push({ col: c, type, color });
+            // 同一色・同一タイプの列は、最初に見つかったもの（左側）を優先
+            if (!colInfos.some(info => info.color === color && info.type === type)) {
+              colInfos.push({ col: c, type, color });
+            }
           }
         });
       }
 
       if (colInfos.length === 0) continue;
 
-      // 3. データ行の走査
       let lastCatalogNos: string[] = [];
       let lastWeight = 0;
       let lastShape: 'R' | '単袋' | null = null;
@@ -129,7 +133,6 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
         const row = rows[r] as unknown[];
         if (!Array.isArray(row)) continue;
 
-        // カタログ番号、重量、形状、数量の抽出 ( sellCols より左側を重点的に )
         const currentCatalogNos: string[] = [];
         let currentWeight = 0;
         let currentShape: 'R' | '単袋' | null = null;
@@ -141,18 +144,14 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
           const val = String(row[c] || '').trim().replace(/[０-９]/g, m => String.fromCharCode(m.charCodeAt(0) - 0xFEE0)).replace(/[ｋＫ㎏]/g, 'k');
           if (!val) continue;
 
-          // カタログ番号 (3-4桁)
           val.split(/[\n\s,、]+/).forEach(x => {
             const m = x.replace(/[△▲]/g, '').trim();
             if (/^\d{3,4}$/.test(m)) currentCatalogNos.push(m);
           });
-          // 重量
           const wMatch = val.match(/^(\d+(?:\.\d+)?)\s*k?$/i);
           if (wMatch) currentWeight = parseFloat(wMatch[1]);
-          // 形状
           if (val.includes('単袋')) currentShape = '単袋';
           else if (val.includes('R') || val.includes('ロール')) currentShape = 'R';
-          // 数量
           const qMatch = val.match(/(?:約|以上)?\s*(\d+)\s*(ｍ|m|枚)?(～|~)?$/);
           if (qMatch && !val.includes('k')) {
             currentMinQty = parseInt(qMatch[1]);
@@ -161,17 +160,17 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
           }
         }
 
-        // 価格の抽出
         const currentPrices: { [color: number]: { uru: number; junD: number; d: number } } = {};
         let hasPrice = false;
 
         colInfos.forEach(info => {
           const val = String(row[info.col] || '').trim();
-          const p = parseFloat(val.replace(/[^0-9.]/g, ''));
-          // もしセルの内容が "売" などのラベルそのものならスキップ
           if (getSPRowType(val)) return;
 
-          if (!isNaN(p) && p > 0) {
+          const p = parseFloat(val.replace(/[^0-9.]/g, ''));
+          // 極端に小さい値（例: 印刷代や係数と思われるもの）を価格として採用しないための閾値
+          // ただし単袋などで数円〜十数円のケースがあるため慎重に設定
+          if (!isNaN(p) && p > 0.1) {
             if (!currentPrices[info.color]) currentPrices[info.color] = { uru: 0, junD: 0, d: 0 };
             currentPrices[info.color][info.type] = p;
             hasPrice = true;
@@ -184,19 +183,22 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
           if (currentShape) lastShape = currentShape;
           if (currentMinQty > 0) { lastMinQty = currentMinQty; lastUnit = currentUnit; }
 
-          spMaster.push({
-            catalogNos: [...lastCatalogNos],
-            weight: lastWeight,
-            shape: lastShape || 'R',
-            minQuantity: lastMinQty,
-            unit: lastUnit,
-            colorPrices: currentPrices,
-            materialHint: sheetName
-          });
+          if (lastCatalogNos.length > 0) {
+            spMaster.push({
+              catalogNos: [...lastCatalogNos],
+              weight: lastWeight,
+              shape: lastShape || 'R',
+              minQuantity: lastMinQty,
+              unit: lastUnit,
+              colorPrices: currentPrices,
+              materialHint: sheetName
+            });
+            sheetRecordCount++;
+          }
         }
       }
     }
-    diagnostics.push(`${sheetName}: 解析完了(累計${spMaster.length}件)`);
+    diagnostics.push(`${sheetName}: ${sheetRecordCount}件`);
   }
 
   diagnostics.push(`合計: ${spMaster.length}件`);
