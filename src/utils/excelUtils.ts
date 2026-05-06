@@ -125,19 +125,66 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
       });
     }
 
-    for (const headerRowIdx of headerRows) {
-      const headerRow = rows[headerRowIdx] as unknown[];
-      const priceHeadersInRow: { col: number }[] = [];
-      headerRow.forEach((cell, c) => {
-        const t = String(cell).trim();
-        if ((t.includes('売') && !t.includes('販売') && !t.includes('売上')) || t === '通常' || t === 'うる') {
-          priceHeadersInRow.push({ col: c });
-        }
+    // 構造ヘッダー（「色」ラベルを含む行）とデータ行を分離する
+    // 構造ヘッダー = 「売」を含み、同じ行に「1色」「2色」等のカラムラベルもある行
+    // データ行 = 「売」「準」「D」のラベルと価格データがある行
+    type StructuralHeader = {
+      rowIdx: number;
+      sellColumns: number[];  // 「売」の列位置（複数テーブル対応）
+    };
+    const structuralHeaders: StructuralHeader[] = [];
+    
+    for (const hRowIdx of headerRows) {
+      const hRow = rows[hRowIdx] as unknown[];
+      if (!Array.isArray(hRow)) continue;
+      
+      // この行に「色」ラベルがあるか確認
+      const hasColorLabel = hRow.some(c => {
+        const t = String(c || '').trim();
+        return /[１-８1-8]色/.test(t) || t === '１' || t === '１色';
       });
-
-      for (const header of priceHeadersInRow) {
-        const sellIdx = header.col;
-        
+      
+      if (hasColorLabel) {
+        // 構造ヘッダー: 列位置を記録
+        const sellCols: number[] = [];
+        hRow.forEach((cell, c) => {
+          const t = String(cell).trim();
+          if ((t.includes('売') && !t.includes('販売') && !t.includes('売上')) || t === '通常' || t === 'うる') {
+            sellCols.push(c);
+          }
+        });
+        if (sellCols.length > 0) {
+          structuralHeaders.push({ rowIdx: hRowIdx, sellColumns: sellCols });
+        }
+      }
+    }
+    
+    // 構造ヘッダーが見つからない場合、最初のヘッダー行を構造ヘッダーとして扱う
+    if (structuralHeaders.length === 0 && headerRows.length > 0) {
+      const firstRow = rows[headerRows[0]] as unknown[];
+      if (Array.isArray(firstRow)) {
+        const sellCols: number[] = [];
+        firstRow.forEach((cell, c) => {
+          const t = String(cell).trim();
+          if ((t.includes('売') && !t.includes('販売') && !t.includes('売上')) || t === '通常' || t === 'うる') {
+            sellCols.push(c);
+          }
+        });
+        if (sellCols.length > 0) {
+          structuralHeaders.push({ rowIdx: headerRows[0], sellColumns: sellCols });
+        }
+      }
+    }
+    
+    diagnostics.push(`${sheetName}: 構造ヘッダ${structuralHeaders.length}件`);
+    
+    // 各構造ヘッダーブロックを処理
+    for (let sh = 0; sh < structuralHeaders.length; sh++) {
+      const header = structuralHeaders[sh];
+      const nextHeader = structuralHeaders[sh + 1];
+      const endRow = nextHeader ? nextHeader.rowIdx : rows.length;
+      
+      for (const sellIdx of header.sellColumns) {
         if (!stateByCol[sellIdx]) {
           stateByCol[sellIdx] = {
             lastCatalogNos: [...sheetGlobalCatalogNos],
@@ -149,14 +196,17 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
           };
         }
         const state = stateByCol[sellIdx];
+        
+        // 列オフセット計算（構造ヘッダー行から「色」ラベルを探す）
         const relativeOffsets: { [key: number]: number } = {};
-        const nextHeader = priceHeadersInRow.find(h => h.col > sellIdx);
-        const limit = nextHeader ? nextHeader.col : 1000;
-
+        const nextSellCol = header.sellColumns.find(c => c > sellIdx);
+        const limit = nextSellCol ? nextSellCol : 1000;
+        
         for (let i = 1; i <= 8; i++) {
           const zenI = String(i).replace(/[0-9]/g, m => String.fromCharCode(m.charCodeAt(0) + 0xFEE0));
           let found = false;
-          for (let r = Math.max(0, headerRowIdx - 5); r <= headerRowIdx + 1; r++) {
+          // 構造ヘッダー行とその前後でカラムラベルを探す
+          for (let r = Math.max(0, header.rowIdx - 5); r <= Math.min(rows.length - 1, header.rowIdx + 2); r++) {
             const row = rows[r] as unknown[];
             if (!Array.isArray(row)) continue;
             for (let c = sellIdx + 1; c < Math.min(row.length, limit); c++) {
@@ -179,21 +229,17 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
             }
           }
         }
-
-        for (let r = headerRowIdx; r < rows.length; r++) {
+        
+        // データ行を処理（構造ヘッダーの次の行から、次の構造ヘッダーまで）
+        for (let r = header.rowIdx + 1; r < endRow; r++) {
           const row = rows[r] as unknown[];
           if (!Array.isArray(row)) continue;
-          // 別のヘッダー行に到達したら停止（現在の行は除外）
-          if (r > headerRowIdx && headerRows.includes(r)) break;
-
+          
           const rawVal = String(row[sellIdx] || '').trim();
           let rowType = getSPRowType(rawVal);
           
           // ラベル省略時のサイクル推論（直前が明示的に検出された場合のみ）
-          // uru → junD → d の順でのみ推論する。uru の推論はしない（必ず明示ラベルが必要）
           if (!rowType && state.lastRowType === 'uru') {
-            // 直前が売なので、この行は準（junD）かもしれない
-            // ただし価格列にデータがあるか確認してから確定する
             const hasAnyData = Array.from({ length: 8 }, (_, i) => i + 1).some(i => {
               const off = relativeOffsets[i];
               if (!off) return false;
@@ -211,12 +257,12 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
             if (hasAnyData) rowType = 'd';
           }
           
-          // ラベルもなく推論もできなかった場合はスキップ
           if (!rowType) {
             state.lastRowType = null;
             continue;
           }
           
+          // 行データのスキャン（sellIdx の左側からカタログ番号、重量、数量等を取得）
           const scanStart = Math.max(0, sellIdx - 15);
           const scanEnd = sellIdx;
           
@@ -288,8 +334,6 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
             } else {
               state.lastRowType = null;
             }
-            // デバッグ: 100件ごとに進捗を出力
-            if (spMaster.length % 100 === 0 && spMaster.length > 0) console.log(`[SP Parser] ${sheetName}: ${spMaster.length}件読込中...`);
           } else if (rowType && spMaster.length > 0) {
             const lastEntry = spMaster[spMaster.length - 1];
             const matchCata = (currentRowCatalogNos.length > 0 ? currentRowCatalogNos : state.lastCatalogNos).join(',');
@@ -312,6 +356,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
       }
     }
     diagnostics.push(`${sheetName}: 完了(累計${spMaster.length}件)`);
+
   }
   diagnostics.push(`合計: ${spMaster.length}件`);
   return { data: spMaster, diagnostics };
