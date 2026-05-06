@@ -217,7 +217,8 @@ export const calculateNewPrices = (
       newPrintingCost, 
       newPrintingSalesGroup, 
       priceDifference: Math.round((newPrice - order.currentPrice) * 100) / 100,
-      spMasterMatched: isSP ? spMatched : undefined
+      spMasterMatched: isSP ? spMatched : undefined,
+      matchSource: spMatched ? candidates[0]?.m.materialHint : undefined
     };
   });
 };

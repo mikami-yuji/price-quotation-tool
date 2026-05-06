@@ -125,7 +125,9 @@ export default function OrderDataTable({
               
               return (
                 <tr key={i} className={rowClasses}>
-                  <td style={{ fontSize: '0.8rem', opacity: 0.7 }}>{order.category}</td>
+                  <td style={{ fontSize: '0.8rem', opacity: 0.7 }} title={order.matchSource}>
+                    {order.category}
+                  </td>
                   <td style={{ fontSize: '0.8rem' }}>{order.orderNumber}</td>
                   <td>{order.directDeliveryName}</td>
                   {activeTab !== 'custom' && <td>{order.productCode}</td>}

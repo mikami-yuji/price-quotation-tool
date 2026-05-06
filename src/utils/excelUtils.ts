@@ -191,7 +191,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
               minQuantity: lastMinQty,
               unit: lastUnit,
               colorPrices: currentPrices,
-              materialHint: sheetName
+              materialHint: `${sheetName} (L${r})`
             });
             sheetRecordCount++;
           }

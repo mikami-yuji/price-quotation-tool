@@ -34,6 +34,7 @@ export type OrderRecord = {
   priceDifference?: number;
   thickness?: string;
   spMasterMatched?: boolean; // SPマスター価格に一致したか
+  matchSource?: string; // マスター上の参照元（シート名、行など）
 };
 
 // 別注単価表の1行を表すデータ
