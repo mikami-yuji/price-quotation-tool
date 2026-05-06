@@ -236,7 +236,7 @@ describe('Calculator Logic (Multilevel Precedence)', () => {
     });
 
     it('材質が一致しない場合はマッチしないこと', () => {
-      const mismatchedOrders = [{ ...spOrders[0], materialName: 'SFポリ' }];
+      const mismatchedOrders = [{ ...spOrders[0], materialName: 'バリア' }];
       const results = calculateNewPrices(mismatchedOrders, [], defaultConditions, {}, {}, {
         custom: [], sp: spMaster, sticker: [], readymade: []
       });
