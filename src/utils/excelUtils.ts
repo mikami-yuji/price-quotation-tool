@@ -64,7 +64,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
 
     // ヘッダー行の特定
     let headerRowIdx = -1;
-    let colIdx = {
+    const colIdx = {
       keyword: -1, // 材質キーワード列
       weight: -1,
       qty: -1,
@@ -167,7 +167,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
       // 材質、重量、数量、単位、形状がすべて一致するものを探す
       const currentShape = currentUnit === 'm' ? 'R' : '単袋';
       
-      let existing = spMaster.find(ex => 
+      const existing = spMaster.find(ex => 
         ex.materialHint === finalKeyword && 
         ex.weight === currentWeight && 
         ex.minQuantity === currentQty && 

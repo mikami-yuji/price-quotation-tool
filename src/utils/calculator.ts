@@ -23,7 +23,7 @@ export const calculateNewPrices = (
     const isReadymade = order.category.includes('既製品') || order.category.includes('価格表');
     const isSP = (order.category.includes('SP') || order.category.includes('ＳＰ')) && !order.category.includes('シルク');
 
-    let currentPrice = order.currentPrice;
+    const currentPrice = order.currentPrice;
     let newPrice = 0;
     let masterPrice: number | undefined = undefined;
     let matchMethod: 'code' | 'spec' | 'none' = 'none';
