@@ -10,14 +10,13 @@ export const calculateNewPrices = (
     custom: CustomPriceMatrixRow[];
     sp: SPMasterRow[];
     readymade: ReadymadeMasterRow[];
-    sticker: CustomPriceMatrixRow[];
   },
   options: {
     spPriceIncrease: number;
     readymadePriceIncrease: number;
-    segment?: ReadymadeSegment; // 売/準D/D の選択
+    segment: ReadymadeSegment;
   }
-): SimulationResult[] => {
+): SimulationResult => {
   return orders.map(order => {
     const isCustom = (order.category.includes('別注') || order.category.includes('ポリ別注')) && !order.category.includes('SP');
     const isReadymade = order.category.includes('既製品') || order.category.includes('価格表');
@@ -28,6 +27,7 @@ export const calculateNewPrices = (
     let masterPrice: number | undefined = undefined;
     let matchMethod: 'code' | 'spec' | 'none' = 'none';
     let matchSource = '';
+    let displayProductName = order.productName;
 
     // 1. 個別設定のチェック (最優先)
     const individual = individualSettings[order.orderNumber];
@@ -143,12 +143,37 @@ export const calculateNewPrices = (
           }
         }
       }
-    }
- else if (isReadymade) {
+
+      // SPの商品名を短縮する（仕様部分を削り、商品名だけを残す）
+      const shortenProductName = (name: string): string => {
+        let n = name.normalize('NFKC').trim();
+        
+        // 1. 冒頭の記号を削除
+        n = n.replace(/^[●★☆◆◇■□]+/g, '');
+        
+        // 2. 冒頭の仕様（重量・材質コード）を削除
+        // 2K, 5K, SFMポリDH などを繰り返して消す
+        let prev = '';
+        for (let i = 0; i < 5; i++) {
+          prev = n;
+          n = n.replace(/^[0-9.]+[kK][gG]?[ 　]*/, '');
+          n = n.replace(/^[^ 　]*?(ポリ|ラミ|マット|バイオマス)[^ 　]*[ 　]*/, '');
+          // 形状に関わる【】は消すが、銘柄に関わるものは残す
+          n = n.replace(/^【(単|R|ロール|単袋|枚|仕上)】[ 　]*/, '');
+          if (n === prev) break;
+        }
+
+        // 3. 末尾の記号やデザイン名、SPコードなどをカット
+        // RASP, SP などの文字列以降をざっくりカット
+        n = n.replace(/[ 　]*(RASP|CSP|SP).*$/, '');
+        
+        return n.trim() || name;
+      };
+      displayProductName = shortenProductName(order.productName);
+    } else if (isReadymade) {
       const matched = masters.readymade.find(m => m.absCode === order.absCode);
       if (matched) {
-        // 既製品も区分を考慮 (必要に応じて)
-        masterPrice = matched.normalPrice;
+        masterPrice = matched.normalPrice || 0;
         newPrice = masterPrice + options.readymadePriceIncrease;
         matchMethod = 'code';
         spMasterMatched = true;
@@ -162,7 +187,7 @@ export const calculateNewPrices = (
         const prices = matched.colorPrices;
         masterPrice = prices[color] || prices[1];
         if (masterPrice) {
-          newPrice = masterPrice + (conditions.customIncreaseType === 'fixed' ? conditions.customIncreaseValue : masterPrice * (conditions.customIncreaseValue / 100));
+          newPrice = masterPrice + (conditions.customIncreaseType === 'amount' ? conditions.customIncreaseValue : masterPrice * (conditions.customIncreaseValue / 100));
           matchMethod = 'spec';
           spMasterMatched = true;
         }
@@ -171,16 +196,19 @@ export const calculateNewPrices = (
 
     // 4. マッチしなかった場合のデフォルト計算
     if (matchMethod === 'none') {
-      const increase = isSP ? options.spPriceIncrease : (isReadymade ? options.readymadePriceIncrease : (conditions.customIncreaseType === 'fixed' ? conditions.customIncreaseValue : currentPrice * (conditions.customIncreaseValue / 100)));
+      const increase = isSP ? options.spPriceIncrease : (isReadymade ? options.readymadePriceIncrease : (conditions.customIncreaseType === 'amount' ? conditions.customIncreaseValue : currentPrice * (conditions.customIncreaseValue / 100)));
       newPrice = currentPrice + increase;
     }
 
     return {
       ...order,
+      productName: displayProductName,
+      currentPrice,
       newPrice,
       priceDiff: newPrice - currentPrice,
-      masterPrice,
+      masterPrice: masterPrice || 0,
       matchMethod,
+      matchSource,
       spMasterMatched
     };
   });

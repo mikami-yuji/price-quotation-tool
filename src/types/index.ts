@@ -55,7 +55,11 @@ export type ReadymadeMasterRow = {
   shape?: string;
   campaign: { uru: number; junD: number; d: number };
   normal: { uru: number; junD: number; d: number };
+  normalPrice?: number; // 互換性のための追加
+  productName?: string; // 互換性のための追加
 };
+
+export type SimulationResult = OrderRecord[];
 
 export type SPMasterPrice = {
   uru: number;
