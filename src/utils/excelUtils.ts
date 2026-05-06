@@ -130,7 +130,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
         if (!Array.isArray(row)) continue;
 
         // カタログ番号、重量、形状、数量の抽出 ( sellCols より左側を重点的に )
-        let currentCatalogNos: string[] = [];
+        const currentCatalogNos: string[] = [];
         let currentWeight = 0;
         let currentShape: 'R' | '単袋' | null = null;
         let currentMinQty = 0;
