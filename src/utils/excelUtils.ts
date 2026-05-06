@@ -93,7 +93,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
       const row = rows[r];
       if (!Array.isArray(row)) continue;
       row.forEach((cell, c) => {
-        const v = String(cell || '').trim().replace(/[０-９]/g, m => String.fromCharCode(m.charCodeAt(0) - 0xFEE0));
+        const v = String(cell || '').replace(/\s+/g, '').replace(/[０-９]/g, m => String.fromCharCode(m.charCodeAt(0) - 0xFEE0));
         const m = v.match(/([1-8])色/);
         if (m) colorLabelMap[c] = parseInt(m[1]);
         else if (/^[1-8]$/.test(v)) colorLabelMap[c] = parseInt(v); 
@@ -108,7 +108,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
       const scanRow = rows[scanR];
       if (!Array.isArray(scanRow)) continue;
       scanRow.forEach((cell, c) => {
-        const s = String(cell || '').trim();
+        const s = String(cell || '').replace(/\s+/g, '');
         if (s.includes('カタログ') || s.includes('ｶﾀﾛｸﾞ') || s.includes('品番') || s.includes('№')) {
           for (let dc = -1; dc <= 1; dc++) catalogColumnSet.add(c + dc);
         }
@@ -133,7 +133,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
         const type = getSPRowType(raw);
         if (type) { continue; }
 
-        const val = raw.replace(/[０-９]/g, m => String.fromCharCode(m.charCodeAt(0) - 0xFEE0)).replace(/[ｋＫ㎏]/g, 'k');
+        const val = raw.replace(/\s+/g, '').replace(/[０-９]/g, m => String.fromCharCode(m.charCodeAt(0) - 0xFEE0)).replace(/[ｋＫ㎏]/g, 'k');
         if (!val) continue;
 
         // カタログNo（カタログNo列の近傍でのみ検出 - 単価との誤認を防止）
