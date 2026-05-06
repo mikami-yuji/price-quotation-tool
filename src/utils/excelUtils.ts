@@ -33,8 +33,9 @@ export const parseExcelFile = (arrayBuffer: ArrayBuffer): {
 
 const getSPRowType = (val: string): 'uru' | 'junD' | 'd' | null => {
   const v = String(val || '').trim();
+  if (v.length > 6) return null; 
   if (v.includes('売') || v.includes('通常') || v.includes('うる')) return 'uru';
-  if (v.includes('準')) return 'junD';
+  if (v.includes('準') || v.includes('JUN')) return 'junD';
   if (v.includes('Ｄ') || v.includes('D') || v.includes('バラ')) return 'd';
   return null;
 };
@@ -54,19 +55,22 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
     const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
     if (rows.length === 0) continue;
 
+    if (diagnostics.length < 5) {
+      const sample = rows.slice(0, 5).map(r => Array.isArray(r) ? r.slice(0, 8).join('|') : 'NoArray').join('\n');
+      diagnostics.push(`[${sheetName} 冒頭]\n${sample}`);
+    }
+
     let sheetRecordCount = 0;
     const colorLabelMap: { [col: number]: number } = {};
     
-    // シート全体のカラーラベル位置を特定 (より緩やかに)
-    for (let r = 0; r < Math.min(rows.length, 200); r++) {
+    for (let r = 0; r < Math.min(rows.length, 300); r++) {
       const row = rows[r];
       if (!Array.isArray(row)) continue;
       row.forEach((cell, c) => {
         const v = String(cell || '').trim().replace(/[０-９]/g, m => String.fromCharCode(m.charCodeAt(0) - 0xFEE0));
-        // "1色", "１色", "1色印刷", "2色ロール" 等にマッチ
         const m = v.match(/([1-8])色/);
         if (m) colorLabelMap[c] = parseInt(m[1]);
-        else if (/^[1-8]$/.test(v)) colorLabelMap[c] = parseInt(v); // 単なる数字
+        else if (/^[1-8]$/.test(v)) colorLabelMap[c] = parseInt(v); 
       });
     }
 
@@ -86,22 +90,18 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
       let currentMinQty = 0;
       let currentUnit: 'm' | 'pcs' = 'm';
 
-      for (let c = 0; c < Math.min(row.length, 25); c++) {
+      for (let c = 0; c < Math.min(row.length, 30); c++) {
         const val = String(row[c] || '').trim().replace(/[０-９]/g, m => String.fromCharCode(m.charCodeAt(0) - 0xFEE0)).replace(/[ｋＫ㎏]/g, 'k');
         if (!val) continue;
 
-        // カタログNo
         val.split(/[\n\s,、]+/).forEach(x => {
           const clean = x.replace(/[△▲]/g, '').trim();
-          if (/^\d{3,4}$/.test(clean)) currentCatalogNos.push(clean);
+          if (/^\d{3,6}$/.test(clean)) currentCatalogNos.push(clean);
         });
-        // 重量
         const wMatch = val.match(/^(\d+(?:\.\d+)?)\s*k?$/i);
         if (wMatch) currentWeight = parseFloat(wMatch[1]);
-        // 形状
         if (val.includes('単袋')) currentShape = '単袋';
         else if (val.includes('R') || val.includes('ロール')) currentShape = 'R';
-        // 最小数量
         const qMatch = val.match(/(?:約|以上)?\s*(\d+)\s*(ｍ|m|枚)?(～|~)?$/);
         if (qMatch && !val.includes('k')) {
           currentMinQty = parseInt(qMatch[1]);
@@ -120,12 +120,10 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
 
       row.forEach((cell, c) => {
         const raw = String(cell || '').trim();
-        const typeLabel = getSPRowType(raw);
-        if (typeLabel) return; 
+        if (getSPRowType(raw)) return; 
 
         const p = parseFloat(raw.replace(/[^0-9.]/g, ''));
-        if (!isNaN(p) && p > 0.1) {
-          // 色の特定
+        if (!isNaN(p) && p > 0.1 && p < 10000) {
           let color = 1;
           let minDist = 999;
           Object.keys(colorLabelMap).forEach(colStr => {
@@ -137,7 +135,6 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
             }
           });
 
-          // タイプの特定
           let detectedType: 'uru' | 'junD' | 'd' | null = null;
           for (let dr = 1; dr <= 8; dr++) {
             if (r - dr < 0) break;

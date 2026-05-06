@@ -234,8 +234,11 @@ export const usePriceSimulation = () => {
           const savedStickerMaster = localStorage.getItem('price-quotation-sticker-master');
           if (savedStickerMaster) setStickerMaster(JSON.parse(savedStickerMaster));
 
-          const savedLastIncreaseDate = localStorage.getItem('price-quotation-last-increase-date');
-          if (savedLastIncreaseDate) setLastIncreaseDate(savedLastIncreaseDate);
+          const savedOrders = localStorage.getItem('price-quotation-orders');
+          if (savedOrders) setOrders(JSON.parse(savedOrders));
+
+          const savedFileName = localStorage.getItem('price-quotation-filename');
+          if (savedFileName) setFileName(savedFileName);
         } catch (e) {
           console.error('Failed to load settings from localStorage', e);
         }
@@ -260,8 +263,10 @@ export const usePriceSimulation = () => {
       localStorage.setItem('price-quotation-sticker-master', JSON.stringify(stickerMaster));
       localStorage.setItem('price-quotation-last-increase-date', lastIncreaseDate);
       localStorage.setItem('price-quotation-history', JSON.stringify(history));
+      localStorage.setItem('price-quotation-orders', JSON.stringify(orders));
+      localStorage.setItem('price-quotation-filename', fileName);
     }
-  }, [isMounted, conditions, manualSettings, individualSettings, timingBasis, customMaster, spMaster, readymadeMaster, readymadePriceType, readymadeSegment, stickerMaster, lastIncreaseDate, history]);
+  }, [isMounted, conditions, manualSettings, individualSettings, timingBasis, customMaster, spMaster, readymadeMaster, readymadePriceType, readymadeSegment, stickerMaster, lastIncreaseDate, history, orders, fileName]);
 
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
