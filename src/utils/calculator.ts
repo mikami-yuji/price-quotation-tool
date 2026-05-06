@@ -179,14 +179,8 @@ export const calculateNewPrices = (
               }
             });
 
-            // 最もスコアが高いもの
-            let matchedEntry: { m: SPMasterRow; score: number; weightDiff: number; effectiveQty: number; isFit: boolean; } | null = candidates[0] || null;
-            
-            // 材質は既にフィルタ済みなので、重量+形状の一致（score >= 110）があればマッチとする
-            // カタログ番号一致（+1000）があればさらに確実
-            if (matchedEntry && matchedEntry.score < 110) {
-               matchedEntry = null;
-            }
+            // 最もスコアが高いもの（材質は既にフィルタ済みなので、スコアは順位付けのみに使用）
+            const matchedEntry: { m: SPMasterRow; score: number; weightDiff: number; effectiveQty: number; isFit: boolean; } | null = candidates[0] || null;
 
             const matched = matchedEntry ? matchedEntry.m : null;
             if (matched) {
