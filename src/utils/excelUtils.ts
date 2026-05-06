@@ -33,22 +33,15 @@ export const parseExcelFile = (arrayBuffer: ArrayBuffer): {
 
 const getSPRowType = (val: string): 'uru' | 'junD' | 'd' | null => {
   const v = String(val || '').trim();
-  // 全角・半角の揺れを考慮
-  if (/^(売|通常|うる|売価|売単価|（売）)$/.test(v)) return 'uru';
-  if (/^(準|準Ｄ|準D|（準）|準単価)$/.test(v)) return 'junD';
-  if (/^(Ｄ|D|Ｄ単価|D単価|（Ｄ）|D単|バラ)$/.test(v)) return 'd';
+  if (v.includes('売') || v.includes('通常') || v.includes('うる')) return 'uru';
+  if (v.includes('準')) return 'junD';
+  if (v.includes('Ｄ') || v.includes('D') || v.includes('バラ')) return 'd';
   return null;
 };
 
 export type SPParseResult = {
   data: SPMasterRow[];
   diagnostics: string[];
-};
-
-type ColumnInfo = {
-  col: number;
-  type: 'uru' | 'junD' | 'd';
-  color: number;
 };
 
 export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
@@ -62,16 +55,18 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
     if (rows.length === 0) continue;
 
     let sheetRecordCount = 0;
-    
-    // シート全体のカラーラベル位置を特定
     const colorLabelMap: { [col: number]: number } = {};
-    for (let r = 0; r < Math.min(rows.length, 300); r++) {
+    
+    // シート全体のカラーラベル位置を特定 (より緩やかに)
+    for (let r = 0; r < Math.min(rows.length, 200); r++) {
       const row = rows[r];
       if (!Array.isArray(row)) continue;
       row.forEach((cell, c) => {
         const v = String(cell || '').trim().replace(/[０-９]/g, m => String.fromCharCode(m.charCodeAt(0) - 0xFEE0));
-        const m = v.match(/^([1-8])色?$/);
+        // "1色", "１色", "1色印刷", "2色ロール" 等にマッチ
+        const m = v.match(/([1-8])色/);
         if (m) colorLabelMap[c] = parseInt(m[1]);
+        else if (/^[1-8]$/.test(v)) colorLabelMap[c] = parseInt(v); // 単なる数字
       });
     }
 
@@ -81,48 +76,37 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
     let lastMinQty = 0;
     let lastUnit: 'm' | 'pcs' = 'm';
 
-    // 行を走査
     for (let r = 0; r < rows.length; r++) {
       const row = rows[r] as unknown[];
       if (!Array.isArray(row)) continue;
 
-      // 1. ヘッダー情報の更新（カタログNo、重量、形状、最小数量）
-      let rowHasHeaderInfo = false;
       const currentCatalogNos: string[] = [];
       let currentWeight = 0;
       let currentShape: 'R' | '単袋' | null = null;
       let currentMinQty = 0;
       let currentUnit: 'm' | 'pcs' = 'm';
 
-      // 最初の20列程度をヘッダー情報エリアとしてスキャン
-      for (let c = 0; c < Math.min(row.length, 20); c++) {
+      for (let c = 0; c < Math.min(row.length, 25); c++) {
         const val = String(row[c] || '').trim().replace(/[０-９]/g, m => String.fromCharCode(m.charCodeAt(0) - 0xFEE0)).replace(/[ｋＫ㎏]/g, 'k');
         if (!val) continue;
 
-        // カタログNo (3-4桁、または特定の接頭辞)
+        // カタログNo
         val.split(/[\n\s,、]+/).forEach(x => {
           const clean = x.replace(/[△▲]/g, '').trim();
-          if (/^\d{3,4}$/.test(clean)) {
-            currentCatalogNos.push(clean);
-            rowHasHeaderInfo = true;
-          }
+          if (/^\d{3,4}$/.test(clean)) currentCatalogNos.push(clean);
         });
         // 重量
         const wMatch = val.match(/^(\d+(?:\.\d+)?)\s*k?$/i);
-        if (wMatch) {
-          currentWeight = parseFloat(wMatch[1]);
-          rowHasHeaderInfo = true;
-        }
+        if (wMatch) currentWeight = parseFloat(wMatch[1]);
         // 形状
-        if (val.includes('単袋')) { currentShape = '単袋'; rowHasHeaderInfo = true; }
-        else if (val.includes('R') || val.includes('ロール')) { currentShape = 'R'; rowHasHeaderInfo = true; }
+        if (val.includes('単袋')) currentShape = '単袋';
+        else if (val.includes('R') || val.includes('ロール')) currentShape = 'R';
         // 最小数量
         const qMatch = val.match(/(?:約|以上)?\s*(\d+)\s*(ｍ|m|枚)?(～|~)?$/);
         if (qMatch && !val.includes('k')) {
           currentMinQty = parseInt(qMatch[1]);
           currentUnit = (qMatch[2] === '枚' ? 'pcs' : 'm');
           if (qMatch[2] === '枚') currentShape = '単袋';
-          rowHasHeaderInfo = true;
         }
       }
 
@@ -131,38 +115,31 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
       if (currentShape) lastShape = currentShape;
       if (currentMinQty > 0) { lastMinQty = currentMinQty; lastUnit = currentUnit; }
 
-      // 2. 価格の抽出
       const currentPrices: { [color: number]: { uru: number; junD: number; d: number } } = {};
       let rowHasPrice = false;
 
       row.forEach((cell, c) => {
         const raw = String(cell || '').trim();
-        const type = getSPRowType(raw);
-        if (type) return; // ラベル自体はスキップ
+        const typeLabel = getSPRowType(raw);
+        if (typeLabel) return; 
 
         const p = parseFloat(raw.replace(/[^0-9.]/g, ''));
         if (!isNaN(p) && p > 0.1) {
-          // この列に対応する色を特定
+          // 色の特定
           let color = 1;
           let minDist = 999;
           Object.keys(colorLabelMap).forEach(colStr => {
             const col = parseInt(colStr);
             const dist = c - col;
-            // ラベルの直下、または右側の列にある価格を採用
             if (dist >= -1 && dist < minDist) {
               color = colorLabelMap[col];
               minDist = dist;
             }
           });
 
-          // 列の見出しをチェックしてタイプを特定
-          // row[c] が数値の場合、その上の行（ヘッダー）でタイプが決まっているはず
-          // ここでは簡易的に、列cの周辺にあるラベルからタイプを推測するか、
-          // あるいは triplet (uru, junD, d) のパターンを前提とする
-          
-          // ヘッダー行を遡ってタイプを探す
+          // タイプの特定
           let detectedType: 'uru' | 'junD' | 'd' | null = null;
-          for (let dr = 1; dr <= 5; dr++) {
+          for (let dr = 1; dr <= 8; dr++) {
             if (r - dr < 0) break;
             const headerCell = String(rows[r - dr][c] || '').trim();
             detectedType = getSPRowType(headerCell);
