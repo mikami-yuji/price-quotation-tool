@@ -218,7 +218,11 @@ export const calculateNewPrices = (
     }
 
     if (!isManualPrice) {
-      newPrice = conditions.roundingMode === 'half' ? Math.round(newPrice * 2) / 2 : Math.round(newPrice * 100) / 100;
+      if (isCustom && conditions.roundingMode === 'half') {
+        newPrice = Math.round(newPrice * 2) / 2;
+      } else {
+        newPrice = Math.round(newPrice * 100) / 100;
+      }
     }
 
     // SalesGroupの計算には「理想的な差分」を使用する（丸め込み前の価格差）
