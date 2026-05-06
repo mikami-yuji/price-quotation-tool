@@ -30,7 +30,6 @@ export const calculateNewPrices = (
     const isReady = !isCustom && !isSP && !isSticker;
 
     const colorCount = order.totalColorCount || (order.frontColorCount + order.backColorCount);
-    // テスト互換性のためのグループキー: 材質-重量-色数
     const groupKey = `${order.materialName}-${order.weight}-${colorCount}`;
     const group = manualSettings[groupKey];
     const individual = individualSettings[order.orderNumber];
@@ -40,7 +39,6 @@ export const calculateNewPrices = (
     let spMatched = false;
     let matchSource: string | undefined = undefined;
     
-    // 値上げ計算のロジック
     const calculateCustomIncrease = (current: number, cond: IncreaseSimulationConditions): number => {
       if (cond.customIncreaseType === 'percentage') {
         return current * (1 + cond.customIncreaseValue / 100);
@@ -87,8 +85,6 @@ export const calculateNewPrices = (
       isManualPrice = true;
     } else {
       const masters = categorizedMasters || { custom: [], sp: [], readymade: [], sticker: [] };
-      
-      // 特殊除外ルール: SP商品の「乳白Ｕ－0.5」は価格改定対象外（現状維持）
       const isExcludedSP = isSP && (order.materialName || '').includes('乳白Ｕ－0.5');
 
       if (isExcludedSP) {
@@ -115,15 +111,11 @@ export const calculateNewPrices = (
 
           const baseMatches = masters.sp.filter(m => {
             if (!m.materialHint || !order.materialName) return false;
-            // 1. 材質の適合性（フィルタ）
             const hintNorm = normMat(m.materialHint || '');
             const tNorm = normMat(order.materialName + (order.printCode || ''));
-            
-            // 基礎的な材質（ポリポリ vs ポリ vs バリア 等）が一致するかチェック
             const baseKeywords = ['ポリポリ', 'バリア', '和紙', '雲竜', 'アルミ', 'クラフト', 'ラミ', '真空', 'ジップ', 'ZIP', 'ポリ'];
             for (const k of baseKeywords) {
               if (hintNorm.includes(k) !== tNorm.includes(k)) {
-                // ポリポリとポリの相互互換は許容する
                 if ((k === 'ポリポリ' && (hintNorm.includes('ポリ') || tNorm.includes('ポリ'))) ||
                     (k === 'ポリ' && (hintNorm.includes('ポリポリ') || tNorm.includes('ポリポリ')))) {
                   continue;
@@ -131,33 +123,27 @@ export const calculateNewPrices = (
                 return false;
               }
             }
-            
             return true;
           });
 
           const targetWeight = decoded ? decoded.weight : Number(order.weight);
           const targetShape = decoded ? decoded.shape : (String(order.shape || '').toUpperCase().includes('R') ? 'R' : '単袋');
           const orderCode = normalize(order.productCode || order.absCode);
+          const orderUnit = (targetShape === 'R' ? 'm' : 'pcs');
           
           const scoreKeywords = ['マット', 'SF', 'ＳＦ', 'コンビ', 'バイオマス', 'ポリポリ', 'ソフトクラフト', '金銀'];
 
           const candidates = baseMatches.map(m => {
             let score = 0;
-            
-            // カタログ番号の一致（最優先）
             const hasCode = m.catalogNos.some(no => {
               const normNo = normalize(no);
               if (normNo.length <= 2) return false;
-              // 完全一致または前方一致を高く評価
               return orderCode === normNo || orderCode.startsWith(normNo);
             });
             if (hasCode) score += 3000;
-            
-            // 部分一致も一応考慮
             const partialCode = m.catalogNos.some(no => normalize(no).length >= 4 && orderCode.includes(normalize(no)));
             if (partialCode && !hasCode) score += 500;
 
-            // 材質のキーワード一致ボーナス
             const hintNorm = normMat(m.materialHint || '');
             const tNorm = normMat(order.materialName + (order.printCode || ''));
             scoreKeywords.forEach(kw => {
@@ -174,7 +160,7 @@ export const calculateNewPrices = (
 
             let effectiveQty = order.quantity;
             const masterUnit = m.unit || (m.shape === '単袋' ? 'pcs' : 'm');
-            const orderUnit = (order.shape === 'R' ? 'm' : 'pcs');
+            if (masterUnit === orderUnit) score += 500;
             if (masterUnit === 'm' && orderUnit === 'pcs') {
                effectiveQty = order.quantity * (targetWeight >= 5 ? 0.6 : 0.4);
             } else if (masterUnit === 'pcs' && orderUnit === 'm') {
@@ -184,33 +170,44 @@ export const calculateNewPrices = (
             const isFit = m.lotType === 'above' 
               ? (effectiveQty >= m.minQuantity - 1)
               : (effectiveQty <= m.minQuantity + 1);
-            
-            if (isFit) score += 1000; // ロット一致を重視
-
+            if (isFit) score += 1000;
             return { m, score, weightDiff, isFit };
           });
 
           candidates.sort((a, b) => {
             if (b.score !== a.score) return b.score - a.score;
+            if (a.isFit !== b.isFit) return a.isFit ? -1 : 1;
             if (a.weightDiff !== b.weightDiff) return a.weightDiff - b.weightDiff;
             if (a.isFit && b.isFit) {
               if (a.m.lotType === 'above') return b.m.minQuantity - a.m.minQuantity;
               return a.m.minQuantity - b.m.minQuantity;
             }
-            return a.isFit ? -1 : 1;
+            return 0;
           });
 
           const matched = candidates[0]?.m;
           if (matched) {
             const segment = readymadePrefs?.segment || 'uru';
             const cCount = order.totalColorCount || (order.frontColorCount + order.backColorCount);
-            
-            // 商品名や印刷コードから色数を推測（優先）
             let bestCCount = cCount;
-            const printM = (order.printCode || '').match(/([1-8])色/);
-            if (printM) bestCCount = parseInt(printM[1]);
 
-            // 色数の一致（なければ最も近い色数を使用）
+            // ユーザーの指示に基づき、印刷コードをメインに判定する
+            const normPrintCode = (order.printCode || '').replace(/[Ａ-Ｚａ-ｚ０-９]/g, m => String.fromCharCode(m.charCodeAt(0) - 0xFEE0));
+            const printM = normPrintCode.match(/([1-8])色/);
+            
+            if (printM) {
+              bestCCount = parseInt(printM[1]);
+            } else if (
+              normPrintCode.includes('ＳＰロール印刷') || 
+              normPrintCode.includes('ロール印刷代') || 
+              normPrintCode.includes('ロール印刷') ||
+              normPrintCode.includes('ロール1色')
+            ) {
+              // 特定のキーワードがある場合は1色として扱う
+              bestCCount = 1;
+            }
+            // それ以外の場合はカラムの数値をそのまま使用する
+
             let priceObj = matched.colorPrices[bestCCount];
             if (!priceObj) {
               const available = Object.keys(matched.colorPrices).map(Number).sort((a, b) => a - b);
@@ -221,7 +218,6 @@ export const calculateNewPrices = (
                 priceObj = matched.colorPrices[target];
               }
             }
-
 
             if (priceObj && priceObj[segment] > 0) {
               newPrice = priceObj[segment];
@@ -270,7 +266,6 @@ export const calculateNewPrices = (
       }
     }
 
-    // SalesGroupの計算には「理想的な差分」を使用する（丸め込み前の価格差）
     const idealDiff = idealPrice - order.currentPrice;
     let resultSalesGroup: number;
     if (individual?.salesGroup) resultSalesGroup = individual.salesGroup;
@@ -284,8 +279,6 @@ export const calculateNewPrices = (
     if (individual?.printingSalesGroup) newPrintingSalesGroup = individual.printingSalesGroup;
     else if (group?.printingSalesGroup) newPrintingSalesGroup = group.printingSalesGroup;
 
-    // SPのタイトル（カラムU）からの表示名抽出
-    // 冗長な日付や管理記号を削るが、品名の核心（【】内など）は残す
     const cleanSPTitle = (title: string) => {
       return title
         .replace(/^\d{4}-\d{2}-\d{2}\s*/, '') // 日付削除

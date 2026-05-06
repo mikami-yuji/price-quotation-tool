@@ -33,7 +33,6 @@ export const usePriceSimulation = () => {
     customIncreaseType: 'percentage',
     customIncreaseValue: 10,
     roundingMode: 'none',
-    spColorOffset: false,
   });
 
   const [activeTab, setActiveTab] = useState<TabType>('custom');
