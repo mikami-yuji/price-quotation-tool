@@ -33,7 +33,7 @@ export const parseExcelFile = (arrayBuffer: ArrayBuffer): {
 
 const getSPRowType = (val: string): 'uru' | 'junD' | 'd' | null => {
   const v = String(val || '').trim();
-  if (v.includes('売')) return 'uru';
+  if (v.includes('売') || v === '通常' || v === 'うる') return 'uru';
   if (v.includes('準')) return 'junD';
   if (v === 'Ｄ' || v === 'D' || v === 'Ｄ単価' || v === 'D単価') return 'd';
   return null;
@@ -42,6 +42,12 @@ const getSPRowType = (val: string): 'uru' | 'junD' | 'd' | null => {
 export type SPParseResult = {
   data: SPMasterRow[];
   diagnostics: string[];
+};
+
+type ColumnInfo = {
+  col: number;
+  type: 'uru' | 'junD' | 'd';
+  color: number;
 };
 
 export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
@@ -56,234 +62,141 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
     const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
     if (rows.length === 0) continue;
 
-    const sheetGlobalCatalogNos: string[] = [];
-    const sheetWeight = 0;
-    const globalLastShape: 'R' | '単袋' = 'R';
-
-    // 1. 各行をスキャンして「カタログ」ラベルが含まれるヘッダー行を特定（ブロックの開始）
-    const headerRows = rows.map((row, i) => {
+    // 1. ブロック開始（カタログ№）の特定
+    const blockStartRows = rows.map((row, i) => {
       if (!Array.isArray(row)) return null;
-      const hasBlockMarker = row.some(c => {
-        const val = String(c || '').trim();
-        return val === 'ｶﾀﾛｸﾞ№' || val === 'カタログ№' || 
-               val === 'ｶﾀﾛｸﾞNo' || val === 'カタログNo';
-      });
-      return hasBlockMarker ? i : null;
+      return row.some(c => {
+        const v = String(c || '').trim();
+        return v === 'ｶﾀﾛｸﾞ№' || v === 'カタログ№' || v === 'ｶﾀﾛｸﾞNo' || v === 'カタログNo';
+      }) ? i : null;
     }).filter((idx): idx is number => idx !== null);
 
-    // 2. 各ヘッダー行に対して、次のヘッダーまでの範囲で「売」が含まれるすべての列（アンカー列）を特定
-    const structuralHeaders: { rowIdx: number; sellColumns: number[] }[] = [];
-    for (let i = 0; i < headerRows.length; i++) {
-      const rowIdx = headerRows[i];
-      const nextH = headerRows[i + 1] || rows.length;
-      const sellColumns = new Set<number>();
+    if (blockStartRows.length === 0) continue;
+
+    for (let b = 0; b < blockStartRows.length; b++) {
+      const startRow = blockStartRows[b];
+      const endRow = blockStartRows[b + 1] || rows.length;
       
-      for (let r = rowIdx + 1; r < nextH; r++) {
+      // 2. このブロック内の「売/準/D」列と「色」の対応を特定
+      const colInfos: ColumnInfo[] = [];
+      const searchEndRow = Math.min(startRow + 10, endRow);
+      
+      for (let r = startRow; r < searchEndRow; r++) {
         const row = rows[r] as unknown[];
         if (!Array.isArray(row)) continue;
-        row.forEach((c, idx) => {
-          const val = String(c || '').trim();
-          if (val === '売' || val === '（売）' || val === '売価' || val === '売 価') {
-            sellColumns.add(idx);
-          }
-        });
-      }
-      
-      if (sellColumns.size === 0) {
-        const row = rows[rowIdx] as unknown[];
-        row.forEach((c, idx) => {
-          const val = String(c || '').trim();
-          if (val.includes('売') || val === '単価' || val === '価格') {
-            sellColumns.add(idx);
-          }
-        });
-      }
-
-      if (sellColumns.size > 0) {
-        structuralHeaders.push({ rowIdx, sellColumns: Array.from(sellColumns).sort((a, b) => a - b) });
-      }
-    }
-    
-    diagnostics.push(`${sheetName}: 構造ヘッダ ${structuralHeaders.length}件 (${structuralHeaders.map(h => h.rowIdx).join(',')})`);
-
-    type ColumnState = {
-      lastCatalogNos: string[];
-      lastWeight: number;
-      lastMinQuantity: number;
-      lastUnit: 'm' | 'pcs';
-      lastShape: 'R' | '単袋' | null;
-      lastRowType: 'uru' | 'junD' | 'd' | null;
-    };
-    const stateByCol: { [col: number]: ColumnState } = {};
-
-    for (let sh = 0; sh < structuralHeaders.length; sh++) {
-      const header = structuralHeaders[sh];
-      const nextHeader = structuralHeaders[sh + 1];
-      const endRow = nextHeader ? nextHeader.rowIdx : rows.length;
-      
-      for (const sellIdx of header.sellColumns) {
-        if (!stateByCol[sellIdx]) {
-          stateByCol[sellIdx] = {
-            lastCatalogNos: [...sheetGlobalCatalogNos],
-            lastWeight: sheetWeight,
-            lastMinQuantity: 0,
-            lastUnit: 'm',
-            lastShape: globalLastShape,
-            lastRowType: null
-          };
-        }
-        const state = stateByCol[sellIdx];
         
-        const relativeOffsets: { [key: number]: number } = {};
-        const nextSellCol = header.sellColumns.find(c => c > sellIdx);
-        const limit = nextSellCol ? nextSellCol : rows[header.rowIdx].length;
-        
-        for (let i = 1; i <= 8; i++) {
-          const zenI = String(i).replace(/[0-9]/g, m => String.fromCharCode(m.charCodeAt(0) + 0xFEE0));
-          let found = false;
-          for (let r = Math.max(0, header.rowIdx - 2); r <= Math.min(rows.length - 1, header.rowIdx + 2); r++) {
-            const row = rows[r] as unknown[];
-            if (!Array.isArray(row)) continue;
-            for (let c = sellIdx + 1; c < Math.min(row.length, limit); c++) {
-              const val = String(row[c] || '').trim().replace(/[0-9]/g, m => String.fromCharCode(m.charCodeAt(0) + 0xFEE0));
-              if (val.includes(`${zenI}色`) || (i <= 4 && (val === zenI || val === String(i)))) {
-                relativeOffsets[i] = c - sellIdx;
-                found = true;
-                break;
-              }
-            }
-            if (found) break;
-          }
-          if (!found) {
-            const prevOff = relativeOffsets[i - 1];
-            if (prevOff !== undefined) relativeOffsets[i] = prevOff + 4;
-            else if (i === 1) relativeOffsets[1] = 2;
-          }
-        }
-        
-        for (let r = header.rowIdx + 1; r < endRow; r++) {
-          const row = rows[r] as unknown[];
-          if (!Array.isArray(row)) continue;
-          
-          const rawVal = String(row[sellIdx] || '').trim();
-          let rowType = getSPRowType(rawVal);
-          
-          if (!rowType && state.lastRowType === 'uru') {
-            const hasAnyData = Array.from({ length: 8 }, (_, i) => i + 1).some(i => {
-              const off = relativeOffsets[i];
-              if (!off) return false;
-              const p = parseFloat(String(row[sellIdx + off] || '').replace(/[^0-9.]/g, ''));
-              return !isNaN(p) && p > 0;
-            });
-            if (hasAnyData) rowType = 'junD';
-          } else if (!rowType && state.lastRowType === 'junD') {
-            const hasAnyData = Array.from({ length: 8 }, (_, i) => i + 1).some(i => {
-              const off = relativeOffsets[i];
-              if (!off) return false;
-              const p = parseFloat(String(row[sellIdx + off] || '').replace(/[^0-9.]/g, ''));
-              return !isNaN(p) && p > 0;
-            });
-            if (hasAnyData) rowType = 'd';
-          }
-          
-          if (!rowType) {
-            state.lastRowType = null;
-            continue;
-          }
-          
-          const scanStart = Math.max(0, sellIdx - 15);
-          const scanEnd = sellIdx;
-          
-          let currentRowCatalogNos: string[] = [];
-          let currentRowWeight = 0;
-          let currentRowShape: 'R' | '単袋' | null = null;
-          let minQuantity = 0;
-          let currentUnit: 'm' | 'pcs' = 'm';
-
-          for (let c = scanStart; c < scanEnd; c++) {
-            const val = String(row[c] || '').trim().replace(/[０-９]/g, m => String.fromCharCode(m.charCodeAt(0) - 0xFEE0)).replace(/[ｋＫ㎏]/g, 'k');
-            if (!val) continue;
-
-            val.split(/[\n\s,、]+/).map(x => x.trim().replace(/[△▲]/g, '')).filter(x => /^\d{3,4}$/.test(x)).forEach(x => currentRowCatalogNos.push(x));
-            
-            const wMatch = val.match(/^\s*(\d+(?:\.\d+)?)\s*(?:k|K|㎏)?\s*$/i);
-            if (wMatch) {
-              const w = parseFloat(wMatch[1]);
-              if (w >= 1.5 && w <= 35) currentRowWeight = w;
-            }
-            const qMatch = val.match(/(?:約|以上)?\s*(\d+)\s*(ｍ|m|枚)?(～|~)?$/);
-            if (qMatch && !val.includes('k')) {
-              const q = parseInt(qMatch[1]);
-              if (q >= 10) {
-                minQuantity = q;
-                const unitStr = qMatch[2] || '';
-                currentUnit = (unitStr === '枚' ? 'pcs' : 'm');
-                if (unitStr === '枚') currentRowShape = '単袋';
-                else if (unitStr === 'ｍ' || unitStr === 'm') currentRowShape = 'R';
-              }
-            }
-            if (val.includes('単袋')) currentRowShape = '単袋';
-            else if (val.includes('R') || val.includes('ロール')) currentRowShape = 'R';
-          }
-
-          if (rowType === 'uru') {
-            if (currentRowCatalogNos.length === 0) currentRowCatalogNos = [...state.lastCatalogNos];
-            else state.lastCatalogNos = [...currentRowCatalogNos];
-            if (currentRowWeight === 0) currentRowWeight = state.lastWeight;
-            else state.lastWeight = currentRowWeight;
-            if (currentRowShape === null) currentRowShape = state.lastShape;
-            else state.lastShape = currentRowShape;
-            if (minQuantity === 0) minQuantity = state.lastMinQuantity;
-            else { state.lastMinQuantity = minQuantity; state.lastUnit = currentUnit; }
-
-            const spRow: SPMasterRow = {
-              catalogNos: [...currentRowCatalogNos],
-              weight: currentRowWeight,
-              shape: currentRowShape || 'R',
-              minQuantity: minQuantity,
-              unit: state.lastUnit,
-              colorPrices: {},
-              materialHint: sheetName
-            };
-            let hasPrice = false;
-            for (let i = 1; i <= 8; i++) {
-              const off = relativeOffsets[i];
-              if (!off) continue;
-              const p = parseFloat(String(row[sellIdx + off] || '').replace(/[^0-9.]/g, ''));
-              if (!isNaN(p) && p > 0) {
-                if (!spRow.colorPrices[i]) spRow.colorPrices[i] = { uru: 0, junD: 0, d: 0 };
-                spRow.colorPrices[i].uru = p;
-                hasPrice = true;
-              }
-            }
-            if (hasPrice) {
-              spMaster.push(spRow);
-              state.lastRowType = 'uru';
-            } else {
-              state.lastRowType = null;
-            }
-          } else if (rowType && spMaster.length > 0) {
-            const lastEntry = spMaster[spMaster.length - 1];
-            const matchCata = (currentRowCatalogNos.length > 0 ? currentRowCatalogNos : state.lastCatalogNos).join(',');
-            if (lastEntry.catalogNos.join(',') === matchCata) {
-              let hasPrice = false;
-              for (let i = 1; i <= 8; i++) {
-                const off = relativeOffsets[i];
-                if (!off) continue;
-                const p = parseFloat(String(row[sellIdx + off] || '').replace(/[^0-9.]/g, ''));
-                if (!isNaN(p) && p > 0) {
-                  if (!lastEntry.colorPrices[i]) lastEntry.colorPrices[i] = { uru: 0, junD: 0, d: 0 };
-                  lastEntry.colorPrices[i][rowType] = p;
-                  hasPrice = true;
+        row.forEach((cell, c) => {
+          const type = getSPRowType(String(cell));
+          if (type) {
+            // 色の特定（周囲をスキャン）
+            let color = 1;
+            for (let dr = -2; dr <= 2; dr++) {
+              const r2 = r + dr;
+              if (r2 < startRow || r2 >= endRow) continue;
+              const row2 = rows[r2] as unknown[];
+              if (!Array.isArray(row2)) continue;
+              // sellIdx から左に 5 列、右に 5 列の範囲で「色」を探す
+              for (let dc = -5; dc <= 5; dc++) {
+                const c2 = c + dc;
+                if (c2 < 0 || c2 >= row2.length) continue;
+                const v = String(row2[c2] || '').trim().replace(/[０-９]/g, m => String.fromCharCode(m.charCodeAt(0) - 0xFEE0));
+                const match = v.match(/([1-8])色/);
+                if (match) {
+                  color = parseInt(match[1]);
+                  break;
+                } else if (/^[1-8]$/.test(v)) {
+                   color = parseInt(v);
+                   break;
                 }
               }
-              if (hasPrice) state.lastRowType = rowType;
+              if (color > 1) break;
             }
+            colInfos.push({ col: c, type, color });
           }
+        });
+      }
+
+      if (colInfos.length === 0) continue;
+
+      // 3. データ行の走査
+      let lastCatalogNos: string[] = [];
+      let lastWeight = 0;
+      let lastShape: 'R' | '単袋' | null = null;
+      let lastMinQty = 0;
+      let lastUnit: 'm' | 'pcs' = 'm';
+
+      for (let r = startRow + 1; r < endRow; r++) {
+        const row = rows[r] as unknown[];
+        if (!Array.isArray(row)) continue;
+
+        // カタログ番号、重量、形状、数量の抽出 ( sellCols より左側を重点的に )
+        let currentCatalogNos: string[] = [];
+        let currentWeight = 0;
+        let currentShape: 'R' | '単袋' | null = null;
+        let currentMinQty = 0;
+        let currentUnit: 'm' | 'pcs' = 'm';
+
+        const minSellCol = Math.min(...colInfos.map(i => i.col));
+        for (let c = 0; c < minSellCol; c++) {
+          const val = String(row[c] || '').trim().replace(/[０-９]/g, m => String.fromCharCode(m.charCodeAt(0) - 0xFEE0)).replace(/[ｋＫ㎏]/g, 'k');
+          if (!val) continue;
+
+          // カタログ番号 (3-4桁)
+          val.split(/[\n\s,、]+/).forEach(x => {
+            const m = x.replace(/[△▲]/g, '').trim();
+            if (/^\d{3,4}$/.test(m)) currentCatalogNos.push(m);
+          });
+          // 重量
+          const wMatch = val.match(/^(\d+(?:\.\d+)?)\s*k?$/i);
+          if (wMatch) currentWeight = parseFloat(wMatch[1]);
+          // 形状
+          if (val.includes('単袋')) currentShape = '単袋';
+          else if (val.includes('R') || val.includes('ロール')) currentShape = 'R';
+          // 数量
+          const qMatch = val.match(/(?:約|以上)?\s*(\d+)\s*(ｍ|m|枚)?(～|~)?$/);
+          if (qMatch && !val.includes('k')) {
+            currentMinQty = parseInt(qMatch[1]);
+            currentUnit = (qMatch[2] === '枚' ? 'pcs' : 'm');
+            if (qMatch[2] === '枚') currentShape = '単袋';
+          }
+        }
+
+        // 価格の抽出
+        const currentPrices: { [color: number]: { uru: number; junD: number; d: number } } = {};
+        let hasPrice = false;
+
+        colInfos.forEach(info => {
+          const val = String(row[info.col] || '').trim();
+          const p = parseFloat(val.replace(/[^0-9.]/g, ''));
+          // もしセルの内容が "売" などのラベルそのものならスキップ
+          if (getSPRowType(val)) return;
+
+          if (!isNaN(p) && p > 0) {
+            if (!currentPrices[info.color]) currentPrices[info.color] = { uru: 0, junD: 0, d: 0 };
+            currentPrices[info.color][info.type] = p;
+            hasPrice = true;
+          }
+        });
+
+        if (hasPrice) {
+          if (currentCatalogNos.length > 0) lastCatalogNos = [...currentCatalogNos];
+          if (currentWeight > 0) lastWeight = currentWeight;
+          if (currentShape) lastShape = currentShape;
+          if (currentMinQty > 0) { lastMinQty = currentMinQty; lastUnit = currentUnit; }
+
+          spMaster.push({
+            catalogNos: [...lastCatalogNos],
+            weight: lastWeight,
+            shape: lastShape || 'R',
+            minQuantity: lastMinQty,
+            unit: lastUnit,
+            colorPrices: currentPrices,
+            materialHint: sheetName
+          });
         }
       }
     }
-    diagnostics.push(`${sheetName}: 完了(累計${spMaster.length}件)`);
+    diagnostics.push(`${sheetName}: 解析完了(累計${spMaster.length}件)`);
   }
 
   diagnostics.push(`合計: ${spMaster.length}件`);
