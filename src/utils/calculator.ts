@@ -106,12 +106,10 @@ export const calculateNewPrices = (
       } else if (isSP) {
         if (masters.sp && masters.sp.length > 0) {
           const decoded = decodeSPProductCode(order.productCode);
-          
           const normMat = (s: string) => {
             return s.replace(/[ \s　【】（）()]/g, '')
                     .replace(/窓(有り|あり|付|つき)?/g, '')
                     .replace(/[Ａ-Ｚａ-ｚ０-９]/g, m => String.fromCharCode(m.charCodeAt(0) - 0xFEE0))
-                    .replace(/ＳＦ/g, 'SF')
                     .toUpperCase();
           };
 
@@ -121,20 +119,18 @@ export const calculateNewPrices = (
             const hintNorm = normMat(m.materialHint || '');
             const tNorm = normMat(order.materialName);
             
-            // 重要なキーワードの不一致チェック
-            const keywords = ['ポリポリ', 'マット', 'SF', 'ＳＦ', 'コンビ', 'バイオマス', 'ラミ', '真空', '和紙', '雲竜', 'ソフトクラフト', '金銀', 'ZIP', 'ジップ', 'ポリ'];
-            for (const k of keywords) {
-              if (hintNorm.includes(k) !== tNorm.includes(k)) return false;
+            // 基礎的な材質（ポリポリ vs ポリ vs バリア 等）が一致するかチェック
+            const baseKeywords = ['ポリポリ', 'バリア', '和紙', '雲竜', 'アルミ', 'クラフト', 'ラミ', '真空', 'ジップ', 'ZIP', 'ポリ'];
+            for (const k of baseKeywords) {
+              if (hintNorm.includes(k) !== tNorm.includes(k)) {
+                // ポリポリとポリの相互互換は許容する
+                if ((k === 'ポリポリ' && (hintNorm.includes('ポリ') || tNorm.includes('ポリ'))) ||
+                    (k === 'ポリ' && (hintNorm.includes('ポリポリ') || tNorm.includes('ポリポリ')))) {
+                  continue;
+                }
+                return false;
+              }
             }
-            
-            // 残りの文字列での部分一致
-            let hRest = hintNorm;
-            let tRest = tNorm;
-            for (const k of keywords) {
-              hRest = hRest.replace(new RegExp(k, 'g'), '');
-              tRest = tRest.replace(new RegExp(k, 'g'), '');
-            }
-            if (!hRest.includes(tRest) && !tRest.includes(hRest) && hRest && tRest) return false;
             
             return true;
           });
@@ -143,30 +139,33 @@ export const calculateNewPrices = (
           const targetShape = decoded ? decoded.shape : (String(order.shape || '').toUpperCase().includes('R') ? 'R' : '単袋');
           const orderCode = normalize(order.productCode || order.absCode);
           
-          const keywords = ['ポリポリ', 'マット', 'SF', 'ＳＦ', 'コンビ', 'バイオマス', 'ラミ', '真空', '和紙', '雲竜', 'ソフトクラフト', '金銀', 'ZIP', 'ジップ', 'ポリ'];
+          const scoreKeywords = ['マット', 'SF', 'ＳＦ', 'コンビ', 'バイオマス', 'ポリポリ', 'ソフトクラフト', '金銀'];
 
           const candidates = baseMatches.map(m => {
             let score = 0;
             
-            // カタログ番号の一致（より厳格に）
+            // カタログ番号の一致（最優先）
             const hasCode = m.catalogNos.some(no => {
               const normNo = normalize(no);
-              if (normNo.length <= 2) return false; // 短すぎる番号は無視
+              if (normNo.length <= 2) return false;
               return orderCode === normNo || orderCode.startsWith(normNo) || (normNo.length >= 4 && orderCode.includes(normNo));
             });
-            if (hasCode) score += 1000;
+            if (hasCode) score += 2000;
 
             // 材質のキーワード一致ボーナス
             const hintNorm = normMat(m.materialHint || '');
             const tNorm = normMat(order.materialName);
-            keywords.forEach(kw => {
-              if (tNorm.includes(kw) && hintNorm.includes(kw)) score += 50;
+            scoreKeywords.forEach(kw => {
+              const inOrder = tNorm.includes(kw);
+              const inMaster = hintNorm.includes(kw);
+              if (inOrder && inMaster) score += 100;
+              else if (inOrder && !inMaster) score -= 20; 
             });
 
             const weightDiff = Math.abs(Number(m.weight) - (targetWeight === 8 ? 10 : targetWeight));
-            if (weightDiff < 0.1) score += 200; // 重量一致を重視
-            else if (weightDiff < 2.1) score += 50;
-            if (m.shape === targetShape) score += 50;
+            if (weightDiff < 0.1) score += 500;
+            else if (weightDiff < 2.1) score += 100;
+            if (m.shape === targetShape) score += 100;
 
             let effectiveQty = order.quantity;
             const masterUnit = m.unit || (m.shape === '単袋' ? 'pcs' : 'm');
@@ -181,7 +180,7 @@ export const calculateNewPrices = (
               ? (effectiveQty >= m.minQuantity - 1)
               : (effectiveQty <= m.minQuantity + 1);
             
-            if (isFit) score += 100;
+            if (isFit) score += 1000; // ロット一致を重視
 
             return { m, score, weightDiff, isFit };
           });
