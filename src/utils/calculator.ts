@@ -177,7 +177,20 @@ export const calculateNewPrices = (
           if (matched) {
             const segment = readymadePrefs?.segment || 'uru';
             const cCount = order.totalColorCount || (order.frontColorCount + order.backColorCount);
-            const priceObj = matched.colorPrices[cCount];
+            
+            // 色数の一致（なければ最も近い色数を使用）
+            let priceObj = matched.colorPrices[cCount];
+            if (!priceObj) {
+              const available = Object.keys(matched.colorPrices).map(Number).sort((a, b) => a - b);
+              if (available.length > 0) {
+                // 0色の場合は最小色（1色など）を優先、それ以外は差の絶対値が最小のものを探す
+                const target = cCount === 0 ? available[0] : available.reduce((p, c) => 
+                  Math.abs(c - cCount) < Math.abs(p - cCount) ? c : p
+                , available[0]);
+                priceObj = matched.colorPrices[target];
+              }
+            }
+
             if (priceObj && priceObj[segment] > 0) {
               newPrice = priceObj[segment];
               idealPrice = newPrice;
