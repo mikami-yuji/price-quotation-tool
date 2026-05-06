@@ -43,10 +43,11 @@ const getSPRowType = (val: string): 'uru' | 'junD' | 'd' | null => {
 export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
   const workbook = XLSX.read(arrayBuffer, { type: 'array' });
   const spMaster: SPMasterRow[] = [];
+  console.log('[SP Parser] シート一覧:', workbook.SheetNames);
   for (const sheetName of workbook.SheetNames) {
     const sheet = workbook.Sheets[sheetName];
     const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
-    if (rows.length === 0) continue;
+    if (rows.length === 0) { console.log(`[SP Parser] ${sheetName}: 空シート、スキップ`); continue; }
 
     let sheetWeight = 0;
     const sheetWeightMatch = sheetName.match(/(\d+(\.\d+)?)\s*[kK㎏]/);
@@ -63,7 +64,11 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
       }
     }
 
-    if (headerRows.length === 0) continue;
+    if (headerRows.length === 0) {
+      console.log(`[SP Parser] ${sheetName}: ヘッダー行なし（「売」が見つからない）、スキップ`);
+      continue;
+    }
+    console.log(`[SP Parser] ${sheetName}: ヘッダー行 ${headerRows.length}件 at rows [${headerRows.join(', ')}]`);
 
     const stateByCol: { [sellIdx: number]: { 
       lastCatalogNos: string[], 
@@ -117,6 +122,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
           priceHeadersInRow.push({ col: c });
         }
       });
+      console.log(`[SP Parser] ${sheetName}: row=${headerRowIdx}, 「売」列 ${priceHeadersInRow.length}件 at cols [${priceHeadersInRow.map(h => h.col).join(', ')}]`);
 
       for (const header of priceHeadersInRow) {
         const sellIdx = header.col;
@@ -270,6 +276,8 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPMasterRow[] => {
             } else {
               state.lastRowType = null;
             }
+            // デバッグ: 100件ごとに進捗を出力
+            if (spMaster.length % 100 === 0 && spMaster.length > 0) console.log(`[SP Parser] ${sheetName}: ${spMaster.length}件読込中...`);
           } else if (rowType && spMaster.length > 0) {
             const lastEntry = spMaster[spMaster.length - 1];
             const matchCata = (currentRowCatalogNos.length > 0 ? currentRowCatalogNos : state.lastCatalogNos).join(',');
