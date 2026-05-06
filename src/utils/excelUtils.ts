@@ -140,9 +140,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
         }
       }
 
-      // 2. 収集した見出し情報を列ごとの状態に伝播させる
       rowHeaderInfo.forEach(info => {
-        // info.col から右側の列に影響を及ぼす
         for (let targetC = info.col; targetC < Math.min(row.length, info.col + 30); targetC++) {
           if (!colState[targetC]) colState[targetC] = { catalogNos: [], weight: 0, shape: 'R', minQty: 0, lotType: 'below', unit: 'm', materialHint: '' };
           if (info.catalogNos.length > 0) colState[targetC].catalogNos = info.catalogNos;
@@ -157,74 +155,87 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
         }
       });
 
-      // 3. 価格セルの抽出
-      const currentPricesByCatalog: { [catalog: string]: { [color: number]: { uru: number; junD: number; d: number } } } = {};
+      // 3. 価格データの抽出（重量、数量区分ごとにユニークなキーを作成）
+      const tempSPRows: { [key: string]: SPMasterRow } = {};
 
       row.forEach((cell, c) => {
-        if (colState[c]?.isHeaderCol) return; // 見出し列（ロット等）はスキップ
-
-        const raw = String(cell || '').trim();
-        const p = parseFloat(raw.replace(/[^0-9.]/g, ''));
+        const p = parseFloat(String(cell || '').replace(/[,¥]/g, ''));
         if (!isNaN(p) && p > 0.1 && p < 10000) {
-          // 色を特定（一番近い見出し）
-          let color = 1;
+          if (colState[c]?.isHeaderCol) return; 
+
+          let color = 0;
           let minDist = 999;
           Object.keys(colorLabelMap).forEach(colStr => {
             const col = parseInt(colStr);
             const dist = c - col;
-            if (dist >= -1 && dist < minDist) {
+            if (dist >= 0 && dist <= 4 && dist < minDist) {
               color = colorLabelMap[col];
               minDist = dist;
             }
           });
 
-          // タイプを特定（最も近いものを探す）
-          let detectedType: 'uru' | 'junD' | 'd' | null = null;
-          let minLabelDist = 999;
-
-          for (let dr = 0; dr <= 15; dr++) {
-            if (r - dr < 0) break;
-            const t = getSPRowType(String(rows[r - dr][c] || '').trim());
-            if (t) { detectedType = t; minLabelDist = dr; break; }
-          }
-          // 縦に見つからなければ、同じ行の左側を探す
-          for (let dc = 1; dc <= 3; dc++) {
-            if (c - dc < 0) break;
-            const t = getSPRowType(String(row[c - dc] || '').trim());
-            if (t && dc < minLabelDist) {
-              detectedType = t;
-              minLabelDist = dc;
-              break;
+          if (color > 0 && colState[c]?.catalogNos.length > 0) {
+            const state = colState[c];
+            const catKey = state.catalogNos.join(',');
+            // 同一カタログ・重量・数量区分のユニークキー
+            const uniqueKey = `${catKey}_${state.weight}_${state.minQty}_${state.lotType}_${state.unit}_${color}`;
+            
+            // タイプを特定（最も近いものを探す）
+            let detectedType: 'uru' | 'junD' | 'd' | null = null;
+            let minLabelDist = 999;
+            for (let dr = 0; dr <= 15; dr++) {
+              if (r - dr < 0) break;
+              const t = getSPRowType(String(rows[r - dr][c] || '').trim());
+              if (t) { detectedType = t; minLabelDist = dr; break; }
             }
-          }
+            for (let dc = 1; dc <= 3; dc++) {
+              if (c - dc < 0) break;
+              const t = getSPRowType(String(row[c - dc] || '').trim());
+              if (t && dc < minLabelDist) { detectedType = t; minLabelDist = dc; break; }
+            }
 
-          if (detectedType && colState[c]?.catalogNos.length > 0) {
-            const catKey = colState[c].catalogNos.join(',');
-            if (!currentPricesByCatalog[catKey]) currentPricesByCatalog[catKey] = {};
-            if (!currentPricesByCatalog[catKey][color]) currentPricesByCatalog[catKey][color] = { uru: 0, junD: 0, d: 0 };
-            currentPricesByCatalog[catKey][color][detectedType] = p;
+            if (detectedType) {
+              if (!tempSPRows[uniqueKey]) {
+                tempSPRows[uniqueKey] = {
+                  catalogNos: state.catalogNos,
+                  weight: state.weight,
+                  shape: state.shape,
+                  minQuantity: state.minQty,
+                  lotType: state.lotType,
+                  unit: state.unit,
+                  materialHint: state.materialHint || sheetName,
+                  colorPrices: {}
+                };
+              }
+              if (!tempSPRows[uniqueKey].colorPrices[color]) {
+                tempSPRows[uniqueKey].colorPrices[color] = { uru: 0, junD: 0, d: 0 };
+              }
+              tempSPRows[uniqueKey].colorPrices[color][detectedType] = p;
+            }
           }
         }
       });
 
-      // 4. マスタへの登録
-      Object.keys(currentPricesByCatalog).forEach(catKey => {
-        const catalogNos = catKey.split(',');
-        // 代表的な列（最初のカタログ番号がある列）の状態を使用
-        const sampleCol = Object.keys(colState).find(c => colState[parseInt(c)].catalogNos.join(',') === catKey);
-        const state = colState[parseInt(sampleCol || '0')];
-        
-        spMaster.push({
-          catalogNos,
-          weight: state.weight,
-          shape: state.shape,
-          minQuantity: state.minQty,
-          lotType: state.lotType,
-          unit: state.unit,
-          colorPrices: currentPricesByCatalog[catKey],
-          materialHint: state.materialHint || sheetName
-        });
-        sheetRecordCount++;
+      Object.values(tempSPRows).forEach(newRow => {
+        const existingIdx = spMaster.findIndex(ex => 
+          ex.catalogNos.join(',') === newRow.catalogNos.join(',') &&
+          ex.weight === newRow.weight &&
+          ex.minQuantity === newRow.minQuantity &&
+          ex.lotType === newRow.lotType &&
+          ex.unit === newRow.unit
+        );
+        if (existingIdx >= 0) {
+          const color = Object.keys(newRow.colorPrices)[0];
+          if (color) {
+            spMaster[existingIdx].colorPrices[Number(color)] = {
+              ...spMaster[existingIdx].colorPrices[Number(color)],
+              ...newRow.colorPrices[Number(color)]
+            };
+          }
+        } else {
+          spMaster.push(newRow);
+          sheetRecordCount++;
+        }
       });
     }
     diagnostics.push(`${sheetName}: ${sheetRecordCount}件 (${Object.keys(colState).length}列解析)`);
