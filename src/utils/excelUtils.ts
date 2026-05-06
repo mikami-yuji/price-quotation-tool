@@ -33,7 +33,7 @@ export const parseExcelFile = (arrayBuffer: ArrayBuffer): {
 
 const getSPRowType = (val: string): 'uru' | 'junD' | 'd' | null => {
   const v = String(val || '').trim();
-  if (v.length > 6) return null; 
+  if (v.length > 8) return null; 
   if (v.includes('売') || v.includes('通常') || v.includes('うる')) return 'uru';
   if (v.includes('準') || v.includes('JUN')) return 'junD';
   if (v.includes('Ｄ') || v.includes('D') || v.includes('バラ')) return 'd';
@@ -55,15 +55,26 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
     const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
     if (rows.length === 0) continue;
 
+    // 診断情報: カタログの見出しがあるか
+    let catalogLabelRow = -1;
+    for (let r = 0; r < Math.min(rows.length, 100); r++) {
+      if (rows[r]?.some(c => String(c).includes('カタログ') || String(c).includes('ｶﾀﾛｸﾞ'))) {
+        catalogLabelRow = r;
+        break;
+      }
+    }
+
     if (diagnostics.length < 5) {
-      const sample = rows.slice(0, 5).map(r => Array.isArray(r) ? r.slice(0, 8).join('|') : 'NoArray').join('\n');
-      diagnostics.push(`[${sheetName} 冒頭]\n${sample}`);
+      const sample = rows.slice(Math.max(0, catalogLabelRow - 2), Math.max(10, catalogLabelRow + 5))
+        .map((r, i) => `R${Math.max(0, catalogLabelRow - 2) + i + 1}: ` + (Array.isArray(r) ? r.slice(0, 15).map(x => String(x).slice(0, 10)).join('|') : 'NoArray'))
+        .join('\n');
+      diagnostics.push(`[${sheetName}]\n見出し行: ${catalogLabelRow + 1}\nサンプル:\n${sample}`);
     }
 
     let sheetRecordCount = 0;
     const colorLabelMap: { [col: number]: number } = {};
     
-    for (let r = 0; r < Math.min(rows.length, 300); r++) {
+    for (let r = 0; r < Math.min(rows.length, 400); r++) {
       const row = rows[r];
       if (!Array.isArray(row)) continue;
       row.forEach((cell, c) => {
@@ -90,13 +101,18 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
       let currentMinQty = 0;
       let currentUnit: 'm' | 'pcs' = 'm';
 
-      for (let c = 0; c < Math.min(row.length, 30); c++) {
+      // ヘッダー情報スキャン
+      for (let c = 0; c < Math.min(row.length, 40); c++) {
         const val = String(row[c] || '').trim().replace(/[０-９]/g, m => String.fromCharCode(m.charCodeAt(0) - 0xFEE0)).replace(/[ｋＫ㎏]/g, 'k');
         if (!val) continue;
 
-        val.split(/[\n\s,、]+/).forEach(x => {
-          const clean = x.replace(/[△▲]/g, '').trim();
-          if (/^\d{3,6}$/.test(clean)) currentCatalogNos.push(clean);
+        val.split(/[\n\s,、/]+/).forEach(x => {
+          const clean = x.replace(/[△▲・]/g, '').trim();
+          // カタログ番号の判定を少し緩める (3-8桁、またはハイフン入り)
+          if (/^[\d-]{3,8}$/.test(clean) && clean.length >= 3) {
+            const pureNum = clean.replace(/-/g, '');
+            if (pureNum.length >= 3) currentCatalogNos.push(pureNum);
+          }
         });
         const wMatch = val.match(/^(\d+(?:\.\d+)?)\s*k?$/i);
         if (wMatch) currentWeight = parseFloat(wMatch[1]);
@@ -136,7 +152,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
           });
 
           let detectedType: 'uru' | 'junD' | 'd' | null = null;
-          for (let dr = 1; dr <= 8; dr++) {
+          for (let dr = 1; dr <= 10; dr++) {
             if (r - dr < 0) break;
             const headerCell = String(rows[r - dr][c] || '').trim();
             detectedType = getSPRowType(headerCell);
@@ -167,7 +183,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
     diagnostics.push(`${sheetName}: ${sheetRecordCount}件`);
   }
 
-  diagnostics.push(`完了 合計: ${spMaster.length}件`);
+  diagnostics.push(`合計: ${spMaster.length}件`);
   return { data: spMaster, diagnostics };
 };
 
