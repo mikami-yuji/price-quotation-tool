@@ -100,6 +100,21 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
       });
     }
 
+    // --- カタログNo列の事前特定 ---
+    // ヘッダー行で「カタログ」「No」等のラベルがある列を特定し、
+    // 単価（233円等）をカタログ番号と誤認するのを防ぐ
+    const catalogColumnSet: Set<number> = new Set();
+    for (let scanR = 0; scanR < Math.min(rows.length, 30); scanR++) {
+      const scanRow = rows[scanR];
+      if (!Array.isArray(scanRow)) continue;
+      scanRow.forEach((cell, c) => {
+        const s = String(cell || '').trim();
+        if (s.includes('カタログ') || s.includes('ｶﾀﾛｸﾞ') || s.includes('品番') || s.includes('№')) {
+          for (let dc = -1; dc <= 1; dc++) catalogColumnSet.add(c + dc);
+        }
+      });
+    }
+
     // --- 行スキャン ---
     let sheetRecordCount = 0;
     // 列ごとの状態保持（カタログNo、重量、形状）
@@ -121,14 +136,17 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
         const val = raw.replace(/[０-９]/g, m => String.fromCharCode(m.charCodeAt(0) - 0xFEE0)).replace(/[ｋＫ㎏]/g, 'k');
         if (!val) continue;
 
-        // カタログNo
+        // カタログNo（カタログNo列の近傍でのみ検出 - 単価との誤認を防止）
         const cats: string[] = [];
-        val.split(/[\n\s,、/]+/).forEach(x => {
-          const clean = x.replace(/[△▲・No.]/g, '').trim();
-          if (/^[\d-]{3,10}$/.test(clean) && clean.length >= 3) {
-            cats.push(clean.replace(/-/g, ''));
-          }
-        });
+        const isNearCatalogColumn = catalogColumnSet.size === 0 || [...catalogColumnSet].some(cc => Math.abs(c - cc) <= 2);
+        if (isNearCatalogColumn) {
+          val.split(/[\n\s,、/]+/).forEach(x => {
+            const clean = x.replace(/[△▲・No.]/g, '').trim();
+            if (/^[\d-]{3,10}$/.test(clean) && clean.length >= 3) {
+              cats.push(clean.replace(/-/g, ''));
+            }
+          });
+        }
 
         // 重量
         const wMatch = val.match(/^(\d+(\.\d+)?)k/i);
