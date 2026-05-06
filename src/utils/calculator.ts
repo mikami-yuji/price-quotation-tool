@@ -5,8 +5,7 @@ import {
   ManualGroupSetting, 
   IndividualManualSetting,
   ReadymadeMasterRow,
-  SPMasterRow,
-  DecodedProductCode
+  SPMasterRow
 } from '../types';
 import { decodeSPProductCode } from './stringUtils';
 
@@ -21,7 +20,7 @@ export const calculateNewPrices = (
     sp: SPMasterRow[];
     readymade: ReadymadeMasterRow[];
     sticker: CustomPriceMatrixRow[];
-  },
+  } = { custom: [], sp: [], readymade: [], sticker: [] },
   readymadePrefs?: { type: string; segment: 'uru' | 'junD' | 'd' }
 ): OrderRecord[] => {
   return orders.map((order) => {
@@ -35,6 +34,8 @@ export const calculateNewPrices = (
     const individual = individualSettings[order.orderNumber];
 
     let newPrice = order.currentPrice;
+    let spMatched = false;
+    let matchSource: string | undefined = undefined;
     
     // 値上げ計算のロジック
     const calculateCustomIncrease = (current: number, cond: IncreaseSimulationConditions): number => {
@@ -46,9 +47,10 @@ export const calculateNewPrices = (
     };
 
     const findPriceFromMatrix = (ord: OrderRecord, matrix: CustomPriceMatrixRow[]): number | null => {
+      if (!matrix) return null;
       const match = matrix.find(m => 
         m.materialName === ord.materialName && 
-        Math.abs(m.weight - ord.weight) < 0.01
+        Math.abs(Number(m.weight) - Number(ord.weight)) < 0.01
       );
       if (match) {
         const colorCount = ord.totalColorCount || (ord.frontColorCount + ord.backColorCount);
@@ -71,7 +73,6 @@ export const calculateNewPrices = (
     }
 
     let isManualPrice = false;
-    let spMatched = false;
 
     if (individual?.price !== undefined && individual.price !== 0) {
       newPrice = individual.price;
@@ -80,15 +81,16 @@ export const calculateNewPrices = (
       newPrice = group.price;
       isManualPrice = true;
     } else {
+      const masters = categorizedMasters || { custom: [], sp: [], readymade: [], sticker: [] };
       if (isCustom) {
-        const masterPrice = findPriceFromMatrix(order, categorizedMasters.custom);
+        const masterPrice = findPriceFromMatrix(order, masters.custom);
         if (masterPrice !== null) {
           newPrice = masterPrice;
         } else {
           newPrice = calculateCustomIncrease(order.currentPrice, conditions);
         }
       } else if (isSP) {
-        if (categorizedMasters.sp && categorizedMasters.sp.length > 0) {
+        if (masters.sp && masters.sp.length > 0) {
           const decoded = decodeSPProductCode(order.productCode);
           
           const normMat = (s: string) => {
@@ -99,7 +101,7 @@ export const calculateNewPrices = (
                     .toUpperCase();
           };
 
-          const baseMatches = categorizedMasters.sp.filter(m => {
+          const baseMatches = masters.sp.filter(m => {
             if (!m.materialHint || !order.materialName) return false;
             const normH = m.materialHint.replace(/^([0-9]{1,2}_)?(SP|ＳＰ|SPNEW|ＳＰＮＥＷ)/, '');
             const hints = normH.split(/[・/／\r\n]+/).map(h => h.trim()).filter(Boolean);
@@ -148,7 +150,7 @@ export const calculateNewPrices = (
             }
             const isFit = effectiveQty >= (m.minQuantity - 0.1);
             if (isFit) score += 1;
-            return { m, score, weightDiff, effectiveQty, isFit };
+            return { m, score, weightDiff, isFit };
           });
 
           candidates.sort((a, b) => {
@@ -165,6 +167,7 @@ export const calculateNewPrices = (
             if (priceObj && priceObj[segment] > 0) {
               newPrice = priceObj[segment];
               spMatched = true;
+              matchSource = matched.materialHint;
             }
           }
         }
@@ -172,14 +175,18 @@ export const calculateNewPrices = (
           newPrice = calculateCustomIncrease(order.currentPrice, conditions);
         }
       } else if (isSticker) {
-        const masterPrice = findPriceFromMatrix(order, categorizedMasters.sticker);
+        const masterPrice = findPriceFromMatrix(order, masters.sticker);
         newPrice = masterPrice !== null ? masterPrice : calculateCustomIncrease(order.currentPrice, conditions);
       } else if (isReady) {
-        const masterTable = categorizedMasters.readymade;
-        if (masterTable.length > 0 && 'campaign' in masterTable[0]) {
+        const masterTable = masters.readymade;
+        if (masterTable && masterTable.length > 0 && 'campaign' in masterTable[0]) {
           const orderCode = normalize(order.productCode || order.absCode);
-          const match = (masterTable as ReadymadeMasterRow[]).find(m => normalize(m.productCode) === orderCode || (m.absCode && normalize(m.absCode) === orderCode));
-          if (match) {
+          const matches = (masterTable as ReadymadeMasterRow[]).filter(m => normalize(m.productCode) === orderCode || (m.absCode && normalize(m.absCode) === orderCode));
+          if (matches.length > 0) {
+            // 数量スライドを適用 (数量以下の最大minQuantityを持つものを選択)
+            matches.sort((a, b) => b.minQuantity - a.minQuantity);
+            const match = matches.find(m => order.quantity >= m.minQuantity) || matches[matches.length - 1];
+            
             const segment = readymadePrefs?.segment || 'uru';
             const type = readymadePrefs?.type || 'normal';
             newPrice = type === 'campaign' ? match.campaign[segment] : match.normal[segment];
@@ -209,16 +216,18 @@ export const calculateNewPrices = (
     if (individual?.printingSalesGroup) newPrintingSalesGroup = individual.printingSalesGroup;
     else if (group?.printingSalesGroup) newPrintingSalesGroup = group.printingSalesGroup;
 
+    const displayProductName = isSP && order.title ? order.title.replace(/^\d{4}-\d{2}-\d{2}\s*/, '').replace(/^[^\s]*\s*/, '').replace(/^\d+(\.\d+)?[kK]([gG])?\s*/, '').replace(/^(ﾎ|ﾎﾟ)ﾘ(ﾎ|ﾎﾟ)ﾘ\s*/, '').replace(/^SF(ﾎ|ﾎﾟ)ﾘ\s*/, '').trim() || order.productName : order.productName;
+
     return {
       ...order,
-      productName: isSP && order.title ? order.title.replace(/^\d{4}-\d{2}-\d{2}\s*/, '').replace(/^[^\s]*\s*/, '').replace(/^\d+(\.\d+)?[kK]([gG])?\s*/, '').replace(/^(ﾎ|ﾎﾟ)ﾘ(ﾎ|ﾎﾟ)ﾘ\s*/, '').replace(/^SF(ﾎ|ﾎﾟ)ﾘ\s*/, '').trim() || order.productName : order.productName,
+      productName: displayProductName,
       newPrice, 
       newSalesGroup: resultSalesGroup,
       newPrintingCost, 
       newPrintingSalesGroup, 
       priceDifference: Math.round((newPrice - order.currentPrice) * 100) / 100,
       spMasterMatched: isSP ? spMatched : undefined,
-      matchSource: spMatched ? candidates[0]?.m.materialHint : undefined
+      matchSource
     };
   });
 };
