@@ -135,9 +135,8 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
         const w = wMatch ? parseFloat(wMatch[1]) : 0;
 
         // 材質ヒント
-        const isColumnUTitle = r <= catalogLabelRow + 2 && c >= 15; 
         const m = val.match(/【(.+?)】/);
-        const mat = m ? m[0] : (isColumnUTitle ? raw : '');
+        const mat = m ? m[0] : '';
 
         if (isHeaderLabel(raw) || cats.length > 0 || w > 0 || mat) {
           rowHeaderInfo.push({
@@ -150,9 +149,14 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
             materialHint: mat,
             col: c
           });
-          // この列は「見出し」なので、価格抽出対象から外すためのマーキング
-          if (!colState[c]) colState[c] = { catalogNos: [], weight: 0, shape: 'R', minQty: 0, lotType: 'below', unit: 'm', materialHint: '' };
-          colState[c].isHeaderCol = true;
+          
+          // データ行（r > catalogLabelRow）では、単なる材質ヒントだけでは「見出し列」として扱わない
+          // これにより、価格列が誤ってスキップされるのを防ぐ
+          const isActuallyHeader = isHeaderLabel(raw) || cats.length > 0 || w > 0;
+          if (isActuallyHeader) {
+            if (!colState[c]) colState[c] = { catalogNos: [], weight: 0, shape: 'R', minQty: 0, lotType: 'below', unit: 'm', materialHint: '' };
+            colState[c].isHeaderCol = true;
+          }
         }
       }
 
