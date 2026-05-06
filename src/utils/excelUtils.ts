@@ -263,6 +263,11 @@ const mapRowArrayToOrderRecord = (row: unknown[], header: unknown[]): OrderRecor
     printingCost: getIdx(['印刷代']),
     janCode: getIdx(['JAN']),
     directDeliveryName: getIdx(['直送先'])
+    printingSalesGroup: getIdx(['印刷営G']),
+    janCode: getIdx(['JAN']),
+    directDeliveryCode: getIdx(['直送先コード', '直送先CD']),
+    directDeliveryName: getIdx(['直送先', '直送先名称']),
+    lastOrderDate: getIdx(['最終受注日', '最終日'])
   };
 
   const val = (idx: number) => (idx !== -1 && Array.isArray(row) ? row[idx] : '');
@@ -290,6 +295,11 @@ const mapRowArrayToOrderRecord = (row: unknown[], header: unknown[]): OrderRecor
     backColorCount: num(idxMap.backColorCount),
     totalColorCount: num(idxMap.totalColorCount),
     printingCost: num(idxMap.printingCost),
+    printingSalesGroup: num(idxMap.printingSalesGroup),
+    janCode: String(val(idxMap.janCode)),
+    directDeliveryCode: String(val(idxMap.directDeliveryCode)),
+    directDeliveryName: String(val(idxMap.directDeliveryName)),
+    lastOrderDate: String(val(idxMap.lastOrderDate)),
     spMasterMatched: false
   };
 };
