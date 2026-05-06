@@ -87,7 +87,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
     // --- 行スキャン ---
     let sheetRecordCount = 0;
     // 列ごとの状態保持（カタログNo、重量、形状）
-    const colState: { [col: number]: { catalogNos: string[], weight: number, shape: 'R' | '単袋', minQty: number, lotType: 'above' | 'below', unit: 'm' | 'pcs', materialHint: string } } = {};
+    const colState: { [col: number]: { catalogNos: string[], weight: number, shape: 'R' | '単袋', minQty: number, lotType: 'above' | 'below', unit: 'm' | 'pcs', materialHint: string, isHeaderCol?: boolean } } = {};
     
     for (let r = 0; r < rows.length; r++) {
       const row = rows[r] as unknown[];
@@ -135,6 +135,9 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
             materialHint: mat,
             col: c
           });
+          // この列は「見出し」なので、価格抽出対象から外すためのマーキング
+          if (!colState[c]) colState[c] = { catalogNos: [], weight: 0, shape: 'R', minQty: 0, lotType: 'below', unit: 'm', materialHint: '' };
+          colState[c].isHeaderCol = true;
         }
       }
 
@@ -156,10 +159,11 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
       });
 
       // 3. 価格セルの抽出
-      // 3. 価格セルの抽出
       const currentPricesByCatalog: { [catalog: string]: { [color: number]: { uru: number; junD: number; d: number } } } = {};
 
       row.forEach((cell, c) => {
+        if (colState[c]?.isHeaderCol) return; // 見出し列（ロット等）はスキップ
+
         const raw = String(cell || '').trim();
         const p = parseFloat(raw.replace(/[^0-9.]/g, ''));
         if (!isNaN(p) && p > 0.1 && p < 10000) {
