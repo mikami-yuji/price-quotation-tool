@@ -162,15 +162,23 @@ export const calculateNewPrices = (
             } else if (masterUnit === 'pcs' && orderUnit === 'm') {
                effectiveQty = order.quantity * (targetWeight >= 5 ? 1.66 : 2.5);
             }
-            const isFit = effectiveQty >= (m.minQuantity - 0.1);
-            if (isFit) score += 1;
+            const isFit = m.lotType === 'above' 
+              ? (effectiveQty >= m.minQuantity - 1)
+              : (effectiveQty <= m.minQuantity + 1);
+            
+            if (isFit) score += 5;
+
             return { m, score, weightDiff, isFit };
           });
 
           candidates.sort((a, b) => {
             if (b.score !== a.score) return b.score - a.score;
             if (a.weightDiff !== b.weightDiff) return a.weightDiff - b.weightDiff;
-            return a.isFit ? (b.isFit ? b.m.minQuantity - a.m.minQuantity : -1) : (b.isFit ? 1 : a.m.minQuantity - b.m.minQuantity);
+            if (a.isFit && b.isFit) {
+              if (a.m.lotType === 'above') return b.m.minQuantity - a.m.minQuantity;
+              return a.m.minQuantity - b.m.minQuantity;
+            }
+            return a.isFit ? -1 : 1;
           });
 
           const matched = candidates[0]?.m;

@@ -87,14 +87,14 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
     // --- 行スキャン ---
     let sheetRecordCount = 0;
     // 列ごとの状態保持（カタログNo、重量、形状）
-    const colState: { [col: number]: { catalogNos: string[], weight: number, shape: 'R' | '単袋', minQty: number, unit: 'm' | 'pcs', materialHint: string } } = {};
+    const colState: { [col: number]: { catalogNos: string[], weight: number, shape: 'R' | '単袋', minQty: number, lotType: 'above' | 'below', unit: 'm' | 'pcs', materialHint: string } } = {};
     
     for (let r = 0; r < rows.length; r++) {
       const row = rows[r] as unknown[];
       if (!Array.isArray(row)) continue;
 
       // 1. この行に出現する「見出し情報」をまず収集
-      const rowHeaderInfo: { catalogNos: string[], weight: number, shape: 'R' | '単袋', minQty: number, unit: 'm' | 'pcs', materialHint: string, col: number }[] = [];
+      const rowHeaderInfo: { catalogNos: string[], weight: number, shape: 'R' | '単袋', minQty: number, lotType: 'above' | 'below', unit: 'm' | 'pcs', materialHint: string, col: number }[] = [];
       let rowPriceType: 'uru' | 'junD' | 'd' | null = null;
       let rowPriceTypeCol = -1;
 
@@ -130,6 +130,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
             weight: w,
             shape: val.includes('単袋') ? '単袋' : 'R',
             minQty: (val.match(/(\d+)m/) || val.match(/(\d+)枚/)) ? parseInt((val.match(/(\d+)/) || ['0','0'])[1]) : 0,
+            lotType: val.includes('以上') ? 'above' : 'below',
             unit: val.includes('枚') ? 'pcs' : 'm',
             materialHint: mat,
             col: c
@@ -141,11 +142,15 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
       rowHeaderInfo.forEach(info => {
         // info.col から右側の列に影響を及ぼす
         for (let targetC = info.col; targetC < Math.min(row.length, info.col + 30); targetC++) {
-          if (!colState[targetC]) colState[targetC] = { catalogNos: [], weight: 0, shape: 'R', minQty: 0, unit: 'm', materialHint: '' };
+          if (!colState[targetC]) colState[targetC] = { catalogNos: [], weight: 0, shape: 'R', minQty: 0, lotType: 'below', unit: 'm', materialHint: '' };
           if (info.catalogNos.length > 0) colState[targetC].catalogNos = info.catalogNos;
           if (info.weight > 0) colState[targetC].weight = info.weight;
           if (info.shape) colState[targetC].shape = info.shape;
-          if (info.minQty > 0) { colState[targetC].minQty = info.minQty; colState[targetC].unit = info.unit; }
+          if (info.minQty > 0) { 
+            colState[targetC].minQty = info.minQty; 
+            colState[targetC].lotType = info.lotType;
+            colState[targetC].unit = info.unit; 
+          }
           if (info.materialHint) colState[targetC].materialHint = info.materialHint;
         }
       });
@@ -204,6 +209,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
           weight: state.weight,
           shape: state.shape,
           minQuantity: state.minQty,
+          lotType: state.lotType,
           unit: state.unit,
           colorPrices: currentPricesByCatalog[catKey],
           materialHint: state.materialHint || sheetName
