@@ -54,7 +54,8 @@ describe('Calculator Logic (Multilevel Precedence)', () => {
   const defaultConditions: IncreaseSimulationConditions = {
     customIncreaseType: 'percentage',
     customIncreaseValue: 10,
-    roundingMode: 'none'
+    roundingMode: 'none',
+    spColorOffset: false
   };
 
   it('デフォルト計算: 10%アップが適用されること', () => {

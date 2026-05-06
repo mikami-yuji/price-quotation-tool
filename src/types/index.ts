@@ -73,6 +73,9 @@ export type SPMasterRow = {
   colorPrices: {
     [colorCount: number]: SPMasterPrice;
   };
+  printingPrices: {
+    [colorCount: number]: SPMasterPrice;
+  };
   materialHint?: string; // 材質特定用のヒント
 };
 

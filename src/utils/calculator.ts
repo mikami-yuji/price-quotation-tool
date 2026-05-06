@@ -184,26 +184,36 @@ export const calculateNewPrices = (
           const matched = candidates[0]?.m;
           if (matched) {
             const segment = readymadePrefs?.segment || 'uru';
-            const cCount = order.totalColorCount || (order.frontColorCount + order.backColorCount);
+            const actualColor = order.totalColorCount || (order.frontColorCount + order.backColorCount);
+            // SPの色数オフセット判定：設定が有効なら -1 する
+            const cCount = conditions.spColorOffset ? Math.max(1, actualColor - 1) : actualColor;
             
-            // 色数の一致（なければ最も近い色数を使用）
-            let priceObj = matched.colorPrices[cCount];
-            if (!priceObj) {
-              const available = Object.keys(matched.colorPrices).map(Number).sort((a, b) => a - b);
-              if (available.length > 0) {
-                // 0色の場合は最小色（1色など）を優先、それ以外は差の絶対値が最小のものを探す
-                const target = cCount === 0 ? available[0] : available.reduce((p, c) => 
-                  Math.abs(c - cCount) < Math.abs(p - cCount) ? c : p
-                , available[0]);
-                priceObj = matched.colorPrices[target];
+            const getPriceFromMap = (map: { [c: number]: SPMasterPrice }) => {
+              if (!map) return 0;
+              let priceObj = map[cCount];
+              if (!priceObj) {
+                const available = Object.keys(map).map(Number).sort((a, b) => a - b);
+                if (available.length > 0) {
+                  const target = cCount === 0 ? available[0] : available.reduce((p, c) => 
+                    Math.abs(c - cCount) < Math.abs(p - cCount) ? c : p
+                  , available[0]);
+                  priceObj = map[target];
+                }
               }
-            }
+              return priceObj ? priceObj[segment] : 0;
+            };
 
-            if (priceObj && priceObj[segment] > 0) {
-              newPrice = priceObj[segment];
+            const pPrice = getPriceFromMap(matched.colorPrices);
+            const prPrice = getPriceFromMap(matched.printingPrices);
+
+            if (pPrice > 0) {
+              newPrice = pPrice;
               idealPrice = newPrice;
               spMatched = true;
               matchSource = matched.materialHint;
+            }
+            if (prPrice > 0) {
+              newPrintingCost = prPrice;
             }
           }
         }
