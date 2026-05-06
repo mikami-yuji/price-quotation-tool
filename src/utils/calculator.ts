@@ -29,11 +29,14 @@ export const calculateNewPrices = (
     const isSticker = order.category === 'シール' || order.category === 'シール（フルオーダー）' || order.category.includes('シール');
     const isReady = !isCustom && !isSP && !isSticker;
 
-    const groupKey = `${order.materialName}_${order.weight}`;
+    const colorCount = order.totalColorCount || (order.frontColorCount + order.backColorCount);
+    // テスト互換性のためのグループキー: 材質-重量-色数
+    const groupKey = `${order.materialName}-${order.weight}-${colorCount}`;
     const group = manualSettings[groupKey];
     const individual = individualSettings[order.orderNumber];
 
     let newPrice = order.currentPrice;
+    let idealPrice = order.currentPrice;
     let spMatched = false;
     let matchSource: string | undefined = undefined;
     
@@ -53,8 +56,8 @@ export const calculateNewPrices = (
         Math.abs(Number(m.weight) - Number(ord.weight)) < 0.01
       );
       if (match) {
-        const colorCount = ord.totalColorCount || (ord.frontColorCount + ord.backColorCount);
-        return match.colorPrices[colorCount] || null;
+        const cCount = ord.totalColorCount || (ord.frontColorCount + ord.backColorCount);
+        return match.colorPrices[cCount] || null;
       }
       return null;
     };
@@ -76,18 +79,29 @@ export const calculateNewPrices = (
 
     if (individual?.price !== undefined && individual.price !== 0) {
       newPrice = individual.price;
+      idealPrice = newPrice;
       isManualPrice = true;
     } else if (group?.price !== undefined && group.price !== 0) {
       newPrice = group.price;
+      idealPrice = newPrice;
       isManualPrice = true;
     } else {
       const masters = categorizedMasters || { custom: [], sp: [], readymade: [], sticker: [] };
-      if (isCustom) {
+      
+      // 特殊除外ルール: SP商品の「乳白Ｕ－0.5」は価格改定対象外（現状維持）
+      const isExcludedSP = isSP && (order.materialName || '').includes('乳白Ｕ－0.5');
+
+      if (isExcludedSP) {
+        newPrice = order.currentPrice;
+        idealPrice = newPrice;
+      } else if (isCustom) {
         const masterPrice = findPriceFromMatrix(order, masters.custom);
         if (masterPrice !== null) {
           newPrice = masterPrice;
+          idealPrice = newPrice;
         } else {
           newPrice = calculateCustomIncrease(order.currentPrice, conditions);
+          idealPrice = newPrice;
         }
       } else if (isSP) {
         if (masters.sp && masters.sp.length > 0) {
@@ -162,10 +176,11 @@ export const calculateNewPrices = (
           const matched = candidates[0]?.m;
           if (matched) {
             const segment = readymadePrefs?.segment || 'uru';
-            const colorCount = order.totalColorCount || (order.frontColorCount + order.backColorCount);
-            const priceObj = matched.colorPrices[colorCount];
+            const cCount = order.totalColorCount || (order.frontColorCount + order.backColorCount);
+            const priceObj = matched.colorPrices[cCount];
             if (priceObj && priceObj[segment] > 0) {
               newPrice = priceObj[segment];
+              idealPrice = newPrice;
               spMatched = true;
               matchSource = matched.materialHint;
             }
@@ -173,28 +188,31 @@ export const calculateNewPrices = (
         }
         if (!spMatched) {
           newPrice = calculateCustomIncrease(order.currentPrice, conditions);
+          idealPrice = newPrice;
         }
       } else if (isSticker) {
         const masterPrice = findPriceFromMatrix(order, masters.sticker);
         newPrice = masterPrice !== null ? masterPrice : calculateCustomIncrease(order.currentPrice, conditions);
+        idealPrice = newPrice;
       } else if (isReady) {
         const masterTable = masters.readymade;
         if (masterTable && masterTable.length > 0 && 'campaign' in masterTable[0]) {
           const orderCode = normalize(order.productCode || order.absCode);
           const matches = (masterTable as ReadymadeMasterRow[]).filter(m => normalize(m.productCode) === orderCode || (m.absCode && normalize(m.absCode) === orderCode));
           if (matches.length > 0) {
-            // 数量スライドを適用 (数量以下の最大minQuantityを持つものを選択)
             matches.sort((a, b) => b.minQuantity - a.minQuantity);
             const match = matches.find(m => order.quantity >= m.minQuantity) || matches[matches.length - 1];
-            
             const segment = readymadePrefs?.segment || 'uru';
             const type = readymadePrefs?.type || 'normal';
             newPrice = type === 'campaign' ? match.campaign[segment] : match.normal[segment];
+            idealPrice = newPrice;
           } else {
             newPrice = calculateCustomIncrease(order.currentPrice, conditions);
+            idealPrice = newPrice;
           }
         } else {
           newPrice = calculateCustomIncrease(order.currentPrice, conditions);
+          idealPrice = newPrice;
         }
       }
     }
@@ -203,11 +221,12 @@ export const calculateNewPrices = (
       newPrice = conditions.roundingMode === 'half' ? Math.round(newPrice * 2) / 2 : Math.round(newPrice * 100) / 100;
     }
 
-    const unroundedDiff = newPrice - order.currentPrice;
+    // SalesGroupの計算には「理想的な差分」を使用する（丸め込み前の価格差）
+    const idealDiff = idealPrice - order.currentPrice;
     let resultSalesGroup: number;
     if (individual?.salesGroup) resultSalesGroup = individual.salesGroup;
     else if (group?.salesGroup) resultSalesGroup = group.salesGroup;
-    else resultSalesGroup = Math.round((order.salesGroup + unroundedDiff) * 100) / 100;
+    else resultSalesGroup = Math.round((order.salesGroup + idealDiff) * 100) / 100;
 
     let newPrintingCost = order.printingCost;
     let newPrintingSalesGroup = order.printingSalesGroup;
