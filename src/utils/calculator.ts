@@ -144,6 +144,18 @@ export const calculateNewPrices = (
 
           const candidates = baseMatches.map(m => {
             let score = 0;
+            
+            // 材質キーワードの適合度をスコア化
+            const hintNorm = normMat(m.materialHint || '');
+            const tNorm = normMat(order.materialName);
+            const keywords = ['ポリポリ', 'マット', 'SF', 'ＳＦ', 'コンビ', 'バイオマス', 'ラミ', '真空', '和紙', '雲竜', 'ソフトクラフト', '金銀', 'ZIP', 'ジップ', 'ポリ'];
+            keywords.forEach(kw => {
+              const inOrder = tNorm.includes(kw);
+              const inMaster = hintNorm.includes(kw);
+              if (inOrder && inMaster) score += 50;
+              else if (inOrder && !inMaster) score -= 100; // オーダーにある材質がマスターにない場合は大幅減点
+            });
+
             const hasCode = m.catalogNos.some(no => {
               const normNo = normalize(no);
               return orderCode.includes(normNo) || (normNo.length >= 3 && orderCode.startsWith(normNo));
@@ -162,11 +174,12 @@ export const calculateNewPrices = (
             } else if (masterUnit === 'pcs' && orderUnit === 'm') {
                effectiveQty = order.quantity * (targetWeight >= 5 ? 1.66 : 2.5);
             }
+
             const isFit = m.lotType === 'above' 
               ? (effectiveQty >= m.minQuantity - 1)
               : (effectiveQty <= m.minQuantity + 1);
             
-            if (isFit) score += 5;
+            if (isFit) score += 20;
 
             return { m, score, weightDiff, isFit };
           });

@@ -216,10 +216,14 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
         sheetRecordCount++;
       });
     }
-    diagnostics.push(`${sheetName}: ${sheetRecordCount}件`);
+    diagnostics.push(`${sheetName}: ${sheetRecordCount}件 (${Object.keys(colState).length}列解析)`);
   }
 
   diagnostics.push(`完了 合計: ${spMaster.length}件`);
+  if (spMaster.length > 0) {
+    const sample = spMaster[0];
+    diagnostics.push(`サンプル: [${sample.catalogNos.join(',')}] / ${sample.materialHint} / Lot:${sample.minQuantity}${sample.lotType === 'above' ? '↑' : '↓'} / 色数:${Object.keys(sample.colorPrices).length}`);
+  }
   return { data: spMaster, diagnostics };
 };
 
