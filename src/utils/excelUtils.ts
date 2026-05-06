@@ -73,6 +73,11 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
       colors: {} as { [key: number]: number }
     };
 
+    let firstRowStr = '';
+    if (rows[0] && Array.isArray(rows[0])) {
+      firstRowStr = rows[0].map(c => String(c)).join(' | ');
+    }
+
     for (let r = 0; r < Math.min(rows.length, 100); r++) {
       const row = rows[r];
       if (!Array.isArray(row)) continue;
@@ -96,10 +101,14 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
       }
     }
 
-    if (headerRowIdx === -1) continue;
+    if (headerRowIdx === -1) {
+      diagnostics.push(`${sheetName}: スキップ (ヘッダー未検出) [1行目: ${firstRowStr.slice(0, 50)}]`);
+      continue;
+    }
 
     // シート名からのデフォルトキーワード
     const sheetKeyword = sheetName.replace(/^[0-9_]+/, '').replace(/SP/g, '').trim();
+    let recordCount = 0;
 
     for (let r = headerRowIdx + 1; r < rows.length; r++) {
       const row = rows[r];
@@ -197,8 +206,11 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
           shape: currentShape,
           colorPrices
         });
+        recordCount++;
       }
     }
+    
+    diagnostics.push(`${sheetName}: ${recordCount}件`);
   }
 
   return { data: spMaster, diagnostics };
