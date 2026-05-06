@@ -101,15 +101,23 @@ export const calculateNewPrices = (
                 // 完全一致
                 if (hintNorm === tNorm) return true;
                 
-                // 特定のキーワードが含まれているかどうかの不一致があれば除外
-                const keywords = ['マット', 'SF', 'ＳＦ', 'コンビ', 'バイオマス', 'ラミ', '真空'];
+                // 104: 特定のキーワードが含まれているかどうかの不一致があれば除外
+                const keywords = ['ポリポリ', 'マット', 'SF', 'ＳＦ', 'コンビ', 'バイオマス', 'ラミ', '真空', '和紙', '雲竜', 'ソフトクラフト', '金銀', 'ZIP', 'ジップ', 'ポリ'];
                 for (const k of keywords) {
                   const hHas = hintNorm.includes(k);
                   const tHas = tNorm.includes(k);
                   if (hHas !== tHas) return false;
                 }
                 
-                return hintNorm.includes(tNorm) || tNorm.includes(hintNorm);
+                // キーワードの一致を確認した上で、残りの部分の包含関係をチェック（語順の違いを許容）
+                let hRest = hintNorm;
+                let tRest = tNorm;
+                for (const k of keywords) {
+                  hRest = hRest.replace(new RegExp(k, 'g'), '');
+                  tRest = tRest.replace(new RegExp(k, 'g'), '');
+                }
+                
+                return hRest.includes(tRest) || tRest.includes(hRest) || hintNorm === tNorm;
               });
               
               return materialMatch;
