@@ -58,8 +58,24 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
     // --- 診断情報の収集 ---
     let catalogLabelRow = -1;
     for (let r = 0; r < Math.min(rows.length, 150); r++) {
-      if (rows[r]?.some(c => String(c).includes('カタログ') || String(c).includes('No.'))) {
+      const row = rows[r];
+      if (!Array.isArray(row)) continue;
+      // キーワード検索（広範に）
+      const hasHeader = row.some(c => {
+        const s = String(c || '').trim();
+        return s.includes('カタログ') || s.includes('No') || s.includes('ｶﾀﾛｸﾞ') || s.includes('№') || s.includes('品番') || s.includes('商品') || s.includes('コード');
+      });
+      if (hasHeader) {
         catalogLabelRow = r;
+        break;
+      }
+      // バックアップ：カタログ番号らしきものが複数ある行をヘッダー付近とみなす
+      const catCount = row.filter(c => {
+        const s = String(c || '').trim().replace(/-/g, '');
+        return /^\d{3,10}$/.test(s);
+      }).length;
+      if (catCount >= 2) {
+        catalogLabelRow = Math.max(0, r - 1); // その1行上が見出しの可能性が高い
         break;
       }
     }
