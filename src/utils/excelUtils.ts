@@ -95,13 +95,11 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
 
       // 1. この行に出現する「見出し情報」をまず収集
       const rowHeaderInfo: { catalogNos: string[], weight: number, shape: 'R' | '単袋', minQty: number, lotType: 'above' | 'below', unit: 'm' | 'pcs', materialHint: string, col: number }[] = [];
-      let rowPriceType: 'uru' | 'junD' | 'd' | null = null;
-      let rowPriceTypeCol = -1;
 
       for (let c = 0; c < row.length; c++) {
         const raw = String(row[c] || '').trim();
         const type = getSPRowType(raw);
-        if (type) { rowPriceType = type; rowPriceTypeCol = c; continue; }
+        if (type) { continue; }
 
         const val = raw.replace(/[０-９]/g, m => String.fromCharCode(m.charCodeAt(0) - 0xFEE0)).replace(/[ｋＫ㎏]/g, 'k');
         if (!val) continue;
@@ -181,12 +179,16 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
 
           // タイプを特定
           let detectedType: 'uru' | 'junD' | 'd' | null = null;
-          if (rowPriceType && Math.abs(c - rowPriceTypeCol) <= 5) {
-            detectedType = rowPriceType;
-          } else {
-            for (let dr = 1; dr <= 15; dr++) {
-              if (r - dr < 0) break;
-              detectedType = getSPRowType(String(rows[r - dr][c] || '').trim());
+          for (let dr = 0; dr <= 15; dr++) {
+            if (r - dr < 0) break;
+            detectedType = getSPRowType(String(rows[r - dr][c] || '').trim());
+            if (detectedType) break;
+          }
+          // 縦に見つからなければ、同じ行の左側を探す（売 | 純 | D の並びに対応）
+          if (!detectedType) {
+            for (let dc = 1; dc <= 3; dc++) {
+              if (c - dc < 0) break;
+              detectedType = getSPRowType(String(row[c - dc] || '').trim());
               if (detectedType) break;
             }
           }

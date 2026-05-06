@@ -200,17 +200,23 @@ export const calculateNewPrices = (
             const segment = readymadePrefs?.segment || 'uru';
             const cCount = order.totalColorCount || (order.frontColorCount + order.backColorCount);
             
+            // 商品名や印刷コードから色数を推測（優先）
+            let bestCCount = cCount;
+            const printM = (order.printCode || '').match(/([1-8])色/);
+            if (printM) bestCCount = parseInt(printM[1]);
+
             // 色数の一致（なければ最も近い色数を使用）
-            let priceObj = matched.colorPrices[cCount];
+            let priceObj = matched.colorPrices[bestCCount];
             if (!priceObj) {
               const available = Object.keys(matched.colorPrices).map(Number).sort((a, b) => a - b);
               if (available.length > 0) {
-                const target = cCount === 0 ? available[0] : available.reduce((p, c) => 
-                  Math.abs(c - cCount) < Math.abs(p - cCount) ? c : p
+                const target = bestCCount === 0 ? available[0] : available.reduce((p, c) => 
+                  Math.abs(c - bestCCount) < Math.abs(p - bestCCount) ? c : p
                 , available[0]);
                 priceObj = matched.colorPrices[target];
               }
             }
+
 
             if (priceObj && priceObj[segment] > 0) {
               newPrice = priceObj[segment];
