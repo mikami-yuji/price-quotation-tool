@@ -117,7 +117,10 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
       // 1. 材質キーワードの特定
       const rowKeyword = colIdx.keyword !== -1 ? String(row[colIdx.keyword] || '').trim() : '';
       const finalKeyword = rowKeyword || sheetKeyword;
-      if (!finalKeyword) continue;
+      if (!finalKeyword) {
+        if (recordCount === 0) diagnostics.push(`Skip(keyword): ${JSON.stringify(row)}`);
+        continue;
+      }
 
       // 2. 仕様の抽出
       let currentWeight = 0;
@@ -143,7 +146,10 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
         else if (u.includes('枚')) currentUnit = 'pcs';
       }
 
-      if (currentQty === 0) continue;
+      if (currentQty === 0) {
+        if (recordCount === 0) diagnostics.push(`Skip(qty=0): colIdx.qty=${colIdx.qty}, val=${row[colIdx.qty]}`);
+        continue;
+      }
 
       // 3. 価格区分の判定
       let rowType: 'uru' | 'junD' | 'd' | null = null;
@@ -156,7 +162,10 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
           if (rowType) break;
         }
       }
-      if (!rowType) continue;
+      if (!rowType) {
+        if (recordCount === 0) diagnostics.push(`Skip(type): colIdx.type=${colIdx.type}, val=${row[colIdx.type]}`);
+        continue;
+      }
 
       // 4. 価格の抽出
       const colorPrices: { [color: number]: { uru: number; junD: number; d: number } } = {};
@@ -170,7 +179,10 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
         }
       });
 
-      if (Object.keys(colorPrices).length === 0) continue;
+      if (Object.keys(colorPrices).length === 0) {
+        if (recordCount === 0) diagnostics.push(`Skip(price): colIdx.colors=${JSON.stringify(colIdx.colors)}, rowVals=${Object.keys(colIdx.colors).map(i => row[Number(i)])}`);
+        continue;
+      }
 
       // 5. データの登録（既存データへのマージ）
       // 材質、重量、数量、単位、形状がすべて一致するものを探す
@@ -210,7 +222,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
       }
     }
     
-    diagnostics.push(`${sheetName}: ${recordCount}件`);
+    diagnostics.push(`${sheetName}: ${recordCount}件 (colIdx: ${JSON.stringify(colIdx)})`);
   }
 
   return { data: spMaster, diagnostics };
