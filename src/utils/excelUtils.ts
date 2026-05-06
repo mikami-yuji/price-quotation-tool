@@ -55,9 +55,8 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
     const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
     if (rows.length === 0) continue;
 
-    // 診断情報: カタログの見出しがあるか
     let catalogLabelRow = -1;
-    for (let r = 0; r < Math.min(rows.length, 100); r++) {
+    for (let r = 0; r < Math.min(rows.length, 150); r++) {
       if (rows[r]?.some(c => String(c).includes('カタログ') || String(c).includes('ｶﾀﾛｸﾞ'))) {
         catalogLabelRow = r;
         break;
@@ -65,8 +64,9 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
     }
 
     if (diagnostics.length < 5) {
-      const sample = rows.slice(Math.max(0, catalogLabelRow - 2), Math.max(10, catalogLabelRow + 5))
-        .map((r, i) => `R${Math.max(0, catalogLabelRow - 2) + i + 1}: ` + (Array.isArray(r) ? r.slice(0, 15).map(x => String(x).slice(0, 10)).join('|') : 'NoArray'))
+      const start = Math.max(0, (catalogLabelRow === -1 ? 0 : catalogLabelRow - 2));
+      const sample = rows.slice(start, start + 12)
+        .map((r, i) => `R${start + i + 1}: ` + (Array.isArray(r) ? r.slice(0, 20).map(x => String(x || '').slice(0, 8)).join('|') : 'NoArray'))
         .join('\n');
       diagnostics.push(`[${sheetName}]\n見出し行: ${catalogLabelRow + 1}\nサンプル:\n${sample}`);
     }
@@ -74,7 +74,8 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
     let sheetRecordCount = 0;
     const colorLabelMap: { [col: number]: number } = {};
     
-    for (let r = 0; r < Math.min(rows.length, 400); r++) {
+    // シート全体のカラーラベル位置を特定
+    for (let r = 0; r < Math.min(rows.length, 500); r++) {
       const row = rows[r];
       if (!Array.isArray(row)) continue;
       row.forEach((cell, c) => {
@@ -101,15 +102,13 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
       let currentMinQty = 0;
       let currentUnit: 'm' | 'pcs' = 'm';
 
-      // ヘッダー情報スキャン
-      for (let c = 0; c < Math.min(row.length, 40); c++) {
+      for (let c = 0; c < Math.min(row.length, 50); c++) {
         const val = String(row[c] || '').trim().replace(/[０-９]/g, m => String.fromCharCode(m.charCodeAt(0) - 0xFEE0)).replace(/[ｋＫ㎏]/g, 'k');
         if (!val) continue;
 
         val.split(/[\n\s,、/]+/).forEach(x => {
           const clean = x.replace(/[△▲・]/g, '').trim();
-          // カタログ番号の判定を少し緩める (3-8桁、またはハイフン入り)
-          if (/^[\d-]{3,8}$/.test(clean) && clean.length >= 3) {
+          if (/^[\d-]{3,10}$/.test(clean) && clean.length >= 3) {
             const pureNum = clean.replace(/-/g, '');
             if (pureNum.length >= 3) currentCatalogNos.push(pureNum);
           }
@@ -140,23 +139,33 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
 
         const p = parseFloat(raw.replace(/[^0-9.]/g, ''));
         if (!isNaN(p) && p > 0.1 && p < 10000) {
+          // 色の特定 (左右5列、上下5列程度を優先)
           let color = 1;
           let minDist = 999;
           Object.keys(colorLabelMap).forEach(colStr => {
             const col = parseInt(colStr);
-            const dist = c - col;
-            if (dist >= -1 && dist < minDist) {
+            const dist = Math.abs(c - col);
+            if (dist < minDist) {
               color = colorLabelMap[col];
               minDist = dist;
             }
           });
 
+          // タイプの特定 (上方向、または左隣をチェック)
           let detectedType: 'uru' | 'junD' | 'd' | null = null;
-          for (let dr = 1; dr <= 10; dr++) {
+          
+          // 1. 真上を遡って探す
+          for (let dr = 1; dr <= 12; dr++) {
             if (r - dr < 0) break;
             const headerCell = String(rows[r - dr][c] || '').trim();
             detectedType = getSPRowType(headerCell);
             if (detectedType) break;
+          }
+          
+          // 2. もし上に見つからなければ、左隣のセルを探す (垂直配置対応)
+          if (!detectedType && c > 0) {
+            const leftCell = String(row[c - 1] || '').trim();
+            detectedType = getSPRowType(leftCell);
           }
 
           if (detectedType) {
