@@ -2,15 +2,15 @@ import { OrderRecord, CustomPriceMatrixRow, ReadymadeMasterRow, SPMasterRow, Sim
 
 export const calculateNewPrices = (
   orders: OrderRecord[],
-  priceMatrix: CustomPriceMatrixRow[],
+  priceMatrix: CustomPriceMatrixRow[] = [],
   conditions: IncreaseSimulationConditions,
-  manualSettings: ManualGroupSetting,
-  individualSettings: IndividualManualSetting,
+  manualSettings: ManualGroupSetting = {},
+  individualSettings: IndividualManualSetting = {},
   masters: {
     custom: CustomPriceMatrixRow[];
     sp: SPMasterRow[];
     readymade: ReadymadeMasterRow[];
-  },
+  } = { custom: [], sp: [], readymade: [] },
   options: {
     spPriceIncrease?: number;
     readymadePriceIncrease?: number;
