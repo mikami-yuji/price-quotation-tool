@@ -156,25 +156,13 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
       });
 
       // 3. 価格セルの抽出
-      const currentPricesByCatalog: { 
-        [catalog: string]: { 
-          product: { [color: number]: { uru: number; junD: number; d: number } },
-          printing: { [color: number]: { uru: number; junD: number; d: number } }
-        } 
-      } = {};
+      // 3. 価格セルの抽出
+      const currentPricesByCatalog: { [catalog: string]: { [color: number]: { uru: number; junD: number; d: number } } } = {};
 
       row.forEach((cell, c) => {
         const raw = String(cell || '').trim();
         const p = parseFloat(raw.replace(/[^0-9.]/g, ''));
         if (!isNaN(p) && p > 0.1 && p < 10000) {
-          // 印刷代かどうか判定 (真上を遡って確認)
-          let isPrinting = false;
-          for (let dr = 0; dr <= 8; dr++) {
-            if (r - dr < 0) break;
-            const header = String(rows[r - dr][c] || '').trim();
-            if (header.includes('印刷')) { isPrinting = true; break; }
-          }
-
           // 色を特定（一番近い見出し）
           let color = 1;
           let minDist = 999;
@@ -201,12 +189,9 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
 
           if (detectedType && colState[c]?.catalogNos.length > 0) {
             const catKey = colState[c].catalogNos.join(',');
-            if (!currentPricesByCatalog[catKey]) {
-              currentPricesByCatalog[catKey] = { product: {}, printing: {} };
-            }
-            const targetMap = isPrinting ? currentPricesByCatalog[catKey].printing : currentPricesByCatalog[catKey].product;
-            if (!targetMap[color]) targetMap[color] = { uru: 0, junD: 0, d: 0 };
-            targetMap[color][detectedType] = p;
+            if (!currentPricesByCatalog[catKey]) currentPricesByCatalog[catKey] = {};
+            if (!currentPricesByCatalog[catKey][color]) currentPricesByCatalog[catKey][color] = { uru: 0, junD: 0, d: 0 };
+            currentPricesByCatalog[catKey][color][detectedType] = p;
           }
         }
       });
@@ -225,8 +210,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
           minQuantity: state.minQty,
           lotType: state.lotType,
           unit: state.unit,
-          colorPrices: currentPricesByCatalog[catKey].product,
-          printingPrices: currentPricesByCatalog[catKey].printing,
+          colorPrices: currentPricesByCatalog[catKey],
           materialHint: state.materialHint || sheetName
         });
         sheetRecordCount++;
