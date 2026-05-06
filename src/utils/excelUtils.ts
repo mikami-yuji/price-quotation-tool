@@ -180,10 +180,11 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
           }
         }
 
-        for (let r = headerRowIdx + 1; r < rows.length; r++) {
+        for (let r = headerRowIdx; r < rows.length; r++) {
           const row = rows[r] as unknown[];
           if (!Array.isArray(row)) continue;
-          if (headerRows.includes(r)) break;
+          // 別のヘッダー行に到達したら停止（現在の行は除外）
+          if (r > headerRowIdx && headerRows.includes(r)) break;
 
           const rawVal = String(row[sellIdx] || '').trim();
           let rowType = getSPRowType(rawVal);
