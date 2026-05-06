@@ -277,7 +277,8 @@ const mapRowArrayToOrderRecord = (row: unknown[], header: unknown[]): OrderRecor
     janCode: getIdx(['JAN']),
     directDeliveryCode: getIdx(['直送先コード', '直送先CD']),
     directDeliveryName: getIdx(['直送先', '直送先名称']),
-    lastOrderDate: getIdx(['最終受注日', '最終日'])
+    lastOrderDate: getIdx(['最終受注日', '最終日']),
+    title: getIdx(['タイトル'])
   };
 
   const val = (idx: number) => (idx !== -1 && Array.isArray(row) ? row[idx] : '');
@@ -287,13 +288,22 @@ const mapRowArrayToOrderRecord = (row: unknown[], header: unknown[]): OrderRecor
   };
 
   const pCode = String(val(idxMap.productCode));
+  const category = String(val(idxMap.category) || '既製品').trim();
+  const isSP = (category.includes('SP') || category.includes('ＳＰ')) && !category.includes('シルク');
+  
+  const titleVal = String(val(idxMap.title));
+  let pName = String(val(idxMap.productName));
+  if (isSP && titleVal) {
+    pName = titleVal;
+  }
 
   return {
-    category: String(val(idxMap.category) || '既製品').trim(),
+    category,
     orderNumber: String(val(idxMap.orderNumber)),
     productCode: pCode,
     absCode: pCode.replace(/\s+/g, ''),
-    productName: String(val(idxMap.productName)),
+    productName: pName,
+    title: titleVal,
     materialName: String(val(idxMap.materialName)),
     printCode: String(val(idxMap.printCode)),
     quantity: num(idxMap.quantity),

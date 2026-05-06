@@ -252,7 +252,19 @@ export const calculateNewPrices = (
     if (individual?.printingSalesGroup) newPrintingSalesGroup = individual.printingSalesGroup;
     else if (group?.printingSalesGroup) newPrintingSalesGroup = group.printingSalesGroup;
 
-    const displayProductName = isSP && order.title ? order.title.replace(/^\d{4}-\d{2}-\d{2}\s*/, '').replace(/^[^\s]*\s*/, '').replace(/^\d+(\.\d+)?[kK]([gG])?\s*/, '').replace(/^(ﾎ|ﾎﾟ)ﾘ(ﾎ|ﾎﾟ)ﾘ\s*/, '').replace(/^SF(ﾎ|ﾎﾟ)ﾘ\s*/, '').trim() || order.productName : order.productName;
+    // SPのタイトル（カラムU）からの表示名抽出
+    // 冗長な日付や管理記号を削るが、品名の核心（【】内など）は残す
+    const cleanSPTitle = (title: string) => {
+      return title
+        .replace(/^\d{4}-\d{2}-\d{2}\s*/, '') // 日付削除
+        .replace(/^\d{7,}\s*/, '')           // 受注番号と思われる数字削除
+        .replace(/^[a-zA-Z0-9-]{10,}\s*/, '') // 長い商品コード削除
+        .trim();
+    };
+
+    const displayProductName = (isSP && order.title) 
+      ? (cleanSPTitle(order.title) || order.productName) 
+      : order.productName;
 
     return {
       ...order,

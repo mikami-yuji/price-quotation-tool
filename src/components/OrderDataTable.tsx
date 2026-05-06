@@ -134,7 +134,9 @@ export default function OrderDataTable({
                   <td>
                     {order.category === '既製品' || order.category === '' 
                       ? order.productName 
-                      : shortenProductName(order.title || order.productName)}
+                      : (order.category.includes('SP') || order.category.includes('ＳＰ'))
+                        ? order.productName
+                        : shortenProductName(order.productName)}
                   </td>
                   <td>{order.shape}</td>
                   <td>{order.quantity}</td>
