@@ -55,7 +55,11 @@ export type ReadymadeMasterRow = {
   shape?: string;
   campaign: { uru: number; junD: number; d: number };
   normal: { uru: number; junD: number; d: number };
+  normalPrice?: number; // 互換性のための追加
+  productName?: string; // 互換性のための追加
 };
+
+export type SimulationResult = OrderRecord[];
 
 export type SPMasterPrice = {
   uru: number;
@@ -84,7 +88,6 @@ export type IncreaseSimulationConditions = {
   customIncreaseType: 'percentage' | 'amount';
   customIncreaseValue: number;
   roundingMode: 'none' | 'half';
-  spColorOffset?: boolean; // SPの色数-1オフセットを有効にするか
 };
 
 // 別注・ポリ別注・SPの手入力設定 (キー: "材質-重量-色数[-印刷コード]")
