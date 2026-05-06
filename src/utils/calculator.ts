@@ -117,7 +117,7 @@ export const calculateNewPrices = (
             if (!m.materialHint || !order.materialName) return false;
             // 1. 材質の適合性（フィルタ）
             const hintNorm = normMat(m.materialHint || '');
-            const tNorm = normMat(order.materialName);
+            const tNorm = normMat(order.materialName + (order.printCode || ''));
             
             // 基礎的な材質（ポリポリ vs ポリ vs バリア 等）が一致するかチェック
             const baseKeywords = ['ポリポリ', 'バリア', '和紙', '雲竜', 'アルミ', 'クラフト', 'ラミ', '真空', 'ジップ', 'ZIP', 'ポリ'];
@@ -154,7 +154,7 @@ export const calculateNewPrices = (
 
             // 材質のキーワード一致ボーナス
             const hintNorm = normMat(m.materialHint || '');
-            const tNorm = normMat(order.materialName);
+            const tNorm = normMat(order.materialName + (order.printCode || ''));
             scoreKeywords.forEach(kw => {
               const inOrder = tNorm.includes(kw);
               const inMaster = hintNorm.includes(kw);
