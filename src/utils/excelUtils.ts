@@ -167,14 +167,6 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
             materialHint: mat,
             col: c
           });
-          
-          // データ行（r > catalogLabelRow）では、単なる材質ヒントだけでは「見出し列」として扱わない
-          // これにより、価格列が誤ってスキップされるのを防ぐ
-          const isActuallyHeader = isHeaderLabel(raw) || cats.length > 0 || w > 0;
-          if (isActuallyHeader) {
-            if (!colState[c]) colState[c] = { catalogNos: [], weight: 0, shape: 'R', minQty: 0, lotType: 'below', unit: 'm', materialHint: '' };
-            colState[c].isHeaderCol = true;
-          }
         }
       }
 
@@ -199,7 +191,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
       row.forEach((cell, c) => {
         const p = parseFloat(String(cell || '').replace(/[,¥]/g, ''));
         if (!isNaN(p) && p > 0.1 && p < 10000) {
-          if (colState[c]?.isHeaderCol) return; 
+          if (rowHeaderInfo.some(info => info.col === c)) return; 
 
           let color = 0;
           let minDist = 999;
