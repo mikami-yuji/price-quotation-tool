@@ -87,14 +87,14 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
     // --- 行スキャン ---
     let sheetRecordCount = 0;
     // 列ごとの状態保持（カタログNo、重量、形状）
-    const colState: { [col: number]: { catalogNos: string[], weight: number, shape: 'R' | '単袋', minQty: number, unit: 'm' | 'pcs' } } = {};
+    const colState: { [col: number]: { catalogNos: string[], weight: number, shape: 'R' | '単袋', minQty: number, unit: 'm' | 'pcs', materialHint: string } } = {};
     
     for (let r = 0; r < rows.length; r++) {
       const row = rows[r] as unknown[];
       if (!Array.isArray(row)) continue;
 
       // 1. この行に出現する「見出し情報」をまず収集
-      const rowHeaderInfo: { catalogNos: string[], weight: number, shape: 'R' | '単袋', minQty: number, unit: 'm' | 'pcs', col: number }[] = [];
+      const rowHeaderInfo: { catalogNos: string[], weight: number, shape: 'R' | '単袋', minQty: number, unit: 'm' | 'pcs', materialHint: string, col: number }[] = [];
       let rowPriceType: 'uru' | 'junD' | 'd' | null = null;
       let rowPriceTypeCol = -1;
 
@@ -115,17 +115,19 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
           }
         });
 
-        // 重量を抽出
-        const wMatch = val.match(/^(\d+(?:\.\d+)?)\s*k?$/i);
-        const w = wMatch ? parseFloat(wMatch[1]) : 0;
+        // 商品名（材質ヒント）を抽出
+        const m = raw.match(/【(.*?)】/);
+        const isColumnUTitle = c === 20 && raw.length > 2;
+        const mat = m ? m[0] : (isColumnUTitle ? raw : '');
 
-        if (cats.length > 0 || w > 0) {
+        if (cats.length > 0 || w > 0 || mat) {
           rowHeaderInfo.push({
             catalogNos: cats,
             weight: w,
             shape: val.includes('単袋') ? '単袋' : 'R',
             minQty: (val.match(/(\d+)m/) || val.match(/(\d+)枚/)) ? parseInt((val.match(/(\d+)/) || ['0','0'])[1]) : 0,
             unit: val.includes('枚') ? 'pcs' : 'm',
+            materialHint: mat,
             col: c
           });
         }
@@ -135,11 +137,12 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
       rowHeaderInfo.forEach(info => {
         // info.col から右側の列に影響を及ぼす
         for (let targetC = info.col; targetC < Math.min(row.length, info.col + 30); targetC++) {
-          if (!colState[targetC]) colState[targetC] = { catalogNos: [], weight: 0, shape: 'R', minQty: 0, unit: 'm' };
+          if (!colState[targetC]) colState[targetC] = { catalogNos: [], weight: 0, shape: 'R', minQty: 0, unit: 'm', materialHint: '' };
           if (info.catalogNos.length > 0) colState[targetC].catalogNos = info.catalogNos;
           if (info.weight > 0) colState[targetC].weight = info.weight;
           if (info.shape) colState[targetC].shape = info.shape;
           if (info.minQty > 0) { colState[targetC].minQty = info.minQty; colState[targetC].unit = info.unit; }
+          if (info.materialHint) colState[targetC].materialHint = info.materialHint;
         }
       });
 
@@ -199,7 +202,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
           minQuantity: state.minQty,
           unit: state.unit,
           colorPrices: currentPricesByCatalog[catKey],
-          materialHint: sheetName + ` (L${r + 1})`
+          materialHint: state.materialHint || sheetName
         });
         sheetRecordCount++;
       });
