@@ -7,7 +7,7 @@ import {
   ReadymadeMasterRow,
   SPMasterRow
 } from '../types';
-import { decodeSPProductCode } from './stringUtils';
+import { decodeSPProductCode, shortenProductName } from './stringUtils';
 
 export const calculateNewPrices = (
   orders: OrderRecord[],
@@ -294,8 +294,13 @@ export const calculateNewPrices = (
         .trim();
     };
 
-    const displayProductName = (isSP && order.title) 
-      ? (cleanSPTitle(order.title) || order.productName) 
+    let baseName = order.productName;
+    if (isSP && order.title) {
+      baseName = cleanSPTitle(order.title) || order.productName;
+    }
+
+    const displayProductName = (isSP || isCustom) 
+      ? (shortenProductName(baseName) || order.productName) 
       : order.productName;
 
     return {
