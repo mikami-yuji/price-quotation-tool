@@ -53,9 +53,12 @@ export type ReadymadeMasterRow = {
   minQuantity: number; // 数量スライド用の最小数量 (備考_2から算出)
   weight?: number;
   shape?: string;
-  campaign: { uru: number; junD: number; d: number };
-  normal: { uru: number; junD: number; d: number };
+  campaign?: { uru: number; junD: number; d: number };
+  normal?: { uru: number; junD: number; d: number };
   normalPrice?: number; // 互換性のための追加
+  campaignPrice?: number;
+  slideQuantity?: number;
+  slidePrice?: number;
   productName?: string; // 互換性のための追加
 };
 
