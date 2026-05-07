@@ -65,16 +65,22 @@ export const calculateNewPrices = (
       // 検索対象の正規化
       const searchTarget = (order.productName + (order.title || '') + (order.materialName || '')).normalize('NFKC').toLowerCase();
       
-      // 1. 形状判定の厳格化: 「形状」列を最優先にする
-      const isRollShape = order.shape.trim().toUpperCase().startsWith('R');
+      // 1. 形状判定の多角化: 「形状」列と「商品名」のキーワードを組み合わせる
+      const shapeStr = order.shape.trim().toUpperCase();
+      const nameStr = order.productName.normalize('NFKC');
+      const isRollShape = shapeStr.startsWith('R') || 
+                          nameStr.includes('ロール') || 
+                          nameStr.includes('【R】');
       const orderShape = isRollShape ? 'R' : '単袋';
 
       const candidates = masters.sp.filter(m => {
         const kw = (m.materialHint || '').toLowerCase();
         // キーワード判定: 曖昧さを排除し、マスターのキーワードが品名等に含まれていること
         const keywordMatch = kw && searchTarget.includes(kw);
-        // 重量判定: 厳密一致
-        const weightMatch = (m.weight !== 0 && Number(m.weight) === Number(order.weight));
+        // 重量判定: 数値としての厳密一致（誤差0.1以内を許容）
+        const mWeight = typeof m.weight === 'string' ? parseFloat(m.weight) : m.weight;
+        const oWeight = typeof order.weight === 'string' ? parseFloat(order.weight) : order.weight;
+        const weightMatch = (mWeight > 0 && Math.abs(mWeight - oWeight) < 0.1);
         // 形状判定: 厳密一致
         const shapeMatch = m.shape === orderShape;
         
