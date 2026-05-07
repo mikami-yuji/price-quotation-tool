@@ -80,7 +80,6 @@ export const usePriceSimulation = () => {
   const simulatedOrders = useMemo(() => {
     return calculateNewPrices(
       orders, 
-      priceMatrix, 
       conditions,
       manualSettings,
       individualSettings,
