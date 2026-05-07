@@ -234,11 +234,11 @@ export const calculateNewPrices = (
 
         // セグメント（売/準D/D）に応じた価格取得
         let baseP = 0;
-        const p = bestMatch.normal || {};
-        if (safeOptions.segment === 'uru') baseP = p.uru || bestMatch.normalPrice;
-        else if (safeOptions.segment === 'junD') baseP = p.junD || bestMatch.normalPrice;
-        else if (safeOptions.segment === 'd') baseP = p.d || bestMatch.normalPrice;
-        else baseP = bestMatch.normalPrice || p.uru;
+        const p = (bestMatch.normal || {}) as { uru?: number; junD?: number; d?: number };
+        if (safeOptions.segment === 'uru') baseP = p.uru || bestMatch.normalPrice || 0;
+        else if (safeOptions.segment === 'junD') baseP = p.junD || bestMatch.normalPrice || 0;
+        else if (safeOptions.segment === 'd') baseP = p.d || bestMatch.normalPrice || 0;
+        else baseP = bestMatch.normalPrice || p.uru || 0;
 
         masterPrice = baseP || 0;
         newPrice = masterPrice + (safeOptions?.readymadePriceIncrease || 0);
