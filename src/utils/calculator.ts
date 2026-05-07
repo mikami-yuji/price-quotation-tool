@@ -176,7 +176,7 @@ export const calculateNewPrices = (
       const matched = masters.readymade.find(m => m.absCode === order.absCode);
       if (matched) {
         masterPrice = matched.normalPrice || 0;
-        newPrice = masterPrice + options.readymadePriceIncrease;
+        newPrice = masterPrice + (options?.readymadePriceIncrease || 0);
         matchMethod = 'code';
         spMasterMatched = true;
       }
