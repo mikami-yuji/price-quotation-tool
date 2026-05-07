@@ -10,7 +10,7 @@ export const calculateNewPrices = (
     custom: CustomPriceMatrixRow[];
     sp: SPMasterRow[];
     readymade: ReadymadeMasterRow[];
-    sticker?: any[];
+    sticker?: unknown[];
   } = { custom: [], sp: [], readymade: [], sticker: [] },
   options: {
     spPriceIncrease?: number;
