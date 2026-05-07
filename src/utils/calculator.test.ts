@@ -59,7 +59,7 @@ describe('Calculator Logic (Multilevel Precedence)', () => {
   };
 
   it('デフォルト計算: 10%アップが適用されること', () => {
-    const results = calculateNewPrices(sampleOrders, [], defaultConditions);
+    const results = calculateNewPrices(sampleOrders, defaultConditions);
     expect(results[0].newPrice).toBe(88);
     expect(results[0].newSalesGroup).toBe(68); // 60 + (88-80)
   });
@@ -69,7 +69,7 @@ describe('Calculator Logic (Multilevel Precedence)', () => {
     const groupSettings = {
       '【ポリ】-5-4': { price: 95, salesGroup: 70 }
     };
-    const results = calculateNewPrices(sampleOrders, [], defaultConditions, groupSettings);
+    const results = calculateNewPrices(sampleOrders, defaultConditions, groupSettings);
     expect(results[0].newPrice).toBe(95);
     expect(results[0].newSalesGroup).toBe(70);
     expect(results[1].newPrice).toBe(95); // 同グループの別商品も適用される
@@ -83,7 +83,7 @@ describe('Calculator Logic (Multilevel Precedence)', () => {
       '1001': { price: 100, salesGroup: 80 }
     };
     
-    const results = calculateNewPrices(sampleOrders, [], defaultConditions, groupSettings, individualSettings);
+    const results = calculateNewPrices(sampleOrders, defaultConditions, groupSettings, individualSettings);
     
     // 1001 は個別設定が適用
     expect(results[0].newPrice).toBe(100);
@@ -98,7 +98,7 @@ describe('Calculator Logic (Multilevel Precedence)', () => {
     const individualSettings = {
       '1001': { price: 100 } // priceのみ設定
     };
-    const results = calculateNewPrices(sampleOrders, [], defaultConditions, {}, individualSettings);
+    const results = calculateNewPrices(sampleOrders, defaultConditions, {}, individualSettings);
     
     expect(results[0].newPrice).toBe(100);
     expect(results[0].priceDifference).toBe(20);
@@ -111,7 +111,7 @@ describe('Calculator Logic (Multilevel Precedence)', () => {
       customIncreaseValue: 0.3,
       roundingMode: 'half'
     };
-    const results = calculateNewPrices(sampleOrders, [], conditions);
+    const results = calculateNewPrices(sampleOrders, conditions);
     // 80 + 0.3 = 80.3 -> 80.5 に丸まる
     expect(results[0].newPrice).toBe(80.5);
   });
@@ -122,7 +122,7 @@ describe('Calculator Logic (Multilevel Precedence)', () => {
       customIncreaseValue: 0.35, // 80 + 0.35 = 80.35
       roundingMode: 'half'      // -> 単価は 80.5 に丸まる
     };
-    const results = calculateNewPrices(sampleOrders, [], conditions);
+    const results = calculateNewPrices(sampleOrders, conditions);
     
     expect(results[0].newPrice).toBe(80.5); // 丸め適用
     // 旧営G 60 + 理想増分 0.35 = 60.35 (丸め後の 80.5-80 = 0.5 ではない)
@@ -138,7 +138,7 @@ describe('Calculator Logic (Multilevel Precedence)', () => {
     const individualSettings = {
       '1001': { price: 100.22 } // あえて .50 単位ではない数値を入力
     };
-    const results = calculateNewPrices(sampleOrders, [], conditions, {}, individualSettings);
+    const results = calculateNewPrices(sampleOrders, conditions, {}, individualSettings);
     
     expect(results[0].newPrice).toBe(100.22); // 丸められずにそのまま維持
     expect(results[0].newSalesGroup).toBe(60 + (100.22 - 80)); // 営Gも入力値ベース
@@ -156,7 +156,7 @@ describe('Calculator Logic (Multilevel Precedence)', () => {
     ];
 
     it('数量に応じて適切なマスター価格が選択されること', () => {
-      const results = calculateNewPrices(readyOrders, [], defaultConditions, {}, {}, {
+      const results = calculateNewPrices(readyOrders, defaultConditions, {}, {}, {
         custom: [], sp: [], sticker: [], readymade: readyMaster
       }, { type: 'normal', segment: 'uru' });
 
@@ -224,7 +224,7 @@ describe('Calculator Logic (Multilevel Precedence)', () => {
     ];
 
     it('商品コードデコードに基づく正確なマッチングが行われること', () => {
-      const results = calculateNewPrices(spOrders, [], defaultConditions, {}, {}, {
+      const results = calculateNewPrices(spOrders, defaultConditions, {}, {}, {
         custom: [], sp: spMaster, sticker: [], readymade: []
       }, { type: 'normal', segment: 'uru' });
 
@@ -237,7 +237,7 @@ describe('Calculator Logic (Multilevel Precedence)', () => {
 
     it('材質が一致しない場合はマッチしないこと', () => {
       const mismatchedOrders = [{ ...spOrders[0], materialName: 'バリア' }];
-      const results = calculateNewPrices(mismatchedOrders, [], defaultConditions, {}, {}, {
+      const results = calculateNewPrices(mismatchedOrders, defaultConditions, {}, {}, {
         custom: [], sp: spMaster, sticker: [], readymade: []
       });
       // 一致しないのでデフォルトの10%アップ: 100 * 1.1 = 110
@@ -252,7 +252,7 @@ describe('Calculator Logic (Multilevel Precedence)', () => {
         currentPrice: 100,
         salesGroup: 80
       }];
-      const results = calculateNewPrices(excludedOrder, [], defaultConditions);
+      const results = calculateNewPrices(excludedOrder, defaultConditions);
       expect(results[0].newPrice).toBe(100);
       expect(results[0].priceDifference).toBe(0);
     });
@@ -265,7 +265,7 @@ describe('Calculator Logic (Multilevel Precedence)', () => {
         currentPrice: 100,
         salesGroup: 80
       }];
-      const results = calculateNewPrices(customOrder, [], defaultConditions);
+      const results = calculateNewPrices(customOrder, defaultConditions);
       expect(results[0].newPrice).toBe(110);
     });
 
@@ -282,11 +282,12 @@ describe('Calculator Logic (Multilevel Precedence)', () => {
         ...spOrders[0],
         productCode: '009991001',
         materialName: '【ポリ】透明',
+        weight: 10,
         totalColorCount: 1
       }];
-      const results = calculateNewPrices(zenkakuOrder, [], defaultConditions, {}, {}, {
+      const results = calculateNewPrices(zenkakuOrder, defaultConditions, {}, {}, {
         custom: [], sp: zenkakuMaster, sticker: [], readymade: []
-      });
+      }, { segment: 'uru' });
       expect(results[0].newPrice).toBe(150);
     });
 
@@ -305,13 +306,14 @@ describe('Calculator Logic (Multilevel Precedence)', () => {
         category: 'SPオフセット',
         productCode: '008110301', // カタログ811, 3kg, 単袋
         materialName: '【クラフト】窓有り',
+        weight: 3,
         quantity: 1000,
         totalColorCount: 1
       }];
 
-      const results = calculateNewPrices(craftOrder, [], defaultConditions, {}, {}, {
+      const results = calculateNewPrices(craftOrder, defaultConditions, {}, {}, {
         custom: [], sp: craftMaster, sticker: [], readymade: []
-      });
+      }, { segment: 'uru' });
       
       expect(results[0].newPrice).toBe(125);
     });
@@ -345,9 +347,9 @@ describe('Calculator Logic (Multilevel Precedence)', () => {
         totalColorCount: 2
       }];
 
-      const results = calculateNewPrices(unryuOrder, [], defaultConditions, {}, {}, {
+      const results = calculateNewPrices(unryuOrder, defaultConditions, {}, {}, {
         custom: [], sp: unryuMaster, sticker: [], readymade: []
-      });
+      }, { segment: 'uru' });
       
       // 1000枚の価格 143 が引用されること
       expect(results[0].newPrice).toBe(143);

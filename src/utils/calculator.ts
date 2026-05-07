@@ -1,8 +1,8 @@
 import { OrderRecord, CustomPriceMatrixRow, ReadymadeMasterRow, SPMasterRow, SimulationResult, IncreaseSimulationConditions, ManualGroupSetting, IndividualManualSetting, ReadymadeSegment } from '../types';
 
 export const calculateNewPrices = (
-  orders: OrderRecord[],
-  conditions: IncreaseSimulationConditions,
+  orders: OrderRecord[] = [],
+  conditions: IncreaseSimulationConditions = { customIncreaseType: 'percentage', customIncreaseValue: 0, roundingMode: 'none' },
   manualSettings: ManualGroupSetting = {},
   individualSettings: IndividualManualSetting = {},
   masters: {
@@ -18,7 +18,14 @@ export const calculateNewPrices = (
     type?: 'normal' | 'campaign';
   } = {}
 ): SimulationResult => {
-  return orders.map(order => {
+  const safeOrders = orders || [];
+  const safeConditions = conditions || { customIncreaseType: 'percentage', customIncreaseValue: 0, roundingMode: 'none' };
+  const safeManualSettings = manualSettings || {};
+  const safeIndividualSettings = individualSettings || {};
+  const safeMasters = masters || { custom: [], sp: [], readymade: [], sticker: [] };
+  const safeOptions = options || {};
+
+  return safeOrders.map(order => {
     const isCustom = (order.category.includes('別注') || order.category.includes('ポリ別注')) && !order.category.includes('SP');
     const isReadymade = order.category.includes('既製品') || order.category.includes('価格表');
     const isSP = (order.category.includes('SP') || order.category.includes('ＳＰ')) && !order.category.includes('シルク');
@@ -31,12 +38,15 @@ export const calculateNewPrices = (
     let displayProductName = order.productName;
 
     // 1. 個別設定のチェック (最優先)
-    const individual = individualSettings[order.orderNumber];
+    const individual = safeIndividualSettings[order.productCode] || safeIndividualSettings[order.orderNumber];
     if (individual && individual.price !== undefined) {
+      const p = individual.price;
       return {
         ...order,
-        newPrice: individual.price,
-        priceDiff: individual.price - currentPrice,
+        newPrice: p,
+        newSalesGroup: individual.salesGroup || (order.salesGroup + (p - currentPrice)),
+        priceDifference: p - currentPrice,
+        priceDiff: p - currentPrice,
         matchMethod: 'none'
       };
     }
@@ -47,24 +57,50 @@ export const calculateNewPrices = (
       ? `${order.materialName}-${order.weight}-${order.totalColorCount}-${order.printCode}`
       : `${order.materialName}-${order.weight}-${order.totalColorCount}`;
     
-    const groupManual = manualSettings[groupKey];
+    const groupManual = safeManualSettings[groupKey];
     if (groupManual && groupManual.price !== undefined) {
+      const p = groupManual.price;
       return {
         ...order,
-        newPrice: groupManual.price,
-        priceDiff: groupManual.price - currentPrice,
+        newPrice: p,
+        newSalesGroup: groupManual.salesGroup || (order.salesGroup + (p - currentPrice)),
+        priceDifference: p - currentPrice,
+        priceDiff: p - currentPrice,
         matchMethod: 'none'
+      };
+    }
+
+    // 3. SP商品の除外判定 (価格改定の対象外とする銘柄)
+    const isExcludedSP = isSP && (
+      order.materialName.includes('乳白Ｕ－0.5') ||
+      order.materialName.includes('乳白U-0.5')
+    );
+
+    if (isExcludedSP) {
+      return {
+        ...order,
+        newPrice: currentPrice,
+        newSalesGroup: order.salesGroup,
+        priceDifference: 0,
+        priceDiff: 0,
+        matchMethod: 'none',
+        matchSource: '改定対象外(銘柄固定)'
       };
     }
 
     let spMasterMatched = false;
 
-    // 3. 各種マスターとのマッチング
+    // 4. 各種マスターとのマッチング
     if (isSP) {
       // 検索対象の正規化
-      const searchTarget = (order.productName + (order.title || '') + (order.materialName || '')).normalize('NFKC').toLowerCase();
+      const normalizedCode = order.productCode.normalize('NFKC').replace(/\s+/g, '');
+      const searchTarget = (normalizedCode + (order.productName || '') + (order.title || '') + (order.materialName || '')).normalize('NFKC').toLowerCase();
       
-      // 1. 形状判定の多角化: 「形状」列と「商品名」のキーワードを組み合わせる
+      // カタログ番号の抽出 (例: 00810... -> 810, 999... -> 999)
+      const catalogMatch_RE = normalizedCode.match(/(?:00|^)(\d{3})/);
+      const orderCatalog = catalogMatch_RE ? parseInt(catalogMatch_RE[1], 10).toString() : '';
+
+      // 1. 形状判定の多角化
       const shapeStr = order.shape.trim().toUpperCase();
       const nameStr = order.productName.normalize('NFKC');
       const isRollShape = shapeStr.startsWith('R') || 
@@ -72,17 +108,34 @@ export const calculateNewPrices = (
                           nameStr.includes('【R】');
       const orderShape = isRollShape ? 'R' : '単袋';
 
-      const candidates = masters.sp.filter(m => {
-        const kw = (m.materialHint || '').toLowerCase();
-        // キーワード判定: 曖昧さを排除し、マスターのキーワードが品名等に含まれていること
-        const keywordMatch = kw && searchTarget.includes(kw);
-        // 重量判定: 数値としての厳密一致（誤差0.1以内を許容）
-        const mWeight = typeof m.weight === 'string' ? parseFloat(m.weight) : m.weight;
-        const oWeight = typeof order.weight === 'string' ? parseFloat(order.weight) : order.weight;
+      const candidates = safeMasters.sp.filter(m => {
+        // カタログ番号一致
+        const catalogMatch = orderCatalog && m.catalogNos && m.catalogNos.includes(orderCatalog);
+        
+        const kw = (m.materialHint || '').normalize('NFKC').toLowerCase().replace(/[（）() \t【】[\]]/g, '');
+        const target = searchTarget.replace(/[（）() \t【】[\]]/g, '');
+        
+        // 和紙などの表記揺れ吸収
+        const fix = (s: string) => s.replace(/窓付|窓有り/g, '窓').replace(/単袋|単/g, '').replace(/オフセット/g, '');
+        const fKw = fix(kw);
+        const fTarget = fix(target);
+        const keywordMatch = fKw ? (fTarget.includes(fKw) || fKw.includes(fTarget)) : true;
+        
+        // 矛盾チェック (材質の不一致を検出)
+        // マスターが「ポリ」なのに注文が「バリア」などの場合
+        const majorMaterials = ['ポリ', 'バリア', 'ラミ', '和紙', 'クラフト', 'ナイロン'];
+        const mMat = majorMaterials.find(mm => kw.includes(mm));
+        const oMat = majorMaterials.find(mm => target.includes(mm));
+        const materialConflict = mMat && oMat && mMat !== oMat;
+
+        const mWeight = typeof m.weight === 'number' ? m.weight : parseFloat(String(m.weight || 0));
+        const oWeight = typeof order.weight === 'number' ? order.weight : parseFloat(String(order.weight || 0));
         const weightMatch = (mWeight > 0 && Math.abs(mWeight - oWeight) < 0.1);
-        // 形状判定: 厳密一致
         const shapeMatch = m.shape === orderShape;
         
+        if (materialConflict) return false;
+        
+        if (catalogMatch && weightMatch && shapeMatch) return true;
         return keywordMatch && weightMatch && shapeMatch;
       });
 
@@ -101,8 +154,6 @@ export const calculateNewPrices = (
           bestMatch = validLots.reduce((prev, curr) => 
             curr.minQuantity > prev.minQuantity ? curr : prev
           );
-        } else {
-          // どのロットにも達していない場合はマッチングさせない
         }
 
         if (bestMatch) {
@@ -121,9 +172,9 @@ export const calculateNewPrices = (
             let targetPrice = 0;
             let segmentLabel = '';
 
-            if (options.segment === 'uru' && pUru > 0) { targetPrice = pUru; segmentLabel = '売'; }
-            else if (options.segment === 'junD' && pJun > 0) { targetPrice = pJun; segmentLabel = '準D'; }
-            else if (options.segment === 'd' && pD > 0) { targetPrice = pD; segmentLabel = 'D'; }
+            if (safeOptions.segment === 'uru' && pUru > 0) { targetPrice = pUru; segmentLabel = '売'; }
+            else if (safeOptions.segment === 'junD' && pJun > 0) { targetPrice = pJun; segmentLabel = '準D'; }
+            else if (safeOptions.segment === 'd' && pD > 0) { targetPrice = pD; segmentLabel = 'D'; }
             
             if (targetPrice <= 0) {
               const dU = pUru > 0 ? Math.abs(currentPrice - pUru) : Infinity;
@@ -154,67 +205,95 @@ export const calculateNewPrices = (
       // SPの商品名を短縮する（仕様部分を削り、商品名だけを残す）
       const shortenProductName = (name: string): string => {
         let n = name.normalize('NFKC').trim();
-        
-        // 1. 冒頭の記号を削除
         n = n.replace(/^[●★☆◆◇■□]+/g, '');
-        
-        // 2. 冒頭の仕様（重量・材質コード）を削除
-        // 2K, 5K, SFMポリDH などを繰り返して消す
         let prev = '';
         for (let i = 0; i < 5; i++) {
           prev = n;
           n = n.replace(/^[0-9.]+[kK][gG]?[ 　]*/, '');
           n = n.replace(/^[^ 　]*?(ポリ|ラミ|マット|バイオマス)[^ 　]*[ 　]*/, '');
-          // 形状に関わる【】は消すが、銘柄に関わるものは残す
           n = n.replace(/^【(単|R|ロール|単袋|枚|仕上)】[ 　]*/, '');
           if (n === prev) break;
         }
-
-        // 3. 末尾の記号やデザイン名、SPコードなどをカット
-        // RASP, SP などの文字列以降をざっくりカット
         n = n.replace(/[ 　]*(RASP|CSP|SP).*$/, '');
-        
         return n.trim() || name;
       };
       displayProductName = shortenProductName(order.productName);
     } else if (isReadymade) {
-      const matched = masters.readymade.find(m => m.absCode === order.absCode);
-      if (matched) {
-        masterPrice = matched.normalPrice || 0;
-        newPrice = masterPrice + (options?.readymadePriceIncrease || 0);
+      // 既製品の数量スライド対応
+      const candidates = (safeMasters.readymade || []).filter(m => 
+        (m.absCode && m.absCode === order.absCode) || 
+        (m.productCode && m.productCode === order.productCode)
+      );
+      
+      if (candidates.length > 0) {
+        // 到達している最大のロットを選択
+        const validLots = candidates.filter(c => (c.minQuantity || 0) <= order.quantity + 2);
+        const bestMatch = validLots.length > 0 
+          ? validLots.reduce((prev, curr) => (curr.minQuantity || 0) > (prev.minQuantity || 0) ? curr : prev)
+          : candidates[0];
+
+        // セグメント（売/準D/D）に応じた価格取得
+        let baseP = 0;
+        const p = bestMatch.normal || {};
+        if (safeOptions.segment === 'uru') baseP = p.uru || bestMatch.normalPrice;
+        else if (safeOptions.segment === 'junD') baseP = p.junD || bestMatch.normalPrice;
+        else if (safeOptions.segment === 'd') baseP = p.d || bestMatch.normalPrice;
+        else baseP = bestMatch.normalPrice || p.uru;
+
+        masterPrice = baseP || 0;
+        newPrice = masterPrice + (safeOptions?.readymadePriceIncrease || 0);
         matchMethod = 'code';
         spMasterMatched = true;
       }
     } else if (isCustom) {
-      const matched = masters.custom.find(m => 
-        order.materialName.includes(m.materialName) && m.weight === order.weight
-      );
+      const matched = (safeMasters.custom || []).find(m => {
+        const mName = (m.materialName || '').normalize('NFKC').toLowerCase();
+        const oName = (order.materialName || '').normalize('NFKC').toLowerCase();
+        return oName.includes(mName) && m.weight === order.weight;
+      });
       if (matched) {
         const color = order.totalColorCount || 1;
         const prices = matched.colorPrices;
         masterPrice = prices[color] || prices[1];
         if (masterPrice) {
-          newPrice = masterPrice + (conditions.customIncreaseType === 'amount' ? conditions.customIncreaseValue : masterPrice * (conditions.customIncreaseValue / 100));
+          newPrice = masterPrice + (safeConditions.customIncreaseType === 'amount' ? safeConditions.customIncreaseValue : masterPrice * (safeConditions.customIncreaseValue / 100));
           matchMethod = 'spec';
           spMasterMatched = true;
         }
       }
     }
 
-    // 4. マッチしなかった場合のデフォルト計算
-    if (matchMethod === 'none') {
-      const spInc = options?.spPriceIncrease || 0;
-      const readyInc = options?.readymadePriceIncrease || 0;
-      const increase = isSP ? spInc : (isReadymade ? readyInc : (conditions.customIncreaseType === 'amount' ? conditions.customIncreaseValue : currentPrice * (conditions.customIncreaseValue / 100)));
-      newPrice = currentPrice + increase;
+    // 5. マッチしなかった場合のデフォルト計算
+    let idealNewPrice = currentPrice;
+    if (matchMethod === 'none' && !isExcludedSP) {
+      const spInc = safeOptions.spPriceIncrease || (safeConditions.customIncreaseType === 'amount' ? safeConditions.customIncreaseValue : currentPrice * (safeConditions.customIncreaseValue / 100));
+      const readyInc = safeOptions.readymadePriceIncrease || (safeConditions.customIncreaseType === 'amount' ? safeConditions.customIncreaseValue : currentPrice * (safeConditions.customIncreaseValue / 100));
+      const increase = isSP ? spInc : (isReadymade ? readyInc : (safeConditions.customIncreaseType === 'amount' ? safeConditions.customIncreaseValue : currentPrice * (safeConditions.customIncreaseValue / 100)));
+      
+      idealNewPrice = currentPrice + increase;
+      
+      // 丸め処理の適用
+      if (safeConditions.roundingMode === 'half') {
+        newPrice = Math.round(idealNewPrice * 2) / 2;
+      } else {
+        newPrice = idealNewPrice;
+      }
+    } else {
+      idealNewPrice = newPrice;
     }
+
+    const diffForSalesGroup = idealNewPrice - currentPrice;
+    const newSalesGroup = Math.round((order.salesGroup + diffForSalesGroup) * 1000) / 1000;
+    const priceDifference = Math.round((newPrice - currentPrice) * 1000) / 1000;
 
     return {
       ...order,
       productName: displayProductName,
       currentPrice,
       newPrice,
-      priceDiff: newPrice - currentPrice,
+      newSalesGroup,
+      priceDifference,
+      priceDiff: priceDifference,
       masterPrice: masterPrice || 0,
       matchMethod,
       matchSource,
