@@ -85,7 +85,7 @@ export type ReadymadeSegment = 'uru' | 'junD' | 'd';
 
 // 値上げのシミュレーション条件
 export type IncreaseSimulationConditions = {
-  customIncreaseType: 'percentage' | 'amount';
+  customIncreaseType: 'percentage' | 'amount' | 'fixed';
   customIncreaseValue: number;
   roundingMode: 'none' | 'half';
 };

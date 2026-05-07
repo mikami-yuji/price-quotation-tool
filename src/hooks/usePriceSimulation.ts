@@ -92,7 +92,7 @@ export const usePriceSimulation = () => {
       },
       {
         spPriceIncrease: 10, // 必要に応じて調整
-        readymadePriceIncrease: conditions.customIncreaseType === 'fixed' ? conditions.customIncreaseValue : 0,
+        readymadePriceIncrease: (conditions.customIncreaseType as string) === 'fixed' || conditions.customIncreaseType === 'amount' ? conditions.customIncreaseValue : 0,
         segment: readymadeSegment,
       }
     );
