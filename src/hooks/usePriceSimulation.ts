@@ -95,7 +95,7 @@ export const usePriceSimulation = () => {
         segment: readymadeSegment,
       }
     );
-  }, [orders, priceMatrix, conditions, manualSettings, individualSettings, customMaster, spMaster, readymadeMaster, stickerMaster, readymadeSegment]);
+  }, [orders, conditions, manualSettings, individualSettings, customMaster, spMaster, readymadeMaster, stickerMaster, readymadeSegment]);
 
   const counts = useMemo(() => ({
     custom: getTabOrders('custom', simulatedOrders).length,
