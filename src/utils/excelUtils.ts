@@ -276,7 +276,11 @@ const parsePriceMatrix = (rows: unknown[]): CustomPriceMatrixRow[] => {
 };
 
 const mapRowArrayToOrderRecord = (row: unknown[], header: unknown[]): OrderRecord => {
-  const getIdx = (keywords: string[]) => header.findIndex((c: unknown) => keywords.some(k => String(c).includes(k)));
+  const getIdx = (keywords: string[]) => {
+    const exact = header.findIndex((c: unknown) => keywords.some(k => String(c) === k));
+    if (exact !== -1) return exact;
+    return header.findIndex((c: unknown) => keywords.some(k => String(c).includes(k)));
+  };
   const idxMap = {
     orderNumber: getIdx(['受注№', '受注番号']),
     category: getIdx(['種別']),
@@ -296,7 +300,7 @@ const mapRowArrayToOrderRecord = (row: unknown[], header: unknown[]): OrderRecor
     printingSalesGroup: getIdx(['印刷営G']),
     janCode: getIdx(['JAN']),
     directDeliveryCode: getIdx(['直送先コード', '直送先CD']),
-    directDeliveryName: getIdx(['直送先', '直送先名称']),
+    directDeliveryName: getIdx(['直送先名称', '直送先名', '直送先']),
     lastOrderDate: getIdx(['最終受注日', '最終日']),
     title: getIdx(['タイトル'])
   };
