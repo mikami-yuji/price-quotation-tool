@@ -50,7 +50,7 @@ export type CustomPriceMatrixRow = {
 export type ReadymadeMasterRow = {
   productCode: string;
   absCode?: string;
-  minQuantity: number; // 数量スライド用の最小数量 (備考_2から算出)
+  minQuantity?: number; // 数量スライド用の最小数量 (備考_2から算出)
   weight?: number;
   shape?: string;
   campaign?: { uru: number; junD: number; d: number };
