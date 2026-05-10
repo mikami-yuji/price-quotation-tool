@@ -112,23 +112,24 @@ export const calculateNewPrices = (
       const searchTarget = (normalizedCode + (order.productName || '') + (order.title || '') + (order.materialName || '')).normalize('NFKC').toLowerCase();
       
       // カタログNoの抽出
-      // ユーザー要望: 先頭が6, 7の場合は0とみなす。3桁だけでなく4桁のカタログNoも存在する。
-      const codeForCatalog = normalizedCode.replace(/^[67]/, '0');
+      // ユーザー規則: 先頭の1文字を無視し、その後の4文字を数値化したものがカタログNo
+      // 例: 609201001 -> 0920 -> 920 / 010000501 -> 1000 -> 1000
       const orderCatalogs: string[] = [];
+      if (normalizedCode.length >= 5) {
+        const catPart = normalizedCode.substring(1, 5);
+        if (/^\d{4}$/.test(catPart)) {
+          orderCatalogs.push(parseInt(catPart, 10).toString());
+        }
+      }
       
-      // 00 + 3桁
-      const m1 = codeForCatalog.match(/^00(\d{3})/);
-      if (m1) orderCatalogs.push(parseInt(m1[1], 10).toString());
-      
-      // 0 + 4桁 (例: 01000... -> 1000)
-      const m2 = codeForCatalog.match(/^0(\d{4})/);
-      if (m2) orderCatalogs.push(parseInt(m2[1], 10).toString());
-
-      // 最初の3桁・4桁も候補にする
-      const first4 = codeForCatalog.match(/\d{4}/);
-      if (first4) orderCatalogs.push(parseInt(first4[0], 10).toString());
-      const first3 = codeForCatalog.match(/\d{3}/);
-      if (first3) orderCatalogs.push(parseInt(first3[0], 10).toString());
+      // 互換性のため、従来通りの00+3桁や最初の3-4桁も（もし上記で見つからなければ）候補に含める
+      if (orderCatalogs.length === 0) {
+        const codeForCatalog = normalizedCode.replace(/^[67]/, '0');
+        const m1 = codeForCatalog.match(/^00(\d{3})/);
+        if (m1) orderCatalogs.push(parseInt(m1[1], 10).toString());
+        const first3 = codeForCatalog.match(/\d{3}/);
+        if (first3) orderCatalogs.push(parseInt(first3[0], 10).toString());
+      }
 
       const shapeStr = order.shape.trim().toUpperCase();
       const isRollShape = shapeStr.startsWith('R') || displayProductName.includes('ロール') || displayProductName.includes('【R】');
