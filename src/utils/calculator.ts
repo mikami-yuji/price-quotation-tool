@@ -122,7 +122,6 @@ export const calculateNewPrices = (
         const kw = (m.materialHint || '').normalize('NFKC').toLowerCase().replace(/[（）() \t【】[\]]/g, '');
         const target = searchTarget.replace(/[（）() \t【】[\]]/g, '');
         const fix = (s: string): string => s.replace(/窓付|窓有り/g, '窓').replace(/単袋|単/g, '').replace(/オフセット/g, '');
-        const keywordMatch = fix(kw) ? (fix(target).includes(fix(kw)) || fix(kw).includes(fix(target))) : true;
         
         const majorMaterials = ['ポリ', 'バリア', 'ラミ', '和紙', 'クラフト', 'ナイロン'];
         const mMat = majorMaterials.find((mm: string): boolean => kw.includes(mm));
@@ -143,7 +142,8 @@ export const calculateNewPrices = (
           (m.materialHint && order.materialName.includes(m.materialHint)) || 
           (m.materialHint && m.materialHint.includes(order.materialName)) ||
           (cleanMasterHint && cleanOrderMaterial.includes(cleanMasterHint)) ||
-          (cleanOrderMaterial && cleanMasterHint.includes(cleanOrderMaterial));
+          (cleanOrderMaterial && cleanMasterHint.includes(cleanOrderMaterial)) ||
+          (fix(kw) && (fix(target).includes(fix(kw)) || fix(kw).includes(fix(target))));
         
         return !!(keywordMatch && weightMatch && shapeMatch && unitMatch);
       });
