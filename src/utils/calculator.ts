@@ -201,11 +201,12 @@ export const calculateNewPrices = (
 
         if (baseP && baseP > 0) {
           const segLabel = seg === 'uru' ? '売' : seg === 'junD' ? '準D' : seg === 'd' ? 'D' : '';
+          const qtyLabel = bestMatch.minQuantity ? `(${bestMatch.minQuantity}～)` : '';
           masterPrice = baseP;
           newPrice = baseP + (safeOptions?.readymadePriceIncrease || 0);
           matchMethod = 'code';
           spMasterMatched = true;
-          matchSource = `${bestMatch.absCode || bestMatch.productCode}:${segLabel}`;
+          matchSource = `${bestMatch.absCode || bestMatch.productCode}:${segLabel}${qtyLabel}`;
         }
       }
     } else if (isCustom) {

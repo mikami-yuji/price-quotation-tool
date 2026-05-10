@@ -281,6 +281,15 @@ const parseReadymadeMaster = (rows: unknown[]): ReadymadeMasterRow[] => {
       return parseFloat(v) || 0;
     };
 
+    const remarks = String(row[idxMap.slideQty] !== -1 ? row[idxMap.slideQty] : (headerRow.includes('備考') ? row[headerRow.indexOf('備考')] : ''));
+    let minQty = parseP(idxMap.slideQty) || 0;
+    
+    // 備考欄から (500～) のような形式を探す
+    if (minQty === 0 && remarks) {
+      const match = remarks.match(/(\d+)～/);
+      if (match) minQty = parseInt(match[1], 10);
+    }
+
     master.push({
       productCode: code,
       absCode: code.replace(/\s+/g, ''),
@@ -295,7 +304,7 @@ const parseReadymadeMaster = (rows: unknown[]): ReadymadeMasterRow[] => {
         junD: parseP(idxMap.cpJunD) || parseP(idxMap.junD),
         d: parseP(idxMap.cpD) || parseP(idxMap.d)
       },
-      minQuantity: parseP(idxMap.slideQty) || 0,
+      minQuantity: minQty,
       normalPrice: parseP(idxMap.uru) // 下位互換用
     });
   }
