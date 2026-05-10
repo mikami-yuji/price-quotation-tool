@@ -84,6 +84,7 @@ export type SPMasterRow = {
     [colorCount: number]: SPMasterPrice;
   };
   materialHint?: string; // 材質特定用のヒント
+  sourceSheet?: string; // 元のシート名
 };
 
 export type ReadymadePriceType = 'normal' | 'campaign';

@@ -77,6 +77,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
         weight: getIdx(['重量(kg)']),
         qty: getIdx(['数量']),
         tier: getIdx(['区分']),
+        sheet: getIdx(['シート名']),
       };
       
       const colorCols: { [color: number]: number } = {};
@@ -113,7 +114,8 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
             lotType: 'above',
             unit,
             colorPrices: {},
-            materialHint: material
+            materialHint: material,
+            sourceSheet: colMap.sheet !== -1 ? String(r[colMap.sheet] || '') : undefined
           };
           tempMap.set(key, entry);
         }

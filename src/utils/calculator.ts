@@ -119,7 +119,8 @@ export const calculateNewPrices = (
       const isRollShape = shapeStr.startsWith('R') || displayProductName.includes('ロール') || displayProductName.includes('【R】');
       const orderShape = isRollShape ? 'R' : '単袋';
 
-      const candidates = (safeMasters.sp || []).filter((m: SPMasterRow): boolean => {
+      // 品番またはキーワードが一致し、かつ重量が一致すれば候補とする
+      const initialCandidates = (safeMasters.sp || []).filter((m: SPMasterRow): boolean => {
         // 品番マッチング: マスターのカタログNoが受注の候補に含まれているか
         const catalogMatch = m.catalogNos && m.catalogNos.some(c => orderCatalogs.includes(c.replace(/\D/g, '')));
         
@@ -136,11 +137,17 @@ export const calculateNewPrices = (
         const mWeight = Number(m.weight || 0);
         const oWeight = Number(order.weight || 0);
         const weightMatch = mWeight === 0 || oWeight === 0 || Math.abs(mWeight - oWeight) < 0.1;
-        const shapeMatch = !orderShape || m.shape === orderShape;
         
-        // 品番またはキーワードが一致し、かつ重量が一致すれば候補とする
         return !!((catalogMatch || keywordMatch) && weightMatch);
       });
+
+      // SPオフセットの場合は特定のシートに限定する
+      const isOffset = order.category.includes('オフセット');
+      const offsetSheets = ['05_SP和紙・ソフトクラフト', '10_SP金銀和紙・和紙雲竜', 'クラフト'];
+      
+      const candidates = isOffset 
+        ? initialCandidates.filter(c => c.sourceSheet && offsetSheets.some(os => c.sourceSheet!.includes(os)))
+        : initialCandidates;
 
       if (candidates.length > 0) {
         // より具体的なキーワード（文字数が長いもの）を優先する
