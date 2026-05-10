@@ -1,4 +1,5 @@
 import { OrderRecord, CustomPriceMatrixRow, ReadymadeMasterRow, SPMasterRow, SimulationResult, IncreaseSimulationConditions, ManualGroupSetting, IndividualManualSetting, ReadymadeSegment } from '../types';
+import { shortenProductName, isSPCategory } from './stringUtils';
 
 export const calculateNewPrices = (
   orders: OrderRecord[] = [],
@@ -28,29 +29,13 @@ export const calculateNewPrices = (
   return safeOrders.map(order => {
     const isCustom = (order.category.includes('別注') || order.category.includes('ポリ別注')) && !order.category.includes('SP');
     const isReadymade = order.category.includes('既製品') || order.category.includes('価格表');
-    const isSP = (order.category.includes('SP') || order.category.includes('ＳＰ')) && !order.category.includes('シルク');
+    const isSP = isSPCategory(order.category);
 
     const currentPrice = order.currentPrice;
     let newPrice = 0;
     let masterPrice: number | undefined = undefined;
     let matchMethod: 'code' | 'spec' | 'none' = 'none';
     let matchSource = '';
-
-    // SPの商品名を短縮する（仕様部分を削り、商品名だけを残す）
-    const shortenProductName = (name: string): string => {
-      let n = name.normalize('NFKC').trim();
-      n = n.replace(/^[●★☆◆◇■□]+/g, '');
-      let prev = '';
-      for (let i = 0; i < 5; i++) {
-        prev = n;
-        n = n.replace(/^[0-9.]+[kK][gG]?[ 　]*/, '');
-        n = n.replace(/^[^ 　]*?(ポリ|ラミ|マット|バイオマス)[^ 　]*[ 　]*/, '');
-        n = n.replace(/^【(単|R|ロール|単袋|枚|仕上)】[ 　]*/, '');
-        if (n === prev) break;
-      }
-      n = n.replace(/[ 　]*(RASP|CSP|SP).*$/, '');
-      return n.trim() || name;
-    };
 
     let displayProductName = isSP ? shortenProductName(order.productName) : order.productName;
 

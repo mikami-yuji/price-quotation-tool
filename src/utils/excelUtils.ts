@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 import { OrderRecord, CustomPriceMatrixRow, ReadymadeMasterRow, SPMasterRow } from '../types';
+import { isSPCategory } from './stringUtils';
 
 export const parseExcelFile = (arrayBuffer: ArrayBuffer): { 
   orders: OrderRecord[], 
@@ -319,7 +320,7 @@ const mapRowArrayToOrderRecord = (row: unknown[], header: unknown[]): OrderRecor
 
   const pCode = String(val(idxMap.productCode));
   const category = String(val(idxMap.category) || '既製品').trim();
-  const isSP = (category.includes('SP') || category.includes('ＳＰ')) && !category.includes('シルク');
+  const isSP = isSPCategory(category);
   
   const titleVal = String(val(idxMap.title));
   let pName = String(val(idxMap.productName));

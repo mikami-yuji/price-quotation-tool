@@ -1,7 +1,7 @@
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { OrderRecord } from '../types';
-import { shortenProductName } from './stringUtils';
+import { shortenProductName, isSPCategory } from './stringUtils';
 
 /**
  * 列インデックス(1開始)をExcelの列名(A, B, C...)に変換する
@@ -44,7 +44,7 @@ export const generateQuoteExcel = async (
     }
   };
 
-  const showPrintingInfo = category === 'SP' || category === 'シルク' || category === 'シール';
+  const showPrintingInfo = isSPCategory(category) || category === 'シルク' || category === 'シール';
 
   // 列の定義と幅の設定
   const baseCols = [
@@ -177,9 +177,7 @@ export const generateQuoteExcel = async (
       order.directDeliveryCode,
       order.directDeliveryName,
       ...(showProductCode ? [order.productCode] : []),
-      `${(order.category === 'SP' || order.category === 'シルク' || order.category === '別注' || order.category === 'ポリ別注') 
-          ? shortenProductName(order.title || order.productName) 
-          : order.productName}\n${order.materialName}`,
+      order.productName + (order.materialName ? `\n${order.materialName}` : ''),
       order.shape,
       order.quantity,
       ...(showPrintingInfo ? [order.printCode] : []),

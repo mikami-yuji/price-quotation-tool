@@ -1,28 +1,45 @@
 import { DecodedProductCode } from '../types';
 
 /**
+ * カテゴリ名からSP商品（またはＳＰ商品）であるかを判定する
+ */
+export const isSPCategory = (category: string): boolean => {
+  if (!category) return false;
+  const c = category.normalize('NFKC').toUpperCase();
+  return c.includes('SP') && !c.includes('シルク');
+};
+
+/**
  * SP・シルク等の長い商品名（タイトル）から管理用コードや技術スペックを除去し、
  * ブランド核心部のみを抽出して短縮するユーティリティ
  */
 export const shortenProductName = (name: string): string => {
   if (!name) return '';
+  let n = name.normalize('NFKC').trim();
+  
+  // 1. 冒頭の記号を削除
+  n = n.replace(/^[●★☆◆◇■□]+/g, '');
+  
+  // 2. 冒頭の仕様（重量・材質コード）を剥ぎ取る
+  let prev = '';
+  for (let i = 0; i < 5; i++) {
+    prev = n;
+    // 重量を消す
+    n = n.replace(/^[0-9.]+[kK][gG]?[ 　]*/, '');
+    // 材質キーワードを消す
+    n = n.replace(/^[^ 　]*?(ポリ|ラミ|マット|バイオマス|バリア|ナイロン|和紙|クラフト|ｿﾌｸﾗ|ﾎﾟﾘ|ﾗﾐ)[^ 　]*[ 　]*/, '');
+    // 形状に関わる【】は消すが、銘柄に関わるものは残す
+    n = n.replace(/^【(単|R|ロール|単袋|枚|仕上|ＴＳ|TS|ＲＡ|ＲＺ|RA|RZ|新版)】[ 　]*/, '');
+    // 英数字コードを消す (DH-123等)
+    n = n.replace(/^[A-Z0-9-]{2,}[ 　]*/, '');
+    
+    if (n === prev) break;
+  }
 
-  // 1. 接頭辞の削除
-  // 記号類、注記、重量（小数含, G/K等）、材質記号（ﾎﾟﾘ, ﾗﾐ, SF, ｿﾌｸﾗ, 真空, ラミ等）、共通コードを前方一致で削除
-  // ただし「新米」「無洗米」「玄米」「特栽」などの重要な属性は残す
-  let cleaned = name.replace(/^([\s●◆■★]|【(?!新米|無洗米|玄米|特栽|特別栽培).*?】|（.*?）|[0-9０-９]+([.．][0-9０-９]+)?[KkＫｋ㎏GｇＧｇ]|[M]?[ﾎﾟﾘﾗﾐｿﾌｸﾗﾄ]+|DHT?|RA|RZ|SFM?|ＳＦＭ?|PB|S|V|T|真空|ラミ|ポリ|別注|ＴＳ|TS|ＲＡ|ＲＺ|新版|ﾏｯﾄ|マット|MAT)+/g, (m) => {
-    if (m.includes('新米') || m.includes('無洗米') || m.includes('玄米') || m.includes('特栽') || m.includes('特別栽培')) return m;
-    return '';
-  });
-
-  // 2度洗いで確実に除去
-  cleaned = cleaned.replace(/^([\s●◆■★]|【(?!新米|無洗米|玄米|特栽|特別栽培).*?】|（.*?）|[0-9０-９]+([.．][0-9０-９]+)?[KkＫｋ㎏GｇＧｇ]|[M]?[ﾎﾟﾘﾗﾐｿﾌｸﾗﾄ]+|DHT?|RA|RZ|SFM?|ＳＦＭ?|PB|S|V|T|真空|ラミ|ポリ|別注|ＴＳ|TS|ＲＡ|ＲＺ|新版|ﾏｯﾄ|マット|MAT)+/g, '');
-
-  // 2. 接尾辞の削除
-  // 管理コード (RZ, SP等) 以降をすべて削除
-  cleaned = cleaned.replace(/([\s(（]?(RZ|RA|ＳＰ|SP|ＲＡ|ＲＺ|無地|R\s*$|Ｒ\s*$).*$)|((RZ|RA|ＳＰ|SP|ＲＡ|ＲＺ|無地|R\s*$|Ｒ\s*$).*$)/, '');
-
-  return cleaned.trim();
+  // 3. 末尾の記号やデザイン名、SPコードなどをカット
+  n = n.replace(/[ 　]*(RASP|CSP|SP).*$/, '');
+  
+  return n.trim() || name;
 };
 
 /**
