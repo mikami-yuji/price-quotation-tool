@@ -101,21 +101,24 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
         if (!r || !r[colMap.catalog]) continue;
 
         const catalog = String(r[colMap.catalog]);
-        const weight = parseFloat(String(r[colMap.weight] || '').replace(/[^\d.]/g, '')) || 0;
-        const shapeVal = colMap.shape !== -1 ? String(r[colMap.shape] || '').trim() : '単袋';
+        const weightStr = String(r[colMap.weight] || '');
+        const shapeColVal = colMap.shape !== -1 ? String(r[colMap.shape] || '') : '';
+        const combinedShapeInfo = (weightStr + shapeColVal).normalize('NFKC');
+        const shape = (combinedShapeInfo.includes('R') || combinedShapeInfo.includes('ロール')) ? 'Roll' : 'Single Bag';
+        const weight = parseFloat(weightStr.replace(/[^\d.]/g, '')) || 0;
         const qtyVal = String(r[colMap.qty] || '');
         const qty = parseFloat(qtyVal.replace(/[^\d.]/g, '')) || 0;
         const unit = qtyVal.includes('m') ? 'm' : (qtyVal.includes('枚') ? 'pcs' : undefined);
         const material = String(r[colMap.material] || '');
 
         // 統合用のキー (品番-重量-形状-数量-材質)
-        const key = `${catalog}-${weight}-${shapeVal}-${qtyVal}-${material}`;
+        const key = `${catalog}-${weight}-${shape}-${qtyVal}-${material}`;
         let entry = tempMap.get(key);
         if (!entry) {
           entry = {
             catalogNos: [catalog],
             weight,
-            shape: shapeVal === 'R' ? 'R' : '単袋',
+            shape,
             minQuantity: qty,
             lotType: 'above',
             unit,
