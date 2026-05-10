@@ -129,21 +129,37 @@ export const calculateNewPrices = (
         const oMat = majorMaterials.find((mm: string): boolean => target.includes(mm));
         if (mMat && oMat && mMat !== oMat) return false;
 
-        const mWeight = typeof m.weight === 'number' ? m.weight : parseFloat(String(m.weight || 0));
-        const oWeight = typeof order.weight === 'number' ? order.weight : parseFloat(String(order.weight || 0));
+        const oWeight = order.weight;
+        const mWeight = m.weight || 0;
         const weightMatch = (mWeight > 0 && Math.abs(mWeight - oWeight) < 0.1);
         const shapeMatch = m.shape === orderShape;
+        const unitMatch = m.unit === orderUnit;
         
-        return !!((catalogMatch && weightMatch && shapeMatch) || (keywordMatch && weightMatch && shapeMatch));
+        // 隅付き括弧や「ポリ」プレフィックスを除去して比較しやすくする
+        const cleanOrderMaterial = order.materialName.replace(/[【】]/g, '').replace(/^ポリ/, '').trim();
+        const cleanMasterHint = (m.materialHint || '').replace(/[【】]/g, '').replace(/^ポリ/, '').trim();
+        
+        const keywordMatch = 
+          (m.materialHint && order.materialName.includes(m.materialHint)) || 
+          (m.materialHint && m.materialHint.includes(order.materialName)) ||
+          (cleanMasterHint && cleanOrderMaterial.includes(cleanMasterHint)) ||
+          (cleanOrderMaterial && cleanMasterHint.includes(cleanOrderMaterial));
+        
+        return !!(keywordMatch && weightMatch && shapeMatch && unitMatch);
       });
 
-      candidates.sort((a, b) => (b.materialHint || '').length - (a.materialHint || '').length);
-
       if (candidates.length > 0) {
-        const validLots = candidates.filter((c: SPMasterRow): boolean => c.minQuantity <= order.quantity + 2);
+        // より具体的なキーワード（文字数が長いもの）を優先する
+        candidates.sort((a, b) => ((b.materialHint || '').length || 0) - ((a.materialHint || '').length || 0));
+        
+        // 同じキーワード内では、数量条件が合うものを探す
+        const topKeyword = candidates[0].materialHint;
+        const sameKeywordCandidates = candidates.filter(c => c.materialHint === topKeyword);
+        
+        const validLots = sameKeywordCandidates.filter((m: SPMasterRow) => (m.minQuantity || 0) <= order.quantity + 2);
         const bestMatch = validLots.length > 0 
-          ? validLots.reduce((p: SPMasterRow, c: SPMasterRow): SPMasterRow => c.minQuantity > p.minQuantity ? c : p)
-          : candidates[0];
+          ? validLots.reduce((p: SPMasterRow, c: SPMasterRow) => (c.minQuantity || 0) > (p.minQuantity || 0) ? c : p)
+          : sameKeywordCandidates[0];
 
         if (bestMatch) {
           const cleanPrintCode = order.printCode.normalize('NFKC').replace(/\s+/g, '');
