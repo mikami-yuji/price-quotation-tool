@@ -220,13 +220,21 @@ export const calculateNewPrices = (
     // 7. マッチしなかった場合の計算
     let idealNewPrice = newPrice || currentPrice;
     if (matchMethod === 'none') {
-      const spInc = safeOptions.spPriceIncrease || 0;
+      const isSticker = order.category.includes('シール');
+      
+      // SP・シール・既製品は一括値上げ設定（customIncreaseValue）を無視し、マスター未マッチ時は0増分とする
+      const spInc = 0; 
       const readyInc = safeOptions.readymadePriceIncrease || 0;
-      const customInc = safeConditions.customIncreaseType === 'amount' ? safeConditions.customIncreaseValue : currentPrice * (safeConditions.customIncreaseValue / 100);
-      const increase = isSP ? spInc : isReadymade ? readyInc : customInc;
+      const stickerInc = 0;
+      const customInc = safeConditions.customIncreaseType === 'amount' 
+        ? safeConditions.customIncreaseValue 
+        : currentPrice * (safeConditions.customIncreaseValue / 100);
+      
+      const increase = isSP ? spInc : isReadymade ? readyInc : isSticker ? stickerInc : customInc;
       idealNewPrice = currentPrice + increase;
       
-      if (safeConditions.roundingMode === 'half') {
+      // 端数丸めは「別注」のみに適用し、SP・シール・既製品は常に「なし」
+      if (isCustom && safeConditions.roundingMode === 'half') {
         newPrice = Math.round(idealNewPrice * 2) / 2;
       } else {
         newPrice = idealNewPrice;

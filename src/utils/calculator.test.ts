@@ -235,13 +235,43 @@ describe('Calculator Logic (Multilevel Precedence)', () => {
       expect(results[1].newPrice).toBe(130);
     });
 
-    it('材質が一致しない場合はマッチしないこと', () => {
+    it('材質が一致しない場合は価格据え置き(0%)となること', () => {
       const mismatchedOrders = [{ ...spOrders[0], materialName: 'バリア' }];
       const results = calculateNewPrices(mismatchedOrders, defaultConditions, {}, {}, {
         custom: [], sp: spMaster, sticker: [], readymade: []
-      }, { spPriceIncrease: 10 });
-      // 一致しないのでデフォルトの10%アップ: 100 * 1.1 = 110
-      expect(results[0].newPrice).toBe(110);
+      });
+      // SPはマスター未マッチ時は据え置き: 100 -> 100
+      expect(results[0].newPrice).toBe(100);
+    });
+
+    it('シールの場合はマスターがないため、常に価格据え置きとなること', () => {
+      const stickerOrder: OrderRecord[] = [{
+        ...spOrders[0],
+        category: 'シール',
+        currentPrice: 50
+      }];
+      const results = calculateNewPrices(stickerOrder, defaultConditions);
+      // シールは一括値上げ設定(10%)を無視して据え置き
+      expect(results[0].newPrice).toBe(50);
+    });
+
+    it('丸め設定が別注のみに適用され、SPには適用されないこと', () => {
+      const conditions: IncreaseSimulationConditions = {
+        ...defaultConditions,
+        customIncreaseType: 'amount', // 金額指定
+        customIncreaseValue: 0.3,
+        roundingMode: 'half' // 0.50単位丸め
+      };
+      const mixedOrders: OrderRecord[] = [
+        { ...sampleOrders[0], currentPrice: 80 }, // 別注
+        { ...spOrders[0], category: 'SP', currentPrice: 100 } // SP
+      ];
+      const results = calculateNewPrices(mixedOrders, conditions);
+      
+      // 別注: 80 + 0.3 = 80.3 -> 80.5 (丸め適用)
+      expect(results[0].newPrice).toBe(80.5);
+      // SP: マスターなし -> 据え置き 100 (丸めも増分も適用外)
+      expect(results[1].newPrice).toBe(100);
     });
 
     it('SP商品の「乳白Ｕ－0.5」は価格改定の対象外（現状維持）となること', () => {

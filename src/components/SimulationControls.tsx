@@ -58,7 +58,7 @@ export default function SimulationControls({
       {/* 1. Conditions Zone */}
       <div className={styles.controlTopBar}>
         <div className={styles.simulationParams}>
-          {activeTab !== 'readymade' && (
+          {activeTab === 'custom' && (
             <>
               <div className={styles.controlGroup}>
                 <span className={styles.controlLabel}>値上げ方式:</span>
