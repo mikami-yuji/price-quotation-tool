@@ -311,7 +311,15 @@ export const calculateNewPrices = (
       const candidates = (safeMasters.readymade || []).filter((m: ReadymadeMasterRow): boolean => {
         const mAbs = (m.absCode || '').normalize('NFKC').trim();
         const mProd = (m.productCode || '').normalize('NFKC').trim();
-        return !!((mAbs && mAbs === orderAbs) || (mProd && mProd === orderProd));
+        
+        const isAbsMatch = !!(mAbs && mAbs === orderAbs);
+        if (isAbsMatch) return true;
+
+        const normalizeTail = (s: string) => s.length > 5 ? s.replace(/[23]$/, '') : s;
+        const mProdNorm = normalizeTail(mProd);
+        const oProdNorm = normalizeTail(orderProd);
+        
+        return !!(mProdNorm && mProdNorm === oProdNorm);
       });
 
       if (candidates.length > 0) {
