@@ -63,7 +63,6 @@ export const calculateNewPrices = (
         newPrice: p,
         newSalesGroup: individual.salesGroup || (order.salesGroup + (p - currentPrice)),
         priceDifference: p - currentPrice,
-        priceDiff: p - currentPrice,
         matchMethod: 'none'
       };
     }
@@ -82,7 +81,6 @@ export const calculateNewPrices = (
         newPrice: p,
         newSalesGroup: groupManual.salesGroup || (order.salesGroup + (p - currentPrice)),
         priceDifference: p - currentPrice,
-        priceDiff: p - currentPrice,
         matchMethod: 'none'
       };
     }
@@ -100,7 +98,6 @@ export const calculateNewPrices = (
         newPrice: currentPrice,
         newSalesGroup: order.salesGroup,
         priceDifference: 0,
-        priceDiff: 0,
         matchMethod: 'none',
         matchSource: '改定対象外(銘柄固定)'
       };
@@ -131,7 +128,8 @@ export const calculateNewPrices = (
         if (mMat && oMat && mMat !== oMat) return false;
 
         const mWeight = typeof m.weight === 'number' ? m.weight : parseFloat(String(m.weight || 0));
-        const weightMatch = (mWeight > 0 && Math.abs(mWeight - order.weight) < 0.1);
+        const oWeight = typeof order.weight === 'number' ? order.weight : parseFloat(String(order.weight || 0));
+        const weightMatch = (mWeight > 0 && Math.abs(mWeight - oWeight) < 0.1);
         const shapeMatch = m.shape === orderShape;
         
         return !!((catalogMatch && weightMatch && shapeMatch) || (keywordMatch && weightMatch && shapeMatch));
@@ -205,7 +203,7 @@ export const calculateNewPrices = (
       const matched = (safeMasters.custom || []).find((m: CustomPriceMatrixRow): boolean => {
         const mName = (m.materialName || '').normalize('NFKC').toLowerCase();
         const oName = (order.materialName || '').normalize('NFKC').toLowerCase();
-        return !!(oName.includes(mName) && m.weight === order.weight);
+        return !!(oName.includes(mName) && Number(m.weight) === Number(order.weight));
       });
       if (matched) {
         const color = order.totalColorCount || 1;
@@ -245,7 +243,6 @@ export const calculateNewPrices = (
       newPrice,
       newSalesGroup,
       priceDifference,
-      priceDiff: priceDifference,
       masterPrice: masterPrice || 0,
       matchMethod,
       matchSource,

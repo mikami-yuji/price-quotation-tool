@@ -33,7 +33,9 @@ export type OrderRecord = {
   newPrintingSalesGroup?: number;
   priceDifference?: number;
   thickness?: string;
+  masterPrice?: number; // マスター価格
   spMasterMatched?: boolean; // SPマスター価格に一致したか
+  matchMethod?: 'code' | 'spec' | 'none'; // マッチング方法
   matchSource?: string; // マスター上の参照元（シート名、行など）
 };
 
