@@ -467,4 +467,41 @@ const mapRowArrayToOrderRecord = (row: unknown[], header: unknown[]): OrderRecor
     spMasterMatched: false,
     unit: String(val(getIdx(['単位']))).trim() || (String(val(idxMap.quantity)).match(/([^\d.,\s]+)$/)?.[1] || '')
   };
+
+  const record: OrderRecord = {
+    category,
+    orderNumber: String(val(idxMap.orderNumber)),
+    productCode: pCode,
+    absCode: pCode.replace(/\s+/g, ''),
+    productName: pName,
+    title: titleVal,
+    materialName: String(val(idxMap.materialName)),
+    printCode: String(val(idxMap.printCode)),
+    quantity: num(idxMap.quantity),
+    currentPrice: num(idxMap.currentPrice),
+    salesGroup: num(idxMap.salesGroup),
+    weight: num(idxMap.weight),
+    shape: String(val(idxMap.shape)),
+    frontColorCount: num(idxMap.frontColorCount),
+    backColorCount: num(idxMap.backColorCount),
+    totalColorCount: num(idxMap.totalColorCount),
+    printingCost: num(idxMap.printingCost),
+    printingSalesGroup: num(idxMap.printingSalesGroup),
+    janCode: String(val(idxMap.janCode)),
+    directDeliveryCode: String(val(idxMap.directDeliveryCode)),
+    directDeliveryName: String(val(idxMap.directDeliveryName)),
+    lastOrderDate: String(val(idxMap.lastOrderDate)),
+    spMasterMatched: false,
+    unit: String(val(getIdx(['単位']))).trim() || (String(val(idxMap.quantity)).match(/([^\d.,\s]+)$/)?.[1] || '')
+  };
+
+  // SPの場合、重量が0なら品番から抽出を試みる
+  if (isSP && record.weight === 0) {
+    const codeMatch = record.absCode.match(/^00\d{3}(\d{2})01$/);
+    if (codeMatch) {
+      record.weight = parseInt(codeMatch[1], 10);
+    }
+  }
+
+  return record;
 };
