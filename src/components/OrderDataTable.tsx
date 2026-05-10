@@ -113,8 +113,8 @@ export default function OrderDataTable({
                 new Date(order.lastOrderDate).getTime() <= new Date(lastIncreaseDate).getTime()
               );
               
-              // SPマスターに未マッチの行を検出 (SPタブのみ表示)
-              const isUnmatched = activeTab === 'sp' && order.spMasterMatched === false;
+              // マスターに未マッチの行を検出 (SPタブ・既製品タブで表示)
+              const isUnmatched = (activeTab === 'sp' || activeTab === 'readymade') && order.spMasterMatched === false;
               
               // 行のCSSクラスを決定
               const rowClasses = [
