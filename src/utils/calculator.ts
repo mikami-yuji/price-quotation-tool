@@ -133,7 +133,7 @@ export const calculateNewPrices = (
         const mWeight = Number(m.weight || 0);
         const oWeight = Number(order.weight || 0);
         const weightMatch = mWeight === 0 || oWeight === 0 || Math.abs(mWeight - oWeight) < 0.1;
-        const shapeMatch = !m.shape || m.shape === '不明' || !orderShape || m.shape === orderShape;
+        const shapeMatch = !orderShape || m.shape === orderShape;
         
         return !!((catalogMatch && weightMatch && shapeMatch) || (keywordMatch && weightMatch && shapeMatch));
       });
