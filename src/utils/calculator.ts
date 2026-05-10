@@ -246,9 +246,13 @@ export const calculateNewPrices = (
               else unitLabel = '枚'; // デフォルト
             }
             
+            const weightLabel = bestMatch.weight ? `${bestMatch.weight}g` : '0g';
+            const colorLabel = `${colorCount}色`;
+            const rankLabel = `${bestMatch.minQuantity}${unitLabel}`;
+            
             return { 
               price: targetPrice, 
-              matchSource: `${catLabel}:${bestMatch.materialHint}:¥${targetPrice}:${segLabel}(${bestMatch.minQuantity}${unitLabel})` 
+              matchSource: `${catLabel}:${bestMatch.materialHint}:${weightLabel}:${colorLabel}:${rankLabel}:${segLabel}:[¥${targetPrice}]` 
             };
           }
         }
@@ -264,7 +268,7 @@ export const calculateNewPrices = (
         newPrice = spMatch.price;
         matchMethod = 'spec';
         spMasterMatched = true;
-        matchSource = spMatch.matchSource + ` [¥${spMatch.price}]`;
+        matchSource = spMatch.matchSource;
       }
     } else if (isReadymade) {
       // --- 既製品マッチング ---
