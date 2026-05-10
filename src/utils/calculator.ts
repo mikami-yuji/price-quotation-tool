@@ -201,7 +201,9 @@ export const calculateNewPrices = (
             const segLabel = seg === 'uru' ? '売' : seg === 'junD' ? '準D' : seg === 'd' ? 'D' : '';
             const catLabel = bestMatch.catalogNos?.[0] || 'No.';
             // 単位の判定: マスターにない場合、品番の下一桁で判定 (1=枚, 2or3=m)
-            let unitLabel = bestMatch.unit;
+            let unitLabel: string = bestMatch.unit || '';
+            if (unitLabel === 'pcs') unitLabel = '枚';
+            
             if (!unitLabel) {
               const lastDigit = order.productCode.trim().slice(-1);
               if (lastDigit === '1') unitLabel = '枚';
