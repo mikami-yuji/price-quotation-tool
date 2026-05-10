@@ -251,19 +251,21 @@ const parseReadymadeMaster = (rows: unknown[]): ReadymadeMasterRow[] => {
   const getIdx = (keywords: string[]) => headerRow.findIndex(c => keywords.some(k => String(c || '').includes(k)));
   
   const idxMap = {
-    code: getIdx(['商品コード', '商品CD', 'コード', 'ABS-CD']),
+    code: getIdx(['ABSコード', '商品コード', '商品CD', 'コード', 'ABS-CD']),
     name: getIdx(['商品名', '品名', '規格名']),
     // 客層別価格の列特定
-    uru: getIdx(['売', '通常', '現行', '販売単価']),
-    junD: getIdx(['準D', '準']),
-    d: getIdx(['D', 'ｄ', '小口']),
-    // キャンペーン価格の列特定 (もしあれば)
+    uru: getIdx(['改定後 売', '売', '通常', '現行', '販売単価']),
+    junD: getIdx(['改定後 準D', '準D', '準']),
+    d: getIdx(['改定後 D', 'D', 'ｄ', '小口']),
+    // キャンペーン価格の列特定
     cpUru: getIdx(['CP売', '特売', 'キャンペーン']),
     cpJunD: getIdx(['CP準D']),
     cpD: getIdx(['CP D']),
-    // スライド
+    // スライド・仕様
     slideQty: getIdx(['スライド数量', 'ケース']),
-    slidePrice: getIdx(['スライド単価'])
+    slidePrice: getIdx(['スライド単価']),
+    weight: getIdx(['Kg', '重量', '㎏']),
+    shape: getIdx(['形状'])
   };
 
   for (let i = headerRowIdx + 1; i < rows.length; i++) {
