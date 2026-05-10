@@ -1,12 +1,24 @@
 import { DecodedProductCode } from '../types';
 
 /**
- * カテゴリ名からSP商品（またはＳＰ商品）であるかを判定する
+ * カテゴリ名または商品コードからSP商品（またはＳＰ商品）であるかを判定する
  */
-export const isSPCategory = (category: string): boolean => {
+export const isSPCategory = (category: string, productCode?: string): boolean => {
   if (!category) return false;
   const c = category.normalize('NFKC').toUpperCase();
-  return c.includes('SP') && !c.includes('シルク');
+  
+  // 1. カテゴリ名にSPが含まれる場合
+  if (c.includes('SP') && !c.includes('シルク')) return true;
+  
+  // 2. 商品コードが9桁の数字（00から始まる）の場合、種別に関わらずSP商品とみなす
+  if (productCode) {
+    const cleanCode = productCode.replace(/\s+/g, '');
+    if (cleanCode.length === 9 && cleanCode.startsWith('00') && /^\d+$/.test(cleanCode)) {
+      return true;
+    }
+  }
+  
+  return false;
 };
 
 /**

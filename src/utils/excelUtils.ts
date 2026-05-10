@@ -283,9 +283,9 @@ const mapRowArrayToOrderRecord = (row: unknown[], header: unknown[]): OrderRecor
     return header.findIndex((c: unknown) => keywords.some(k => String(c).includes(k)));
   };
   const idxMap = {
-    orderNumber: getIdx(['受注№', '受注番号']),
-    category: getIdx(['種別']),
-    productCode: getIdx(['商品コード', '商品CD']),
+    orderNumber: getIdx(['受注№', '受注番号', 'No', '№', '注文番号']),
+    category: getIdx(['種別', 'カテゴリ', '種']),
+    productCode: getIdx(['商品コード', '商品CD', 'コード', 'CD', '商品']),
     productName: getIdx(['商品名', '品名', '規格名', '摘要']),
     quantity: getIdx(['受注数', '数量', '個数']),
     currentPrice: getIdx(['単価']),
@@ -319,8 +319,13 @@ const mapRowArrayToOrderRecord = (row: unknown[], header: unknown[]): OrderRecor
   };
 
   const pCode = String(val(idxMap.productCode));
-  const category = String(val(idxMap.category) || '既製品').trim();
-  const isSP = isSPCategory(category);
+  let category = String(val(idxMap.category) || '既製品').trim();
+  
+  // 商品コードが9桁のSP形式であれば、種別が何であってもSPとして扱う
+  const isSP = isSPCategory(category, pCode);
+  if (isSP && !category.includes('SP')) {
+    category = 'SP' + category;
+  }
   
   const titleVal = String(val(idxMap.title));
   let pName = String(val(idxMap.productName));
