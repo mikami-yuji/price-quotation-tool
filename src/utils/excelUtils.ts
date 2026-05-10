@@ -207,7 +207,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
         if (!isNaN(q)) {
           currentQty = q;
           if (qVal.includes('m') || qVal.includes('ｍ')) currentUnit = 'm';
-          else if (qVal.includes('枚')) currentUnit = '枚';
+          else if (qVal.includes('枚')) currentUnit = 'pcs';
         }
       }
       if (colIdx.unit !== -1) {
