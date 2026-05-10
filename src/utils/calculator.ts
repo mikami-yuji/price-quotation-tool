@@ -43,7 +43,7 @@ export const calculateNewPrices = (
     const isSP = isSPCategory(order.category);
     const isReadymade = order.category.includes('既製品') || order.category.includes('価格表');
     const isCustom = (order.category.includes('別注') || order.category.includes('ポリ別注')) && !isSP;
-    const displayProductName = isSP ? shortenProductName(order.productName) : order.productName;
+    const displayProductName = (isSP || isCustom) ? shortenProductName(order.productName) : order.productName;
 
     // 2. 基本情報の抽出
     const currentPrice = order.currentPrice;
