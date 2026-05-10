@@ -249,23 +249,9 @@ export const calculateNewPrices = (
     const priceDifference = Math.round((newPrice - currentPrice) * 1000) / 1000;
     const newSalesGroup = Math.round((order.salesGroup + (idealNewPrice - currentPrice)) * 1000) / 1000;
 
-    // 印刷代の計算 (別注のみ値上げ設定を適用)
-    let newPrintingCost = order.printingCost;
-    let newPrintingSalesGroup = order.printingSalesGroup;
-
-    if (isCustom) {
-      const pInc = safeConditions.customIncreaseType === 'amount' 
-        ? safeConditions.customIncreaseValue 
-        : order.printingCost * (safeConditions.customIncreaseValue / 100);
-      const idealNewPrintingCost = order.printingCost + pInc;
-      
-      if (safeConditions.roundingMode === 'half') {
-        newPrintingCost = Math.round(idealNewPrintingCost * 2) / 2;
-      } else {
-        newPrintingCost = idealNewPrintingCost;
-      }
-      newPrintingSalesGroup = order.printingSalesGroup + (newPrintingCost - order.printingCost);
-    }
+    // 印刷代の計算 (据え置き)
+    const newPrintingCost = order.printingCost;
+    const newPrintingSalesGroup = order.printingSalesGroup;
 
     return {
       ...order,
