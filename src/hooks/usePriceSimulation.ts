@@ -66,12 +66,12 @@ export const usePriceSimulation = () => {
       case 'sticker':
         return allOrders.filter(o => o.category === 'シール' || o.category === 'シール（フルオーダー）' || o.category.includes('シール'));
       case 'readymade':
-        return allOrders.filter(o => 
-          !o.category.includes('別注') && !o.category.includes('ポリ') && 
-          !o.category.includes('シール') &&
-          ((!o.category.includes('SP') && !o.category.includes('ＳＰ')) || o.category.includes('シルク')) &&
-          o.productCode !== '999999999'
-        );
+        return allOrders.filter(o => {
+          const isCustom = o.category === '別注' || o.category === 'ポリ別注' || o.category.includes('別注');
+          const isSP = (o.category.includes('SP') || o.category.includes('ＳＰ')) && !o.category.includes('シルク');
+          const isSticker = o.category.includes('シール');
+          return !isCustom && !isSP && !isSticker && o.productCode !== '999999999';
+        });
       default:
         return allOrders;
     }
