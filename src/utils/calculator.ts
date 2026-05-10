@@ -212,10 +212,18 @@ export const calculateNewPrices = (
             const mNumStr = cn.replace(/\D/g, '');
             const mNum = parseInt(mNumStr, 10);
             
-            // 文字列としての包含関係、または数値としての一致を確認
+            // 末尾の2と3を同一視するための正規化
+            const normalizeTail = (s: string) => s.length > 3 ? s.replace(/[23]$/, '') : s;
+            const mNormalized = normalizeTail(mNumStr);
+
             return orderCatalogs.some(oc => {
               const oNum = parseInt(oc, 10);
-              return oc.includes(mNumStr) || mNumStr.includes(oc) || (!isNaN(mNum) && !isNaN(oNum) && mNum === oNum);
+              const oNormalized = normalizeTail(oc);
+              
+              // 数値としての一致、包含関係、または正規化後の一致を確認
+              return (!isNaN(mNum) && !isNaN(oNum) && mNum === oNum) || 
+                     oc.includes(mNumStr) || mNumStr.includes(oc) ||
+                     (mNormalized === oNormalized && mNormalized !== '');
             });
           });
         };
