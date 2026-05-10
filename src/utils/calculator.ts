@@ -134,7 +134,17 @@ export const calculateNewPrices = (
         const mWeight = typeof m.weight === 'number' ? m.weight : parseFloat(String(m.weight || 0));
         const weightMatch = (mWeight > 0 && Math.abs(mWeight - oWeight) < 0.1);
         const shapeMatch = m.shape === orderShape;
-        const unitMatch = !m.unit || m.unit === orderUnit;
+        
+        // 単位の正規化 (m/M -> m, 枚/pcs/p -> pcs)
+        const normalizeU = (u: string) => {
+          const s = String(u || '').normalize('NFKC').trim().toLowerCase();
+          if (s.includes('m')) return 'm';
+          if (s.includes('枚') || s.includes('pcs') || s.includes('p')) return 'pcs';
+          return s;
+        };
+        const mUnit = normalizeU(m.unit || '');
+        const oUnit = normalizeU(orderUnit);
+        const unitMatch = !mUnit || mUnit === oUnit;
         
         // 隅付き括弧や「ポリ」プレフィックスを除去して比較しやすくする
         const cleanOrderMaterial = order.materialName.replace(/[【】]/g, '').replace(/^ポリ/, '').trim();
