@@ -206,21 +206,6 @@ export const calculateNewPrices = (
           spMasterMatched = true;
         }
       }
-
-      // 既製品マスターで見つからなかった（または価格0だった）場合、SP形式のコードならSPマスターを検索
-      if (matchMethod === 'none') {
-        const cleanCode = orderProd.replace(/\s+/g, '');
-        if (cleanCode.length === 9 && cleanCode.startsWith('00')) {
-          const spMatch = findSPMatch();
-          if (spMatch && spMatch.price > 0) {
-            masterPrice = spMatch.price;
-            newPrice = spMatch.price + (safeOptions?.readymadePriceIncrease || 0);
-            matchMethod = 'code';
-            spMasterMatched = true;
-            matchSource = spMatch.matchSource + ` (SPマスター引用)`;
-          }
-        }
-      }
     } else if (isCustom) {
       // --- 別注マッチング ---
       const matched = (safeMasters.custom || []).find((m: CustomPriceMatrixRow): boolean => {
