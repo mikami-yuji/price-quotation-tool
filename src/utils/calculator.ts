@@ -131,9 +131,19 @@ export const calculateNewPrices = (
         if (first3) orderCatalogs.push(parseInt(first3[0], 10).toString());
       }
 
-      const shapeStr = order.shape.trim().toUpperCase();
-      const isRollShape = shapeStr.startsWith('R') || displayProductName.includes('ロール') || displayProductName.includes('【R】');
-      const orderShape: 'Roll' | 'Single Bag' = isRollShape ? 'Roll' : 'Single Bag';
+      // 形状判定の厳格化: 商品コード末尾を最優先 (1=単袋, 2/3=ロール)
+      let orderShape: 'Roll' | 'Single Bag' = 'Single Bag';
+      if (normalizedCode.endsWith('1')) {
+        orderShape = 'Single Bag';
+      } else if (normalizedCode.match(/[23]$/)) {
+        orderShape = 'Roll';
+      } else {
+        // コードで判別できない場合のみ名前や形状列を確認
+        const shapeStr = order.shape.trim().toUpperCase();
+        const displayProductName = order.productName.normalize('NFKC');
+        const isRollMatch = shapeStr.startsWith('R') || displayProductName.includes('ロール') || displayProductName.includes('【R】');
+        orderShape = isRollMatch ? 'Roll' : 'Single Bag';
+      }
 
       // 品番またはキーワードが一致し、かつ重量が一致すれば候補とする
       const initialCandidates = (safeMasters.sp || []).filter((m: SPMasterRow): boolean => {
