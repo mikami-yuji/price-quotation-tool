@@ -111,17 +111,24 @@ export const calculateNewPrices = (
       const normalizedCode = order.productCode.normalize('NFKC').replace(/\s+/g, '');
       const searchTarget = (normalizedCode + (order.productName || '') + (order.title || '') + (order.materialName || '')).normalize('NFKC').toLowerCase();
       
-      // カタログNoの抽出 (品番の先頭00に続く3桁、または最初の3桁を候補にする)
-      // ユーザー要望: 先頭が6, 7の場合は0とみなす
+      // カタログNoの抽出
+      // ユーザー要望: 先頭が6, 7の場合は0とみなす。3桁だけでなく4桁のカタログNoも存在する。
       const codeForCatalog = normalizedCode.replace(/^[67]/, '0');
       const orderCatalogs: string[] = [];
-      const mainMatch = codeForCatalog.match(/^00(\d{3})/);
-      if (mainMatch) {
-        orderCatalogs.push(parseInt(mainMatch[1], 10).toString());
-      } else {
-        const first3 = codeForCatalog.match(/\d{3}/);
-        if (first3) orderCatalogs.push(parseInt(first3[0], 10).toString());
-      }
+      
+      // 00 + 3桁
+      const m1 = codeForCatalog.match(/^00(\d{3})/);
+      if (m1) orderCatalogs.push(parseInt(m1[1], 10).toString());
+      
+      // 0 + 4桁 (例: 01000... -> 1000)
+      const m2 = codeForCatalog.match(/^0(\d{4})/);
+      if (m2) orderCatalogs.push(parseInt(m2[1], 10).toString());
+
+      // 最初の3桁・4桁も候補にする
+      const first4 = codeForCatalog.match(/\d{4}/);
+      if (first4) orderCatalogs.push(parseInt(first4[0], 10).toString());
+      const first3 = codeForCatalog.match(/\d{3}/);
+      if (first3) orderCatalogs.push(parseInt(first3[0], 10).toString());
 
       const shapeStr = order.shape.trim().toUpperCase();
       const isRollShape = shapeStr.startsWith('R') || displayProductName.includes('ロール') || displayProductName.includes('【R】');
@@ -129,8 +136,11 @@ export const calculateNewPrices = (
 
       // 品番またはキーワードが一致し、かつ重量が一致すれば候補とする
       const initialCandidates = (safeMasters.sp || []).filter((m: SPMasterRow): boolean => {
-        // 品番マッチング: マスターのカタログNoが受注の候補に含まれているか
-        const catalogMatch = m.catalogNos && m.catalogNos.some(c => orderCatalogs.includes(c.replace(/\D/g, '')));
+        // 品番マッチング: マスターのカタログNoを数値化して比較
+        const catalogMatch = m.catalogNos && m.catalogNos.some(c => {
+          const mCatNumeric = parseInt(c.replace(/\D/g, ''), 10).toString();
+          return orderCatalogs.includes(mCatNumeric);
+        });
         
         const kw = (m.materialHint || '').normalize('NFKC').toLowerCase().replace(/[（）() \t【】[\]]/g, '');
         const target = searchTarget.replace(/[（）() \t【】[\]]/g, '');
