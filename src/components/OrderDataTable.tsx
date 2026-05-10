@@ -138,12 +138,12 @@ export default function OrderDataTable({
                             className={styles.matchBadge} 
                             style={{ 
                               fontSize: '0.65rem', 
-                              color: order.matchMethod === 'readymade_fallback' ? '#f59e0b' : '#3b82f6', 
+                              color: (activeTab !== 'readymade' && order.matchMethod === 'readymade_fallback') ? '#f59e0b' : '#3b82f6', 
                               marginTop: '2px' 
                             }} 
                             title={order.matchSource}
                           >
-                            {order.matchMethod === 'readymade_fallback' ? '【既製】' : ''}{order.matchSource}
+                            {(activeTab !== 'readymade' && order.matchMethod === 'readymade_fallback') ? '【既製】' : ''}{order.matchSource}
                           </span>
                         )}
                       </div>
