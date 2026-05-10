@@ -52,7 +52,7 @@ export const calculateNewPrices = (
     const currentPrice = order.currentPrice;
     let newPrice = 0;
     let masterPrice: number | undefined = undefined;
-    let matchMethod: 'code' | 'spec' | 'none' = 'none';
+    let matchMethod: 'code' | 'spec' | 'none' | 'readymade_fallback' = 'none';
     let matchSource = '';
     let spMasterMatched = false;
 
