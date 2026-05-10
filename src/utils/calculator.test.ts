@@ -239,7 +239,7 @@ describe('Calculator Logic (Multilevel Precedence)', () => {
       const mismatchedOrders = [{ ...spOrders[0], materialName: 'バリア' }];
       const results = calculateNewPrices(mismatchedOrders, defaultConditions, {}, {}, {
         custom: [], sp: spMaster, sticker: [], readymade: []
-      });
+      }, { spPriceIncrease: 10 });
       // 一致しないのでデフォルトの10%アップ: 100 * 1.1 = 110
       expect(results[0].newPrice).toBe(110);
     });
