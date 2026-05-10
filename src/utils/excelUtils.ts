@@ -281,12 +281,14 @@ const parseReadymadeMaster = (rows: unknown[]): ReadymadeMasterRow[] => {
       return parseFloat(v) || 0;
     };
 
-    const remarks = String(row[idxMap.slideQty] !== -1 ? row[idxMap.slideQty] : (headerRow.includes('備考') ? row[headerRow.indexOf('備考')] : ''));
-    let minQty = parseP(idxMap.slideQty) || 0;
+    const remarksIdx = idxMap.slideQty !== -1 ? idxMap.slideQty : getIdx(['備考', 'メモ', '条件']);
+    const remarks = String(remarksIdx !== -1 ? row[remarksIdx] : '');
+    let minQty = (idxMap.slideQty !== -1) ? parseP(idxMap.slideQty) : 0;
     
-    // 備考欄から (500～) のような形式を探す
+    // 備考欄から (500～) や (1,000〜) のような形式を探す
     if (minQty === 0 && remarks) {
-      const match = remarks.match(/(\d+)～/);
+      // カンマを除去し、数字 + (～ or 〜 or ~ or -) のパターンを探す
+      const match = remarks.replace(/,/g, '').match(/(\d+)[～〜~-]/);
       if (match) minQty = parseInt(match[1], 10);
     }
 
