@@ -141,13 +141,13 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
         if (!isNaN(q)) {
           currentQty = q;
           if (qVal.includes('m') || qVal.includes('ｍ')) currentUnit = 'm';
-          else if (qVal.includes('枚')) currentUnit = 'pcs';
+          else if (qVal.includes('枚')) currentUnit = '枚';
         }
       }
       if (colIdx.unit !== -1) {
         const u = String(row[colIdx.unit] || '');
         if (u.includes('m') || u.includes('ｍ')) currentUnit = 'm';
-        else if (u.includes('枚')) currentUnit = 'pcs';
+        else if (u.includes('枚')) currentUnit = '枚';
       }
 
       if (currentQty === 0) {
