@@ -199,8 +199,14 @@ export const calculateNewPrices = (
         const isCatalogMatch = (masterCats: string[] | undefined): boolean => {
           if (!masterCats) return false;
           return masterCats.some(cn => {
-            const mNum = cn.replace(/\D/g, '');
-            return orderCatalogs.includes(mNum) || orderCatalogs.some(oc => oc.includes(mNum) || mNum.includes(oc));
+            const mNumStr = cn.replace(/\D/g, '');
+            const mNum = parseInt(mNumStr, 10);
+            
+            // 文字列としての包含関係、または数値としての一致を確認
+            return orderCatalogs.some(oc => {
+              const oNum = parseInt(oc, 10);
+              return oc.includes(mNumStr) || mNumStr.includes(oc) || (!isNaN(mNum) && !isNaN(oNum) && mNum === oNum);
+            });
           });
         };
 

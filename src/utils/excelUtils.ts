@@ -100,11 +100,19 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
         const r = rows[i] as unknown[];
         if (!r || !r[colMap.catalog]) continue;
 
-        const catalog = String(r[colMap.catalog]);
+        const catalog = String(r[colMap.catalog] || '').trim();
         const weightStr = String(r[colMap.weight] || '');
         const shapeColVal = colMap.shape !== -1 ? String(r[colMap.shape] || '') : '';
         const combinedShapeInfo = (weightStr + shapeColVal).normalize('NFKC');
-        const shape = (combinedShapeInfo.includes('R') || combinedShapeInfo.includes('ロール')) ? 'Roll' : 'Single Bag';
+        
+        // 形状判定: 独立した列があればそれを優先し、なければ重量列等から判定
+        let shape: 'Roll' | 'Single Bag' = 'Single Bag';
+        if (combinedShapeInfo.includes('R') || combinedShapeInfo.includes('ロール')) {
+          shape = 'Roll';
+        } else if (combinedShapeInfo.includes('単袋')) {
+          shape = 'Single Bag';
+        }
+        
         const weight = parseFloat(weightStr.replace(/[^\d.]/g, '')) || 0;
         const qtyVal = String(r[colMap.qty] || '');
         const qty = parseFloat(qtyVal.replace(/[^\d.]/g, '')) || 0;
