@@ -200,11 +200,12 @@ export const calculateNewPrices = (
                      (bestMatch.normalPrice || p.uru || 0);
 
         if (baseP && baseP > 0) {
+          const segLabel = seg === 'uru' ? '売' : seg === 'junD' ? '準D' : seg === 'd' ? 'D' : '';
           masterPrice = baseP;
           newPrice = baseP + (safeOptions?.readymadePriceIncrease || 0);
           matchMethod = 'code';
           spMasterMatched = true;
-          matchSource = `既製品マスタ: ${bestMatch.absCode || bestMatch.productCode}`;
+          matchSource = `${bestMatch.absCode || bestMatch.productCode}:${segLabel}`;
         }
       }
     } else if (isCustom) {
