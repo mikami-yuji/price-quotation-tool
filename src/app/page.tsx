@@ -239,6 +239,7 @@ export default function Home(): React.ReactElement {
             newTotal={summary.newTotal}
             revenueIncrease={revenueIncrease}
             avgRevisionRate={avgRevisionRate}
+            matchedCount={filteredOrders.filter(o => o.matchMethod && o.matchMethod !== 'none').length}
           />
 
           <div className={styles.tabContainer}>

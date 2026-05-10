@@ -130,7 +130,16 @@ export default function OrderDataTable({
                   <td style={{ fontSize: '0.8rem' }}>{order.orderNumber}</td>
                   <td>{order.directDeliveryName}</td>
                   {activeTab !== 'custom' && <td>{order.productCode}</td>}
-                  <td>{order.productName}</td>
+                  <td>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontWeight: 500 }}>{order.productName}</span>
+                      {order.matchSource && (
+                        <span className={styles.matchBadge} title={order.matchSource}>
+                          {order.matchSource}
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td>{order.shape}</td>
                   <td>{order.quantity}</td>
                   <td>{order.materialName}</td>

@@ -7,8 +7,8 @@ describe('stringUtils (Shared Utility Logic)', () => {
     it('前方の重量・仕様接頭辞を除去すること', () => {
       expect(shortenProductName('1kgポリ 銘柄名')).toBe('銘柄名');
       expect(shortenProductName('5k和紙 銘柄名')).toBe('銘柄名');
-      expect(shortenProductName('0.5k バリア銘柄')).toBe('バリア銘柄');
-      expect(shortenProductName('２ｋｇ ポリ銘柄')).toBe('ポリ銘柄');
+      expect(shortenProductName('0.5k バリア銘柄')).toBe('銘柄');
+      expect(shortenProductName('２ｋｇ ポリ銘柄')).toBe('銘柄');
     });
 
     it('末尾のロット数・単位を除去すること', () => {
@@ -28,6 +28,7 @@ describe('stringUtils (Shared Utility Logic)', () => {
       // "5kg 【ポリ】銘柄名 1000枚" -> "【ポリ】銘柄名 1000枚" -> "銘柄名 1000枚" -> "銘柄名"
       expect(shortenProductName('5kg 【ポリ】銘柄名 1000枚')).toBe('銘柄名');
       expect(shortenProductName('１ｋｇ【バリア】銘柄名１０００枚')).toBe('銘柄名');
+      expect(shortenProductName('別注５Ｋﾏｯﾄﾎﾟﾘ滋賀県産きぬひかりRA')).toBe('滋賀県産きぬひかり');
     });
 
     it('除去すべきでない重要なキーワードは保持すること', () => {

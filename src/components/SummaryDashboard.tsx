@@ -9,6 +9,7 @@ type SummaryDashboardProps = {
   newTotal: number;
   revenueIncrease: number;
   avgRevisionRate: number;
+  matchedCount: number;
 };
 
 export default function SummaryDashboard({
@@ -17,12 +18,18 @@ export default function SummaryDashboard({
   newTotal,
   revenueIncrease,
   avgRevisionRate,
+  matchedCount,
 }: SummaryDashboardProps): React.ReactElement {
   return (
     <div className={styles.summaryDashboard}>
       <div className={`${styles.glassPanel} ${styles.summaryCard}`}>
         <span className={styles.summaryLabel}>表示アイテム数</span>
         <span className={styles.summaryValue}>{itemCount} 件</span>
+        {matchedCount > 0 && (
+          <span className={`${styles.summaryTrend} ${styles.trendUp}`} style={{ fontSize: '0.75rem' }}>
+            (うち {matchedCount} 件 マスター照合)
+          </span>
+        )}
       </div>
       <div className={`${styles.glassPanel} ${styles.summaryCard}`}>
         <span className={styles.summaryLabel}>現行 売上合計</span>
