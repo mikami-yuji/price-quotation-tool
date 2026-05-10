@@ -163,7 +163,6 @@ export const calculateNewPrices = (
         return !!((catalogMatch || keywordMatch) && weightMatchRelaxed);
       });
 
-      // SPオフセットの場合は特定のシートに限定する
       const isOffset = order.category.includes('オフセット');
       const offsetSheets = ['05_SP和紙・ソフトクラフト', '09_SP和紙包', '10_SP金銀和紙・和紙雲竜', 'クラフト'];
       
@@ -172,7 +171,6 @@ export const calculateNewPrices = (
         : initialCandidates;
 
       if (candidates.length > 0) {
-        // 材質スコアリング関数
         const getMaterialScore = (hint: string): number => {
           let score = 0;
           const normalizedHint = hint.normalize('NFKC').toLowerCase();
@@ -182,21 +180,25 @@ export const calculateNewPrices = (
           keywords.forEach(word => {
             const inOrder = normalizedOrderMat.includes(word);
             const inHint = normalizedHint.includes(word);
-            if (inOrder && inHint) score += 10; // 両方にある (一致)
-            if (!inOrder && inHint) score -= 20; // 受注にないのにマスターにある (マットポリポリ問題対策)
-            if (inOrder && !inHint) score -= 5; // 受注にあるのにマスターにない
+            if (inOrder && inHint) score += 10;
+            if (!inOrder && inHint) score -= 20;
+            if (inOrder && !inHint) score -= 5;
           });
           return score;
         };
 
-        // カタログNo一致があるものを最優先、次に材質スコア、次に重量の正確さを優先
+        // カタログNo一致があるものを最優先、次に形状一致、次に材質スコア、次に重量の正確さを優先
         candidates.sort((a, b) => {
           const aCat = a.catalogNos && a.catalogNos.some(c => orderCatalogs.includes(c.replace(/\D/g, '')));
           const bCat = b.catalogNos && b.catalogNos.some(c => orderCatalogs.includes(c.replace(/\D/g, '')));
           if (aCat && !bCat) return -1;
           if (!aCat && bCat) return 1;
           
-          // 材質スコアによる判定
+          const aShapeMatch = a.shape === orderShape;
+          const bShapeMatch = b.shape === orderShape;
+          if (aShapeMatch && !bShapeMatch) return -1;
+          if (!aShapeMatch && bShapeMatch) return 1;
+          
           const aScore = getMaterialScore(a.materialHint || '');
           const bScore = getMaterialScore(b.materialHint || '');
           if (aScore !== bScore) return bScore - aScore;
@@ -214,7 +216,7 @@ export const calculateNewPrices = (
         
         const bestGroup = candidates.filter(c => {
           const cCat = c.catalogNos && c.catalogNos.some(cn => orderCatalogs.includes(cn.replace(/\D/g, '')));
-          return cCat === isTopCat && c.materialHint === top.materialHint;
+          return cCat === isTopCat && c.shape === top.shape && c.materialHint === top.materialHint;
         });
 
         // 2. そのグループ内で、受注数量に合う最大の minQuantity を探す
