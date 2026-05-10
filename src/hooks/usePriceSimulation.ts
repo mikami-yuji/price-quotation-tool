@@ -31,7 +31,7 @@ export const usePriceSimulation = () => {
   
   const [conditions, setConditions] = useState<IncreaseSimulationConditions>({
     customIncreaseType: 'percentage',
-    customIncreaseValue: 10,
+    customIncreaseValue: 0,
     roundingMode: 'none',
   });
 
@@ -90,7 +90,7 @@ export const usePriceSimulation = () => {
         sticker: stickerMaster
       },
       {
-        spPriceIncrease: 10, // 必要に応じて調整
+        spPriceIncrease: 0, 
         readymadePriceIncrease: (conditions.customIncreaseType as string) === 'fixed' || conditions.customIncreaseType === 'amount' ? conditions.customIncreaseValue : 0,
         segment: readymadeSegment,
       }

@@ -38,14 +38,14 @@ export default function SummaryDashboard({
       <div className={`${styles.glassPanel} ${styles.summaryCard}`}>
         <span className={styles.summaryLabel}>改定後 予想売上</span>
         <span className={styles.summaryValue}>¥{newTotal.toLocaleString()}</span>
-        <span className={`${styles.summaryTrend} ${styles.trendUp}`}>
-          +{revenueIncrease.toLocaleString()} 円増加
+        <span className={`${styles.summaryTrend} ${revenueIncrease >= 0 ? styles.trendUp : styles.trendDown}`}>
+          {revenueIncrease >= 0 ? '+' : ''}{revenueIncrease.toLocaleString()} 円{revenueIncrease >= 0 ? '増加' : '減少'}
         </span>
       </div>
       <div className={`${styles.glassPanel} ${styles.summaryCard}`}>
         <span className={styles.summaryLabel}>平均改定率</span>
-        <span className={`${styles.summaryValue} ${styles.priceUp}`}>
-          {avgRevisionRate.toFixed(1)}%
+        <span className={`${styles.summaryValue} ${avgRevisionRate >= 0 ? styles.priceUp : styles.priceDown}`}>
+          {avgRevisionRate > 0 ? '+' : ''}{avgRevisionRate.toFixed(1)}%
         </span>
       </div>
     </div>

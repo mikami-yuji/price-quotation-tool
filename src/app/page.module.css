@@ -682,7 +682,12 @@
 }
 
 .priceUp {
-  color: var(--success-color);
+  color: var(--success-color); /* Green for increase (good for seller) */
+  font-weight: 600;
+}
+
+.priceDown {
+  color: #ef4444; /* Red for decrease (bad for seller) */
   font-weight: 600;
 }
 
@@ -841,7 +846,11 @@
 }
 
 .trendUp {
-  color: var(--success-color);
+  color: var(--success-color); /* Green for increase */
+}
+
+.trendDown {
+  color: #ef4444; /* Red for decrease */
 }
 
 .warningRow {
