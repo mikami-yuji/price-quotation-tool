@@ -257,7 +257,7 @@ export const calculateNewPrices = (
               else unitLabel = '枚'; // デフォルト
             }
             
-            const weightLabel = bestMatch.weight ? `${bestMatch.weight}g` : '0g';
+            const weightLabel = bestMatch.weight ? `${bestMatch.weight}kg` : '0kg';
             const colorLabel = `${colorCount}色`;
             const rankLabel = `${bestMatch.minQuantity}${unitLabel}`;
             
