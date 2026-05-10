@@ -106,9 +106,8 @@ export const calculateNewPrices = (
       };
     }
 
-    // 6. 各種マスターとのマッチング
-    if (isSP) {
-      // --- SPマッチングロジック ---
+    // SPマスターから価格を検索する内部ヘルパー
+    const findSPMatch = () => {
       const normalizedCode = order.productCode.normalize('NFKC').replace(/\s+/g, '');
       const searchTarget = (normalizedCode + (order.productName || '') + (order.title || '') + (order.materialName || '')).normalize('NFKC').toLowerCase();
       const catalogMatch_RE = normalizedCode.match(/(?:00|^)(\d{3})/);
@@ -144,7 +143,7 @@ export const calculateNewPrices = (
         const validLots = candidates.filter((c: SPMasterRow): boolean => c.minQuantity <= order.quantity + 2);
         const bestMatch = validLots.length > 0 
           ? validLots.reduce((p: SPMasterRow, c: SPMasterRow): SPMasterRow => c.minQuantity > p.minQuantity ? c : p)
-          : null;
+          : candidates[0];
 
         if (bestMatch) {
           const cleanPrintCode = order.printCode.normalize('NFKC').replace(/\s+/g, '');
@@ -154,29 +153,24 @@ export const calculateNewPrices = (
 
           const prices = bestMatch.colorPrices[colorCount] || bestMatch.colorPrices[1];
           if (prices) {
-            const seg = safeOptions.segment;
-            let targetPrice = seg === 'uru' ? prices.uru : seg === 'junD' ? prices.junD : seg === 'd' ? prices.d : 0;
-            let segmentLabel = seg === 'uru' ? '売' : seg === 'junD' ? '準D' : seg === 'd' ? 'D' : '';
-
-            if (targetPrice <= 0) {
-              const dU = prices.uru > 0 ? Math.abs(currentPrice - prices.uru) : Infinity;
-              const dJ = prices.junD > 0 ? Math.abs(currentPrice - prices.junD) : Infinity;
-              const dD = prices.d > 0 ? Math.abs(currentPrice - prices.d) : Infinity;
-              const closest = Math.min(dU, dJ, dD);
-              if (closest === dU) { targetPrice = prices.uru; segmentLabel = '売(自)'; }
-              else if (closest === dJ) { targetPrice = prices.junD; segmentLabel = '準D(自)'; }
-              else if (closest === dD) { targetPrice = prices.d; segmentLabel = 'D(自)'; }
-            }
-
-            if (targetPrice > 0) {
-              masterPrice = targetPrice;
-              newPrice = targetPrice;
-              matchMethod = 'spec';
-              spMasterMatched = true;
-              matchSource = `SP:${bestMatch.materialHint} ${bestMatch.weight}k ${bestMatch.minQuantity}${bestMatch.unit} [${segmentLabel}:¥${targetPrice}]`;
-            }
+            const seg = safeOptions.segment || 'uru';
+            const targetPrice = seg === 'uru' ? prices.uru : seg === 'junD' ? prices.junD : seg === 'd' ? prices.d : 0;
+            return { price: targetPrice, matchSource: `SP:${bestMatch.materialHint} ${bestMatch.weight}k ${bestMatch.minQuantity}${bestMatch.unit}` };
           }
         }
+      }
+      return null;
+    };
+
+    // 6. 各種マスターとのマッチング
+    if (isSP) {
+      const spMatch = findSPMatch();
+      if (spMatch && spMatch.price > 0) {
+        masterPrice = spMatch.price;
+        newPrice = spMatch.price;
+        matchMethod = 'spec';
+        spMasterMatched = true;
+        matchSource = spMatch.matchSource + ` [¥${spMatch.price}]`;
       }
     } else if (isReadymade) {
       // --- 既製品マッチング ---
@@ -188,6 +182,7 @@ export const calculateNewPrices = (
         const mProd = (m.productCode || '').normalize('NFKC').trim();
         return !!((mAbs && mAbs === orderAbs) || (mProd && mProd === orderProd));
       });
+
       if (candidates.length > 0) {
         const validLots = candidates.filter((c: ReadymadeMasterRow): boolean => (c.minQuantity || 0) <= order.quantity + 2);
         const bestMatch = validLots.length > 0 
@@ -196,8 +191,6 @@ export const calculateNewPrices = (
 
         const seg = safeOptions.segment || 'uru';
         const type = safeOptions.type || 'normal';
-        
-        // 価格タイプ（通常/CP）に応じて価格オブジェクトを選択
         const pObj = (type === 'campaign' ? (bestMatch.campaign || bestMatch.normal) : bestMatch.normal) || {};
         const p = pObj as { uru?: number; junD?: number; d?: number };
         
@@ -206,10 +199,27 @@ export const calculateNewPrices = (
                      seg === 'd' ? (p.d || bestMatch.normalPrice) : 
                      (bestMatch.normalPrice || p.uru || 0);
 
-        masterPrice = baseP || 0;
-        newPrice = (baseP || 0) + (safeOptions?.readymadePriceIncrease || 0);
-        matchMethod = 'code';
-        spMasterMatched = true;
+        if (baseP && baseP > 0) {
+          masterPrice = baseP;
+          newPrice = baseP + (safeOptions?.readymadePriceIncrease || 0);
+          matchMethod = 'code';
+          spMasterMatched = true;
+        }
+      }
+
+      // 既製品マスターで見つからなかった（または価格0だった）場合、SP形式のコードならSPマスターを検索
+      if (matchMethod === 'none') {
+        const cleanCode = orderProd.replace(/\s+/g, '');
+        if (cleanCode.length === 9 && cleanCode.startsWith('00')) {
+          const spMatch = findSPMatch();
+          if (spMatch && spMatch.price > 0) {
+            masterPrice = spMatch.price;
+            newPrice = spMatch.price + (safeOptions?.readymadePriceIncrease || 0);
+            matchMethod = 'code';
+            spMasterMatched = true;
+            matchSource = spMatch.matchSource + ` (SPマスター引用)`;
+          }
+        }
       }
     } else if (isCustom) {
       // --- 別注マッチング ---

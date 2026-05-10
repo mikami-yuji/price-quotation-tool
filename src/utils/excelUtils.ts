@@ -235,28 +235,66 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
 const parseReadymadeMaster = (rows: unknown[]): ReadymadeMasterRow[] => {
   const master: ReadymadeMasterRow[] = [];
   if (rows.length < 2) return master;
-  const headerRow = rows[0] as unknown[];
-  const getIdx = (keywords: string[]) => headerRow.findIndex(c => keywords.some(k => String(c).includes(k)));
+
+  // ヘッダー行の特定
+  let headerRowIdx = -1;
+  for (let i = 0; i < Math.min(rows.length, 20); i++) {
+    const r = rows[i];
+    if (Array.isArray(r) && (r.includes('商品コード') || r.includes('商品CD') || r.includes('ABS-CD'))) {
+      headerRowIdx = i;
+      break;
+    }
+  }
+  if (headerRowIdx === -1) headerRowIdx = 0;
+
+  const headerRow = rows[headerRowIdx] as unknown[];
+  const getIdx = (keywords: string[]) => headerRow.findIndex(c => keywords.some(k => String(c || '').includes(k)));
+  
   const idxMap = {
-    code: getIdx(['商品コード', '商品CD', 'コード']),
+    code: getIdx(['商品コード', '商品CD', 'コード', 'ABS-CD']),
     name: getIdx(['商品名', '品名', '規格名']),
-    price: getIdx(['通常単価', '単価', '現行']),
-    campaignPrice: getIdx(['特売', 'キャンペーン']),
+    // 客層別価格の列特定
+    uru: getIdx(['売', '通常', '現行', '販売単価']),
+    junD: getIdx(['準D', '準']),
+    d: getIdx(['D', 'ｄ', '小口']),
+    // キャンペーン価格の列特定 (もしあれば)
+    cpUru: getIdx(['CP売', '特売', 'キャンペーン']),
+    cpJunD: getIdx(['CP準D']),
+    cpD: getIdx(['CP D']),
+    // スライド
     slideQty: getIdx(['スライド数量', 'ケース']),
-    slidePrice: getIdx(['スライド単価', 'ケース単価'])
+    slidePrice: getIdx(['スライド単価'])
   };
-  for (let i = 1; i < rows.length; i++) {
+
+  for (let i = headerRowIdx + 1; i < rows.length; i++) {
     const row = rows[i] as unknown[];
+    if (!Array.isArray(row)) continue;
+    
     const code = String(row[idxMap.code] || '').trim();
     if (!code) continue;
+
+    const parseP = (idx: number) => {
+      if (idx === -1) return 0;
+      const v = String(row[idx] || '').replace(/[^\d.]/g, '');
+      return parseFloat(v) || 0;
+    };
+
     master.push({
       productCode: code,
       absCode: code.replace(/\s+/g, ''),
       productName: String(row[idxMap.name] || ''),
-      normalPrice: parseFloat(String(row[idxMap.price] || '')) || 0,
-      campaignPrice: parseFloat(String(row[idxMap.campaignPrice] || '')) || undefined,
-      slideQuantity: parseFloat(String(row[idxMap.slideQty] || '')) || undefined,
-      slidePrice: parseFloat(String(row[idxMap.slidePrice] || '')) || undefined
+      normal: {
+        uru: parseP(idxMap.uru),
+        junD: parseP(idxMap.junD),
+        d: parseP(idxMap.d)
+      },
+      campaign: {
+        uru: parseP(idxMap.cpUru) || parseP(idxMap.uru),
+        junD: parseP(idxMap.cpJunD) || parseP(idxMap.junD),
+        d: parseP(idxMap.cpD) || parseP(idxMap.d)
+      },
+      minQuantity: parseP(idxMap.slideQty) || 0,
+      normalPrice: parseP(idxMap.uru) // 下位互換用
     });
   }
   return master;
