@@ -130,10 +130,10 @@ export const calculateNewPrices = (
         const oMat = majorMaterials.find((mm: string): boolean => target.includes(mm));
         if (mMat && oMat && mMat !== oMat) return false;
 
-        const oWeight = typeof order.weight === 'number' ? order.weight : parseFloat(String(order.weight || 0));
-        const mWeight = typeof m.weight === 'number' ? m.weight : parseFloat(String(m.weight || 0));
-        const weightMatch = (mWeight > 0 && Math.abs(mWeight - oWeight) < 0.1);
-        const shapeMatch = m.shape === orderShape;
+        const mWeight = Number(m.weight || 0);
+        const oWeight = Number(order.weight || 0);
+        const weightMatch = mWeight === 0 || oWeight === 0 || Math.abs(mWeight - oWeight) < 0.1;
+        const shapeMatch = !m.shape || m.shape === '不明' || !orderShape || m.shape === orderShape;
         
         return !!((catalogMatch && weightMatch && shapeMatch) || (keywordMatch && weightMatch && shapeMatch));
       });
