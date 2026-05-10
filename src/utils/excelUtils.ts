@@ -19,13 +19,15 @@ export const parseExcelFile = (arrayBuffer: ArrayBuffer): {
     } else if (sheetName.includes('別注') || sheetName.includes('単価表')) {
       priceMatrix.push(...parsePriceMatrix(rows));
     } else if (rows.length > 0) {
-      const headerRow = rows.find(r => Array.isArray(r) && (r.includes('受注№') || r.includes('種別'))) as unknown[] | undefined;
+      const headerRow = rows.find(r => 
+        Array.isArray(r) && 
+        (r.includes('受注№') || r.includes('種別') || r.includes('商品コード') || r.includes('商品名') || r.includes('受注No') || r.includes('No'))
+      ) as unknown[] | undefined;
       if (headerRow) {
         const headerIdx = rows.indexOf(headerRow);
         for (let i = headerIdx + 1; i < rows.length; i++) {
           const order = mapRowArrayToOrderRecord(rows[i] as unknown[], headerRow);
-          // 受注番号がなくても商品コードがあれば読み込むように変更
-          if (order.orderNumber || order.productCode) orders.push(order);
+          if (order.orderNumber || order.productCode || order.productName) orders.push(order);
         }
       }
     }
@@ -320,13 +322,10 @@ const mapRowArrayToOrderRecord = (row: unknown[], header: unknown[]): OrderRecor
   };
 
   const pCode = String(val(idxMap.productCode));
-  let category = String(val(idxMap.category) || '既製品').trim();
+  const category = String(val(idxMap.category) || '既製品').trim();
   
-  // 商品コードが9桁のSP形式であれば、種別が何であってもSPとして扱う
-  const isSP = isSPCategory(category, pCode);
-  if (isSP && !category.includes('SP')) {
-    category = 'SP' + category;
-  }
+  // 種別（カテゴリ）のみで判断
+  const isSP = isSPCategory(category);
   
   const titleVal = String(val(idxMap.title));
   let pName = String(val(idxMap.productName));
