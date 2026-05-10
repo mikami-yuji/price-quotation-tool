@@ -56,7 +56,7 @@ export const generateQuoteExcel = async (
     { header: '商品名 / 材質', key: 'productNameMaterial', width: 40 },
     { header: '形状', key: 'shape', width: 10 },
     { header: '前回受注数', key: 'quantity', width: 10 },
-    ...(showPrintingInfo ? [{ header: '印刷コード', key: 'printCode', width: 15 }] : []),
+    ...(showPrintingInfo ? [{ header: '印刷コード', key: 'printCode', width: 25 }] : []),
     { header: '重量', key: 'weight', width: 8 },
     ...(category !== '既製' ? [{ header: '色数', key: 'colors', width: 6 }] : []),
     ...(category === '別注' ? [{ header: '厚み', key: 'thickness', width: 10 }] : []),
@@ -238,7 +238,7 @@ export const generateQuoteExcel = async (
     });
 
     // 行の高さを自動調整（改行が含まれるため）
-    worksheet.getRow(currentRowNum).height = 30;
+    worksheet.getRow(currentRowNum).height = 40;
   });
 
   // 3. フッターセクション
