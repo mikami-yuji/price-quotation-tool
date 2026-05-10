@@ -160,7 +160,7 @@ export const calculateNewPrices = (
         // 判定条件の緩和: カタログNoが一致すれば、重量が0同士または近似していれば一致とする
         const weightMatchRelaxed = weightMatch || mWeight === 0 || oWeight === 0;
         
-        return !!((catalogMatch || keywordMatch) && weightMatchRelaxed);
+        return !!(catalogMatch && weightMatchRelaxed);
       });
 
       const isOffset = order.category.includes('オフセット');
