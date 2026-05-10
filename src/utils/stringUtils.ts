@@ -39,8 +39,11 @@ export const shortenProductName = (name: string): string => {
   }
 
   // 3. 末尾の仕様（枚数・SPコード等）をカット
+  // SPコード（RASP, CSP, SP）があれば、それ以降をすべて消す
+  n = n.replace(/[ 　]*(RASP|CSP|SP).*$/g, '');
+  
   // 数量（1000枚, 100m, 500枚入 等）や【】コード、末尾型番を消す
-  n = n.replace(/[ 　]*([0-9,.]+(枚|枚入|入|m|k[gG]?)?|RASP|CSP|SP|RA|RZ|【[A-Z0-9]+】)$/g, '');
+  n = n.replace(/[ 　]*([0-9,.]+(枚|枚入|入|m|k[gG]?)?|RA|RZ|【[A-Z0-9]+】)$/g, '');
   
   // 数値のみの末尾（ロット番号など）を消す（ただし名前全体が数値の場合は残す）
   if (/\s\d+$/.test(n)) {
