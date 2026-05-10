@@ -498,6 +498,7 @@ const mapRowArrayToOrderRecord = (row: unknown[], header: unknown[]): OrderRecor
 
   // SPの場合、重量が0なら品番から抽出を試みる
   if (isSP && record.weight === 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const res = /^00\d{3}(\d{2})01$/.exec(record.absCode || '') as any;
     if (res && res[1]) {
       record.weight = parseInt(res[1], 10);

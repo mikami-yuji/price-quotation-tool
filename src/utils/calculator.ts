@@ -124,7 +124,6 @@ export const calculateNewPrices = (
         const fix = (s: string): string => s.replace(/窓付|窓有り/g, '窓').replace(/単袋|単/g, '').replace(/オフセット/g, '');
         const keywordMatch = fix(kw) ? (fix(target).includes(fix(kw)) || fix(kw).includes(fix(target))) : true;
         
-        const orderShape = (order.shape || '').normalize('NFKC').trim();
         const majorMaterials = ['ポリ', 'バリア', 'ラミ', '和紙', 'クラフト', 'ナイロン'];
         const mMat = majorMaterials.find((mm: string): boolean => kw.includes(mm));
         const oMat = majorMaterials.find((mm: string): boolean => target.includes(mm));
