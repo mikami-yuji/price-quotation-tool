@@ -173,8 +173,20 @@ export const calculateNewPrices = (
           return ((b.materialHint || '').length || 0) - ((a.materialHint || '').length || 0);
         });
         
-        // 最上位の候補を採用
-        const bestMatch = candidates.find((m: SPMasterRow) => (m.minQuantity || 0) <= order.quantity + 2) || candidates[0];
+        // 1. 最も関連性の高いカタログ/材質のグループを特定する
+        const top = candidates[0];
+        const isTopCat = top.catalogNos && top.catalogNos.some(c => orderCatalogs.includes(c.replace(/\D/g, '')));
+        
+        const bestGroup = candidates.filter(c => {
+          const cCat = c.catalogNos && c.catalogNos.some(cn => orderCatalogs.includes(cn.replace(/\D/g, '')));
+          return cCat === isTopCat && c.materialHint === top.materialHint;
+        });
+
+        // 2. そのグループ内で、受注数量に合う最大の minQuantity を探す
+        const validLots = bestGroup.filter((m: SPMasterRow) => (m.minQuantity || 0) <= order.quantity + 2);
+        const bestMatch = validLots.length > 0 
+          ? validLots.reduce((p: SPMasterRow, c: SPMasterRow) => (c.minQuantity || 0) > (p.minQuantity || 0) ? c : p)
+          : bestGroup[0];
 
         if (bestMatch) {
           const cleanPrintCode = order.printCode.normalize('NFKC').replace(/\s+/g, '');
