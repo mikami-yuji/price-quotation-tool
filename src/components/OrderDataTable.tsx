@@ -6,7 +6,6 @@ import { OrderRecord, IndividualManualSetting } from '../types';
 import InlineNumericInput from './InlineNumericInput';
 import InlineTextInput from './InlineTextInput';
 import ColumnFilter from './ColumnFilter';
-import { shortenProductName } from '../utils/stringUtils';
 
 type OrderDataTableProps = {
   activeTab: string;
@@ -131,13 +130,7 @@ export default function OrderDataTable({
                   <td style={{ fontSize: '0.8rem' }}>{order.orderNumber}</td>
                   <td>{order.directDeliveryName}</td>
                   {activeTab !== 'custom' && <td>{order.productCode}</td>}
-                  <td>
-                    {order.category === '既製品' || order.category === '' 
-                      ? order.productName 
-                      : (order.category.includes('SP') || order.category.includes('ＳＰ'))
-                        ? order.productName
-                        : shortenProductName(order.productName)}
-                  </td>
+                  <td>{order.productName}</td>
                   <td>{order.shape}</td>
                   <td>{order.quantity}</td>
                   <td>{order.materialName}</td>

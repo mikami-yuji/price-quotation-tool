@@ -35,7 +35,24 @@ export const calculateNewPrices = (
     let masterPrice: number | undefined = undefined;
     let matchMethod: 'code' | 'spec' | 'none' = 'none';
     let matchSource = '';
-    let displayProductName = order.productName;
+
+    // SPの商品名を短縮する（仕様部分を削り、商品名だけを残す）
+    const shortenProductName = (name: string): string => {
+      let n = name.normalize('NFKC').trim();
+      n = n.replace(/^[●★☆◆◇■□]+/g, '');
+      let prev = '';
+      for (let i = 0; i < 5; i++) {
+        prev = n;
+        n = n.replace(/^[0-9.]+[kK][gG]?[ 　]*/, '');
+        n = n.replace(/^[^ 　]*?(ポリ|ラミ|マット|バイオマス)[^ 　]*[ 　]*/, '');
+        n = n.replace(/^【(単|R|ロール|単袋|枚|仕上)】[ 　]*/, '');
+        if (n === prev) break;
+      }
+      n = n.replace(/[ 　]*(RASP|CSP|SP).*$/, '');
+      return n.trim() || name;
+    };
+
+    let displayProductName = isSP ? shortenProductName(order.productName) : order.productName;
 
     // 1. 個別設定のチェック (最優先)
     const individual = safeIndividualSettings[order.productCode] || safeIndividualSettings[order.orderNumber];
@@ -43,6 +60,7 @@ export const calculateNewPrices = (
       const p = individual.price;
       return {
         ...order,
+        productName: displayProductName,
         newPrice: p,
         newSalesGroup: individual.salesGroup || (order.salesGroup + (p - currentPrice)),
         priceDifference: p - currentPrice,
@@ -62,6 +80,7 @@ export const calculateNewPrices = (
       const p = groupManual.price;
       return {
         ...order,
+        productName: displayProductName,
         newPrice: p,
         newSalesGroup: groupManual.salesGroup || (order.salesGroup + (p - currentPrice)),
         priceDifference: p - currentPrice,
@@ -201,23 +220,6 @@ export const calculateNewPrices = (
           }
         }
       }
-
-      // SPの商品名を短縮する（仕様部分を削り、商品名だけを残す）
-      const shortenProductName = (name: string): string => {
-        let n = name.normalize('NFKC').trim();
-        n = n.replace(/^[●★☆◆◇■□]+/g, '');
-        let prev = '';
-        for (let i = 0; i < 5; i++) {
-          prev = n;
-          n = n.replace(/^[0-9.]+[kK][gG]?[ 　]*/, '');
-          n = n.replace(/^[^ 　]*?(ポリ|ラミ|マット|バイオマス)[^ 　]*[ 　]*/, '');
-          n = n.replace(/^【(単|R|ロール|単袋|枚|仕上)】[ 　]*/, '');
-          if (n === prev) break;
-        }
-        n = n.replace(/[ 　]*(RASP|CSP|SP).*$/, '');
-        return n.trim() || name;
-      };
-      displayProductName = shortenProductName(order.productName);
     } else if (isReadymade) {
       // 既製品の数量スライド対応
       const candidates = (safeMasters.readymade || []).filter(m => 
