@@ -180,7 +180,10 @@ export const calculateNewPrices = (
             const targetPrice = seg === 'uru' ? prices.uru : seg === 'junD' ? prices.junD : seg === 'd' ? prices.d : 0;
             const segLabel = seg === 'uru' ? '売' : seg === 'junD' ? '準D' : seg === 'd' ? 'D' : '';
             const colorLabel = `${colorCount}色`;
-            return { price: targetPrice, matchSource: `${bestMatch.materialHint}:${segLabel}:${colorLabel}(${bestMatch.minQuantity}${bestMatch.unit})` };
+            return { 
+              price: targetPrice, 
+              matchSource: `${bestMatch.materialHint}:¥${targetPrice}:${segLabel}:${colorLabel}(${bestMatch.minQuantity}${bestMatch.unit})` 
+            };
           }
         }
       }
