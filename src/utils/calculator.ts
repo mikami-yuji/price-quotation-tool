@@ -370,6 +370,7 @@ export const calculateNewPrices = (
         masterPrice = rmMatch.price;
         newPrice = rmMatch.price;
         matchMethod = 'code';
+        spMasterMatched = true;
         matchSource = rmMatch.matchSource || '';
       }
     } else if (isCustom) {
