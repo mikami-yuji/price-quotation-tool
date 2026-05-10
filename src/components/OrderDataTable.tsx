@@ -129,16 +129,20 @@ export default function OrderDataTable({
                   </td>
                   <td style={{ fontSize: '0.8rem' }}>{order.orderNumber}</td>
                   <td>{order.directDeliveryName}</td>
-                  {activeTab !== 'custom' && <td>{order.productCode}</td>}
+                  {activeTab !== 'custom' && (
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span>{order.productCode}</span>
+                        {order.matchSource && (
+                          <span className={styles.matchBadge} style={{ fontSize: '0.65rem', color: '#3b82f6', marginTop: '2px' }} title={order.matchSource}>
+                            {order.matchSource}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                  )}
                   <td>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ fontWeight: 500 }}>{order.productName}</span>
-                      {order.matchSource && (
-                        <span className={styles.matchBadge} title={order.matchSource}>
-                          {order.matchSource}
-                        </span>
-                      )}
-                    </div>
+                    <span style={{ fontWeight: 500 }}>{order.productName}</span>
                   </td>
                   <td>{order.shape}</td>
                   <td>{order.quantity}</td>
