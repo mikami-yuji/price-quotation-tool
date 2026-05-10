@@ -59,7 +59,7 @@ export default function Home(): React.ReactElement {
 
   const [isGroupEditorExpanded, setIsGroupEditorExpanded] = useState(false);
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
-  const [activeMasterTab, setActiveMasterTab] = useState<TabType>('custom');
+  const [activeMasterTab, setActiveMasterTab] = useState<TabType>('sp');
   const [isMasterExpanded, setIsMasterExpanded] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);

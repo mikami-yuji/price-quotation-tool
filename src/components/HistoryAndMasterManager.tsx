@@ -96,22 +96,20 @@ export default function HistoryAndMasterManager({
           {isMasterExpanded && (
             <div className={styles.historyList}>
               <div className={styles.tabContainer} style={{ marginBottom: '1.5rem', background: 'rgba(0,0,0,0.1)' }}>
-                {(['custom', 'sp', 'readymade', 'sticker'] as TabType[]).map(t => (
+                {(['sp', 'readymade', 'sticker'] as TabType[]).map(t => (
                   <button 
                     key={t}
                     className={`${styles.tabItem} ${activeMasterTab === t ? styles.tabActive : ''}`}
                     onClick={() => setActiveMasterTab(t)}
                     style={{ fontSize: '0.85rem', padding: '0.6rem 1.2rem' }}
                   >
-                    {t === 'custom' ? '別注' : t === 'sp' ? 'SP' : t === 'readymade' ? '既製' : 'シール'}
+                    {t === 'sp' ? 'SP' : t === 'readymade' ? '既製' : 'シール'}
                     <span className={styles.statusBadge} style={{ background: (
-                      (t === 'custom' && customMaster.length > 0) ||
                       (t === 'sp' && spMaster.length > 0) ||
                       (t === 'sticker' && stickerMaster.length > 0) ||
                       (t === 'readymade' && readymadeMaster.length > 0)
                     ) ? 'var(--success-color)' : '#94a3b8' }}>
                       {(
-                        (t === 'custom' && customMaster.length > 0) ||
                         (t === 'sp' && spMaster.length > 0) ||
                         (t === 'sticker' && stickerMaster.length > 0) ||
                         (t === 'readymade' && readymadeMaster.length > 0)
@@ -126,14 +124,12 @@ export default function HistoryAndMasterManager({
                   <h4>{activeMasterTab.toUpperCase()}用マスターデータ</h4>
                   <p>Excelファイルを読み込むと、既定の計算よりも優先してこの単価を適用します。</p>
                   {(
-                    (activeMasterTab === 'custom' && customMaster.length > 0) ||
                     (activeMasterTab === 'sp' && spMaster.length > 0) ||
                     (activeMasterTab === 'sticker' && stickerMaster.length > 0) ||
                     (activeMasterTab === 'readymade' && readymadeMaster.length > 0)
                   ) && (
                     <p style={{ color: 'var(--success-color)', fontWeight: 'bold', marginTop: '5px' }}>
                       現在 {
-                        activeMasterTab === 'custom' ? customMaster.length : 
                         activeMasterTab === 'sp' ? spMaster.length : 
                         activeMasterTab === 'sticker' ? stickerMaster.length : 
                         readymadeMaster.length
