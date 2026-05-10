@@ -98,7 +98,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
         const weight = parseFloat(String(r[colMap.weight] || '').replace(/[^\d.]/g, '')) || 0;
         const qtyVal = String(r[colMap.qty] || '');
         const qty = parseFloat(qtyVal.replace(/[^\d.]/g, '')) || 0;
-        const unit = qtyVal.includes('m') ? 'm' : (qtyVal.includes('枚') ? '枚' : undefined);
+        const unit = qtyVal.includes('m') ? 'm' : (qtyVal.includes('枚') ? 'pcs' : undefined);
         const material = String(r[colMap.material] || '');
 
         // 統合用のキー (品番-重量-数量)
