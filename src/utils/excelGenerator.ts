@@ -142,7 +142,7 @@ export const generateQuoteExcel = async (
       cell.fill = {
         type: 'pattern',
         pattern: 'solid',
-        fgColor: { argb: 'FFFFFFE0' }
+        fgColor: { argb: 'FFFFF176' }
       };
     }
     
