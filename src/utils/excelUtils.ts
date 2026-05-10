@@ -407,6 +407,7 @@ const mapRowArrayToOrderRecord = (row: unknown[], header: unknown[]): OrderRecor
     directDeliveryCode: String(val(idxMap.directDeliveryCode)),
     directDeliveryName: String(val(idxMap.directDeliveryName)),
     lastOrderDate: String(val(idxMap.lastOrderDate)),
-    spMasterMatched: false
+    spMasterMatched: false,
+    unit: String(val(getIdx(['単位']))).trim() || (String(val(idxMap.quantity)).match(/([^\d.,\s]+)$/)?.[1] || '')
   };
 };

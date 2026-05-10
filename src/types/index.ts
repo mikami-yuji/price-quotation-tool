@@ -25,6 +25,7 @@ export type OrderRecord = {
   directDeliveryName: string; // 直送先名称
   lastOrderDate: string; // 最終受注日
   designName?: string; // デザイン名
+  unit?: string; // 単位 (枚、本、mなど)
   
   // シミュレーション用の追加フィールド
   newPrice?: number;
