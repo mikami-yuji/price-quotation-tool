@@ -67,7 +67,11 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
     if (rows.length < 2) continue;
 
     // 1. 平坦形式（1行1データ）の判定と解析
-    const headerRow = rows.find(r => Array.isArray(r) && r.includes('カタログNo') && r.includes('区分')) as unknown[] | undefined;
+    const headerRow = rows.find(r => 
+      Array.isArray(r) && 
+      (r.includes('カタログNo') || r.includes('カタログ')) && 
+      r.includes('区分')
+    ) as unknown[] | undefined;
     if (headerRow) {
       const hIdx = rows.indexOf(headerRow);
       const getIdx = (labels: string[]) => headerRow.findIndex(c => labels.includes(String(c || '').trim()));
