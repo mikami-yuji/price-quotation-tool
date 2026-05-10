@@ -134,7 +134,7 @@ export const calculateNewPrices = (
         const mWeight = typeof m.weight === 'number' ? m.weight : parseFloat(String(m.weight || 0));
         const weightMatch = (mWeight > 0 && Math.abs(mWeight - oWeight) < 0.1);
         const shapeMatch = m.shape === orderShape;
-        const unitMatch = m.unit === orderUnit;
+        const unitMatch = !m.unit || m.unit === orderUnit;
         
         // 隅付き括弧や「ポリ」プレフィックスを除去して比較しやすくする
         const cleanOrderMaterial = order.materialName.replace(/[【】]/g, '').replace(/^ポリ/, '').trim();
@@ -147,7 +147,7 @@ export const calculateNewPrices = (
           (cleanOrderMaterial && cleanMasterHint.includes(cleanOrderMaterial)) ||
           (fix(kw) && (fix(target).includes(fix(kw)) || fix(kw).includes(fix(target))));
         
-        return !!(keywordMatch && weightMatch && shapeMatch && unitMatch);
+        return !!((catalogMatch || keywordMatch) && weightMatch && shapeMatch && unitMatch);
       });
 
       if (candidates.length > 0) {
