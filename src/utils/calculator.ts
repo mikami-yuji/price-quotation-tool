@@ -37,7 +37,7 @@ export const calculateNewPrices = (
     let matchMethod: 'code' | 'spec' | 'none' = 'none';
     let matchSource = '';
 
-    let displayProductName = isSP ? shortenProductName(order.productName) : order.productName;
+    const displayProductName = isSP ? shortenProductName(order.productName) : order.productName;
 
     // 1. 個別設定のチェック (最優先)
     const individual = safeIndividualSettings[order.productCode] || safeIndividualSettings[order.orderNumber];

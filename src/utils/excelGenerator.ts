@@ -1,7 +1,7 @@
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { OrderRecord } from '../types';
-import { shortenProductName, isSPCategory } from './stringUtils';
+import { isSPCategory } from './stringUtils';
 
 /**
  * 列インデックス(1開始)をExcelの列名(A, B, C...)に変換する
