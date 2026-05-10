@@ -144,7 +144,10 @@ export const calculateNewPrices = (
         const oWeight = Number(order.weight || 0);
         const weightMatch = mWeight === 0 || oWeight === 0 || Math.abs(mWeight - oWeight) < 0.1;
         
-        return !!((catalogMatch || keywordMatch) && weightMatch);
+        // 判定条件の緩和: カタログNoが一致すれば、重量が0同士または近似していれば一致とする
+        const weightMatchRelaxed = weightMatch || mWeight === 0 || oWeight === 0;
+        
+        return !!((catalogMatch || keywordMatch) && weightMatchRelaxed);
       });
 
       // SPオフセットの場合は特定のシートに限定する
@@ -156,17 +159,22 @@ export const calculateNewPrices = (
         : initialCandidates;
 
       if (candidates.length > 0) {
-        // より具体的なキーワード（文字数が長いもの）を優先する
-        candidates.sort((a, b) => ((b.materialHint || '').length || 0) - ((a.materialHint || '').length || 0));
+        // カタログNo一致があるものを最優先、次にキーワードの長さを優先、次に重量の正確さを優先
+        candidates.sort((a, b) => {
+          const aCat = a.catalogNos && a.catalogNos.some(c => orderCatalogs.includes(c.replace(/\D/g, '')));
+          const bCat = b.catalogNos && b.catalogNos.some(c => orderCatalogs.includes(c.replace(/\D/g, '')));
+          if (aCat && !bCat) return -1;
+          if (!aCat && bCat) return 1;
+          
+          const aW = Math.abs(Number(a.weight || 0) - Number(order.weight || 0));
+          const bW = Math.abs(Number(b.weight || 0) - Number(order.weight || 0));
+          if (aW !== bW) return aW - bW;
+
+          return ((b.materialHint || '').length || 0) - ((a.materialHint || '').length || 0);
+        });
         
-        // 同じキーワード内では、数量条件が合うものを探す
-        const topKeyword = candidates[0].materialHint;
-        const sameKeywordCandidates = candidates.filter(c => c.materialHint === topKeyword);
-        
-        const validLots = sameKeywordCandidates.filter((m: SPMasterRow) => (m.minQuantity || 0) <= order.quantity + 2);
-        const bestMatch = validLots.length > 0 
-          ? validLots.reduce((p: SPMasterRow, c: SPMasterRow) => (c.minQuantity || 0) > (p.minQuantity || 0) ? c : p)
-          : sameKeywordCandidates[0];
+        // 最上位の候補を採用
+        const bestMatch = candidates.find((m: SPMasterRow) => (m.minQuantity || 0) <= order.quantity + 2) || candidates[0];
 
         if (bestMatch) {
           const cleanPrintCode = order.printCode.normalize('NFKC').replace(/\s+/g, '');
@@ -179,10 +187,10 @@ export const calculateNewPrices = (
             const seg = safeOptions.segment || 'uru';
             const targetPrice = seg === 'uru' ? prices.uru : seg === 'junD' ? prices.junD : seg === 'd' ? prices.d : 0;
             const segLabel = seg === 'uru' ? '売' : seg === 'junD' ? '準D' : seg === 'd' ? 'D' : '';
-            const colorLabel = `${colorCount}色`;
+            const catLabel = bestMatch.catalogNos?.[0] || 'No.';
             return { 
               price: targetPrice, 
-              matchSource: `${bestMatch.materialHint}:¥${targetPrice}:${segLabel}:${colorLabel}(${bestMatch.minQuantity}${bestMatch.unit})` 
+              matchSource: `${catLabel}:${bestMatch.materialHint}:¥${targetPrice}:${segLabel}(${bestMatch.minQuantity}${bestMatch.unit})` 
             };
           }
         }
