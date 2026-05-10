@@ -38,7 +38,7 @@ export const calculateNewPrices = (
   const safeMasters = masters || { custom: [], sp: [], readymade: [], sticker: [] };
   const safeOptions = options || {};
 
-  return safeOrders.map(order => {
+  return safeOrders.map((order: OrderRecord): OrderRecord => {
     // 1. カテゴリ判定と品名短縮
     const isSP = isSPCategory(order.category);
     const isReadymade = order.category.includes('既製品') || order.category.includes('価格表');
@@ -118,31 +118,31 @@ export const calculateNewPrices = (
       const isRollShape = shapeStr.startsWith('R') || displayProductName.includes('ロール') || displayProductName.includes('【R】');
       const orderShape = isRollShape ? 'R' : '単袋';
 
-      const candidates = (safeMasters.sp || []).filter(m => {
+      const candidates = (safeMasters.sp || []).filter((m: SPMasterRow): boolean => {
         const catalogMatch = orderCatalog && m.catalogNos && m.catalogNos.includes(orderCatalog);
         const kw = (m.materialHint || '').normalize('NFKC').toLowerCase().replace(/[（）() \t【】[\]]/g, '');
         const target = searchTarget.replace(/[（）() \t【】[\]]/g, '');
-        const fix = (s: string) => s.replace(/窓付|窓有り/g, '窓').replace(/単袋|単/g, '').replace(/オフセット/g, '');
+        const fix = (s: string): string => s.replace(/窓付|窓有り/g, '窓').replace(/単袋|単/g, '').replace(/オフセット/g, '');
         const keywordMatch = fix(kw) ? (fix(target).includes(fix(kw)) || fix(kw).includes(fix(target))) : true;
         
         const majorMaterials = ['ポリ', 'バリア', 'ラミ', '和紙', 'クラフト', 'ナイロン'];
-        const mMat = majorMaterials.find(mm => kw.includes(mm));
-        const oMat = majorMaterials.find(mm => target.includes(mm));
+        const mMat = majorMaterials.find((mm: string): boolean => kw.includes(mm));
+        const oMat = majorMaterials.find((mm: string): boolean => target.includes(mm));
         if (mMat && oMat && mMat !== oMat) return false;
 
         const mWeight = typeof m.weight === 'number' ? m.weight : parseFloat(String(m.weight || 0));
         const weightMatch = (mWeight > 0 && Math.abs(mWeight - order.weight) < 0.1);
         const shapeMatch = m.shape === orderShape;
         
-        return (catalogMatch && weightMatch && shapeMatch) || (keywordMatch && weightMatch && shapeMatch);
+        return !!((catalogMatch && weightMatch && shapeMatch) || (keywordMatch && weightMatch && shapeMatch));
       });
 
       candidates.sort((a, b) => (b.materialHint || '').length - (a.materialHint || '').length);
 
       if (candidates.length > 0) {
-        const validLots = candidates.filter(c => c.minQuantity <= order.quantity + 2);
+        const validLots = candidates.filter((c: SPMasterRow): boolean => c.minQuantity <= order.quantity + 2);
         const bestMatch = validLots.length > 0 
-          ? validLots.reduce((p, c) => c.minQuantity > p.minQuantity ? c : p)
+          ? validLots.reduce((p: SPMasterRow, c: SPMasterRow): SPMasterRow => c.minQuantity > p.minQuantity ? c : p)
           : null;
 
         if (bestMatch) {
@@ -179,13 +179,13 @@ export const calculateNewPrices = (
       }
     } else if (isReadymade) {
       // --- 既製品マッチング ---
-      const candidates = (safeMasters.readymade || []).filter(m => 
-        (m.absCode && m.absCode === order.absCode) || (m.productCode && m.productCode === order.productCode)
+      const candidates = (safeMasters.readymade || []).filter((m: ReadymadeMasterRow): boolean => 
+        !!((m.absCode && m.absCode === order.absCode) || (m.productCode && m.productCode === order.productCode))
       );
       if (candidates.length > 0) {
-        const validLots = candidates.filter(c => (c.minQuantity || 0) <= order.quantity + 2);
+        const validLots = candidates.filter((c: ReadymadeMasterRow): boolean => (c.minQuantity || 0) <= order.quantity + 2);
         const bestMatch = validLots.length > 0 
-          ? validLots.reduce((p, c) => (c.minQuantity || 0) > (p.minQuantity || 0) ? c : p)
+          ? validLots.reduce((p: ReadymadeMasterRow, c: ReadymadeMasterRow): ReadymadeMasterRow => (c.minQuantity || 0) > (p.minQuantity || 0) ? c : p)
           : candidates[0];
 
         const seg = safeOptions.segment;
@@ -202,10 +202,10 @@ export const calculateNewPrices = (
       }
     } else if (isCustom) {
       // --- 別注マッチング ---
-      const matched = (safeMasters.custom || []).find(m => {
+      const matched = (safeMasters.custom || []).find((m: CustomPriceMatrixRow): boolean => {
         const mName = (m.materialName || '').normalize('NFKC').toLowerCase();
         const oName = (order.materialName || '').normalize('NFKC').toLowerCase();
-        return oName.includes(mName) && m.weight === order.weight;
+        return !!(oName.includes(mName) && m.weight === order.weight);
       });
       if (matched) {
         const color = order.totalColorCount || 1;

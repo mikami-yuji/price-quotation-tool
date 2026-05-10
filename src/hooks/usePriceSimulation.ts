@@ -125,13 +125,12 @@ export const usePriceSimulation = () => {
     setPriceMatrix(parsedData.priceMatrix);
   };
 
-  const handleMasterUpload = async (e: ChangeEvent<HTMLInputElement>, type: TabType) => {
+  const handleMasterUpload = async (e: ChangeEvent<HTMLInputElement>, type: TabType): Promise<void> => {
     const file = e.target.files?.[0];
     if (!file) return;
     
     try {
       const buffer = await file.arrayBuffer();
-      console.log(`Master Upload Start - Mode: ${type}, File: ${file.name}`);
 
       // 1. まず SP マスターとして解析を試みる（「売」の文字を探す強力な方式）
       const spResult = parseSPMasterFile(buffer);
