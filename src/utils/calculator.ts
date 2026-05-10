@@ -171,7 +171,9 @@ export const calculateNewPrices = (
           if (prices) {
             const seg = safeOptions.segment || 'uru';
             const targetPrice = seg === 'uru' ? prices.uru : seg === 'junD' ? prices.junD : seg === 'd' ? prices.d : 0;
-            return { price: targetPrice, matchSource: `SP:${bestMatch.materialHint} ${bestMatch.weight}k ${bestMatch.minQuantity}${bestMatch.unit}` };
+            const segLabel = seg === 'uru' ? '売' : seg === 'junD' ? '準D' : seg === 'd' ? 'D' : '';
+            const colorLabel = `${colorCount}色`;
+            return { price: targetPrice, matchSource: `SP:${bestMatch.materialHint}:${segLabel}:${colorLabel}(${bestMatch.minQuantity}${bestMatch.unit})` };
           }
         }
       }
@@ -217,12 +219,13 @@ export const calculateNewPrices = (
 
         if (baseP && baseP > 0) {
           const segLabel = seg === 'uru' ? '売' : seg === 'junD' ? '準D' : seg === 'd' ? 'D' : '';
+          const typeLabel = type === 'campaign' ? 'CP' : '通常';
           const qtyLabel = bestMatch.minQuantity ? `(${bestMatch.minQuantity}～)` : '';
           masterPrice = baseP;
           newPrice = baseP + (safeOptions?.readymadePriceIncrease || 0);
           matchMethod = 'code';
           spMasterMatched = true;
-          matchSource = `${bestMatch.absCode || bestMatch.productCode}:${segLabel}${qtyLabel}`;
+          matchSource = `${bestMatch.absCode || bestMatch.productCode}:${segLabel}:${typeLabel}${qtyLabel}`;
         }
       }
     } else if (isCustom) {
