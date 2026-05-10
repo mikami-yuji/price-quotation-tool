@@ -24,7 +24,8 @@ export const parseExcelFile = (arrayBuffer: ArrayBuffer): {
         const headerIdx = rows.indexOf(headerRow);
         for (let i = headerIdx + 1; i < rows.length; i++) {
           const order = mapRowArrayToOrderRecord(rows[i] as unknown[], headerRow);
-          if (order.orderNumber) orders.push(order);
+          // 受注番号がなくても商品コードがあれば読み込むように変更
+          if (order.orderNumber || order.productCode) orders.push(order);
         }
       }
     }
@@ -287,7 +288,7 @@ const mapRowArrayToOrderRecord = (row: unknown[], header: unknown[]): OrderRecor
     category: getIdx(['種別', 'カテゴリ', '種']),
     productCode: getIdx(['商品コード', '商品CD', 'コード', 'CD', '商品']),
     productName: getIdx(['商品名', '品名', '規格名', '摘要']),
-    quantity: getIdx(['受注数', '数量', '個数']),
+    quantity: getIdx(['受注数量', '受注数', '数量', '個数']),
     currentPrice: getIdx(['単価']),
     salesGroup: getIdx(['営G']),
     weight: getIdx(['重量', '㎏', 'kg']),
