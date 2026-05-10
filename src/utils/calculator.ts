@@ -231,10 +231,12 @@ export const calculateNewPrices = (
           const printM = cleanPrintCode.match(/([1-8])色/);
           if (printM) colorCount = parseInt(printM[1], 10);
 
-          const prices = bestMatch.colorPrices[colorCount] || bestMatch.colorPrices[1];
+          const prices = bestMatch.colorPrices[colorCount];
           if (prices) {
             const seg = safeOptions.segment || 'uru';
             const targetPrice = seg === 'uru' ? prices.uru : seg === 'junD' ? prices.junD : seg === 'd' ? prices.d : 0;
+            if (targetPrice <= 0) return null; // 価格がない（空欄）場合はマッチさせない
+            
             const segLabel = seg === 'uru' ? '売' : seg === 'junD' ? '準D' : seg === 'd' ? 'D' : '';
             const catLabel = bestMatch.catalogNos?.[0] || 'No.';
             // 単位の判定: マスターにない場合、品番の下一桁で判定 (1=枚, 2or3=m)
