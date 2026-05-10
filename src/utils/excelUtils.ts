@@ -73,7 +73,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
       const getIdx = (labels: string[]) => headerRow.findIndex(c => labels.includes(String(c || '').trim()));
       const colMap = {
         material: getIdx(['材質']),
-        catalog: getIdx(['カタログNo']),
+        catalog: getIdx(['カタログNo', 'カタログ']),
         weight: getIdx(['重量(kg)']),
         shape: getIdx(['形状']),
         qty: getIdx(['数量']),

@@ -164,7 +164,14 @@ export const calculateNewPrices = (
       });
 
       const isOffset = order.category.includes('オフセット');
-      const offsetSheets = ['05_SP和紙・ソフトクラフト', '09_SP和紙包', '10_SP金銀和紙・和紙雲竜', 'クラフト'];
+      const offsetSheets = [
+        '05_SP', 
+        '10_SP', 
+        '05_SP和紙・ソフトクラフト', 
+        '10_SP金銀和紙・和紙雲竜',
+        '09_SP和紙包',
+        'クラフト'
+      ];
       
       const candidates = isOffset 
         ? initialCandidates.filter(c => c.sourceSheet && offsetSheets.some(os => c.sourceSheet!.includes(os)))
