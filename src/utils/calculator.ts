@@ -200,7 +200,15 @@ export const calculateNewPrices = (
             const targetPrice = seg === 'uru' ? prices.uru : seg === 'junD' ? prices.junD : seg === 'd' ? prices.d : 0;
             const segLabel = seg === 'uru' ? '売' : seg === 'junD' ? '準D' : seg === 'd' ? 'D' : '';
             const catLabel = bestMatch.catalogNos?.[0] || 'No.';
-            const unitLabel = bestMatch.unit || '枚';
+            // 単位の判定: マスターにない場合、品番の下一桁で判定 (1=枚, 2or3=m)
+            let unitLabel = bestMatch.unit;
+            if (!unitLabel) {
+              const lastDigit = order.productCode.trim().slice(-1);
+              if (lastDigit === '1') unitLabel = '枚';
+              else if (lastDigit === '2' || lastDigit === '3') unitLabel = 'm';
+              else unitLabel = '枚'; // デフォルト
+            }
+            
             return { 
               price: targetPrice, 
               matchSource: `${catLabel}:${bestMatch.materialHint}:¥${targetPrice}:${segLabel}(${bestMatch.minQuantity}${unitLabel})` 
