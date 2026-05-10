@@ -41,8 +41,11 @@ export const calculateNewPrices = (
   return safeOrders.map((order: OrderRecord): OrderRecord => {
     // 1. カテゴリ判定と品名短縮
     const isSP = isSPCategory(order.category);
-    const isReadymade = order.category.includes('既製品') || order.category.includes('価格表');
+    const isSticker = order.category.includes('シール');
     const isCustom = (order.category.includes('別注') || order.category.includes('ポリ別注')) && !isSP;
+    // SP, シール, 別注のいずれでもないものを既製品として扱う (タブ表示ロジックと合わせる)
+    const isReadymade = !isSP && !isSticker && !isCustom && order.productCode !== '999999999';
+    
     const displayProductName = (isSP || isCustom) ? shortenProductName(order.productName) : order.productName;
 
     // 2. 基本情報の抽出
@@ -177,9 +180,14 @@ export const calculateNewPrices = (
       }
     } else if (isReadymade) {
       // --- 既製品マッチング ---
-      const candidates = (safeMasters.readymade || []).filter((m: ReadymadeMasterRow): boolean => 
-        !!((m.absCode && m.absCode === order.absCode) || (m.productCode && m.productCode === order.productCode))
-      );
+      const orderAbs = (order.absCode || '').normalize('NFKC').trim();
+      const orderProd = (order.productCode || '').normalize('NFKC').trim();
+
+      const candidates = (safeMasters.readymade || []).filter((m: ReadymadeMasterRow): boolean => {
+        const mAbs = (m.absCode || '').normalize('NFKC').trim();
+        const mProd = (m.productCode || '').normalize('NFKC').trim();
+        return !!((mAbs && mAbs === orderAbs) || (mProd && mProd === orderProd));
+      });
       if (candidates.length > 0) {
         const validLots = candidates.filter((c: ReadymadeMasterRow): boolean => (c.minQuantity || 0) <= order.quantity + 2);
         const bestMatch = validLots.length > 0 
