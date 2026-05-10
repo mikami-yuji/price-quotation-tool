@@ -31,6 +31,8 @@ describe('stringUtils (Shared Utility Logic)', () => {
       expect(shortenProductName('別注５Ｋﾏｯﾄﾎﾟﾘ滋賀県産きぬひかりRA')).toBe('滋賀県産きぬひかり');
       expect(shortenProductName('SFマットポリ北海道ゆめぴりか')).toBe('北海道ゆめぴりか');
       expect(shortenProductName('新潟こしひかりRASPシルエット稲穂')).toBe('新潟こしひかり');
+      expect(shortenProductName('バイオポリDH富山こしひかり')).toBe('富山こしひかり');
+      expect(shortenProductName('MコンビポリDH兵庫県丹波こしひかり')).toBe('兵庫県丹波こしひかり');
     });
 
     it('除去すべきでない重要なキーワードは保持すること', () => {
