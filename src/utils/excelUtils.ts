@@ -66,10 +66,77 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
     const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
     if (rows.length < 2) continue;
 
-    // ヘッダー行の特定
+    // 1. 平坦形式（1行1データ）の判定と解析
+    const headerRow = rows.find(r => Array.isArray(r) && r.includes('カタログNo') && r.includes('区分')) as unknown[] | undefined;
+    if (headerRow) {
+      const hIdx = rows.indexOf(headerRow);
+      const getIdx = (labels: string[]) => headerRow.findIndex(c => labels.includes(String(c || '').trim()));
+      const colMap = {
+        material: getIdx(['材質']),
+        catalog: getIdx(['カタログNo']),
+        weight: getIdx(['重量(kg)']),
+        qty: getIdx(['数量']),
+        tier: getIdx(['区分']),
+      };
+      
+      const colorCols: { [color: number]: number } = {};
+      headerRow.forEach((cell, idx) => {
+        const s = String(cell || '');
+        if (s.includes('色単価')) {
+          const n = parseInt(s.replace(/[^\d]/g, ''), 10);
+          if (!isNaN(n)) colorCols[n] = idx;
+        }
+      });
+
+      const tempMap = new Map<string, SPMasterRow>();
+
+      for (let i = hIdx + 1; i < rows.length; i++) {
+        const r = rows[i] as unknown[];
+        if (!r || !r[colMap.catalog]) continue;
+
+        const catalog = String(r[colMap.catalog]);
+        const weight = parseFloat(String(r[colMap.weight] || '').replace(/[^\d.]/g, '')) || 0;
+        const qtyVal = String(r[colMap.qty] || '');
+        const qty = parseFloat(qtyVal.replace(/[^\d.]/g, '')) || 0;
+        const unit = qtyVal.includes('m') ? 'm' : (qtyVal.includes('枚') ? '枚' : undefined);
+        const material = String(r[colMap.material] || '');
+
+        // 統合用のキー (品番-重量-数量)
+        const key = `${catalog}-${weight}-${qtyVal}-${material}`;
+        let entry = tempMap.get(key);
+        if (!entry) {
+          entry = {
+            catalogNos: [catalog],
+            weight,
+            shape: '単袋',
+            minQuantity: qty,
+            unit,
+            colorPrices: {},
+            materialHint: material
+          };
+          tempMap.set(key, entry);
+        }
+
+        const tier = String(r[colMap.tier] || '');
+        const tKey = tier.includes('売') ? 'uru' : (tier.includes('準') ? 'junD' : 'd');
+
+        Object.entries(colorCols).forEach(([color, idx]) => {
+          const cNum = parseInt(color, 10);
+          const p = parseFloat(String(r[idx] || '').replace(/[^\d.]/g, ''));
+          if (!isNaN(p) && p > 0) {
+            if (!entry!.colorPrices[cNum]) entry!.colorPrices[cNum] = { uru: 0, junD: 0, d: 0 };
+            entry!.colorPrices[cNum][tKey] = p;
+          }
+        });
+      }
+      spMaster.push(...Array.from(tempMap.values()));
+      continue; 
+    }
+
+    // 2. 従来形式の解析
     let headerRowIdx = -1;
     const colIdx = {
-      keyword: -1, // 材質キーワード列
+      keyword: -1, 
       weight: -1,
       qty: -1,
       unit: -1,
