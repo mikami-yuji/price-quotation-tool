@@ -121,11 +121,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
       // 1. 材質キーワードの特定
       const rowKeyword = colIdx.keyword !== -1 ? String(row[colIdx.keyword] || '').trim() : '';
       const finalKeyword = rowKeyword || sheetKeyword;
-      if (!finalKeyword) {
-        if (recordCount === 0) diagnostics.push(`Skip(keyword): ${JSON.stringify(row)}`);
-        continue;
-      }
-
+      
       // 2. 仕様の抽出
       let currentWeight = 0;
       let currentQty = 0;
@@ -135,8 +131,10 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
         const w = parseFloat(String(row[colIdx.weight] || '').replace(/[^\d.]/g, ''));
         if (!isNaN(w)) currentWeight = w;
       }
+      
+      // 2. 数量と単位の抽出 (数量が不明な場合もスキップせず 0 とする)
       if (colIdx.qty !== -1) {
-        const qVal = String(row[colIdx.qty] || '');
+        const qVal = String(row[colIdx.qty] || '').normalize('NFKC');
         const q = parseFloat(qVal.replace(/[^\d.]/g, ''));
         if (!isNaN(q)) {
           currentQty = q;
@@ -150,12 +148,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
         else if (u.includes('枚')) currentUnit = '枚';
       }
 
-      if (currentQty === 0) {
-        if (recordCount === 0) diagnostics.push(`Skip(qty=0): colIdx.qty=${colIdx.qty}, val=${row[colIdx.qty]}`);
-        continue;
-      }
-
-      // 3. 価格区分の判定
+      // 3. 価格区分の判定 (どうしても不明な場合は 'uru' をデフォルトにする)
       let rowType: 'uru' | 'junD' | 'd' | null = null;
       if (colIdx.type !== -1) {
         rowType = getSPRowType(String(row[colIdx.type] || ''));
@@ -166,10 +159,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
           if (rowType) break;
         }
       }
-      if (!rowType) {
-        if (recordCount === 0) diagnostics.push(`Skip(type): colIdx.type=${colIdx.type}, val=${row[colIdx.type]}`);
-        continue;
-      }
+      if (!rowType) rowType = 'uru'; // デフォルト設定
 
       // 4. 価格の抽出
       const colorPrices: { [color: number]: { uru: number; junD: number; d: number } } = {};
