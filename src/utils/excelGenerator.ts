@@ -137,6 +137,15 @@ export const generateQuoteExcel = async (
       right: { style: 'thin' }
     };
     
+    // 特定の列（新単価、改定印刷代単価）を薄い黄色で強調
+    if (col.key === 'newPrice' || col.key === 'newPrintingCost') {
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFFFFFE0' }
+      };
+    }
+    
     const column = worksheet.getColumn(i + 1);
     column.width = col.width;
     
@@ -234,6 +243,15 @@ export const generateQuoteExcel = async (
       }
       if (colKey === 'rate' || colKey === 'salesGroupRate') {
         cell.numFmt = '0.0%';
+      }
+
+      // 特定の列（新単価、改定印刷代単価）を薄い黄色で強調
+      if (colKey === 'newPrice' || colKey === 'newPrintingCost') {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFFFFFE0' }
+        };
       }
     });
 
