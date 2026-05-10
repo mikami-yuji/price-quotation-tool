@@ -133,7 +133,7 @@ export const calculateNewPrices = (
 
       const shapeStr = order.shape.trim().toUpperCase();
       const isRollShape = shapeStr.startsWith('R') || displayProductName.includes('ロール') || displayProductName.includes('【R】');
-      const orderShape = isRollShape ? 'R' : '単袋';
+      const orderShape: 'Roll' | 'Single Bag' = isRollShape ? 'Roll' : 'Single Bag';
 
       // 品番またはキーワードが一致し、かつ重量が一致すれば候補とする
       const initialCandidates = (safeMasters.sp || []).filter((m: SPMasterRow): boolean => {

@@ -84,14 +84,14 @@ export const decodeSPProductCode = (code: string): DecodedProductCode | null => 
   const weight = parseInt(cleanCode.substring(5, 7), 10);
   const shapeCode = cleanCode.substring(7, 9);
 
-  let shape: 'R' | '単袋' = 'R';
+  let shape: 'Roll' | 'Single Bag' = 'Roll';
   if (shapeCode === '01') {
-    shape = '単袋';
+    shape = 'Single Bag';
   } else if (shapeCode === '02' || shapeCode === '03') {
-    shape = 'R';
+    shape = 'Roll';
   } else {
-    // 01以外は基本Rとするが、将来的に他のコードがあればここに追加
-    shape = 'R';
+    // 01以外は基本Rollとするが、将来的に他のコードがあればここに追加
+    shape = 'Roll';
   }
 
   return { catalogNo, weight, shape };

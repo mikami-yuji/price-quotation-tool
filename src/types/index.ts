@@ -76,7 +76,7 @@ export type SPMasterPrice = {
 export type SPMasterRow = {
   catalogNos: string[];
   weight: number;
-  shape: 'R' | '単袋';
+  shape: 'Roll' | 'Single Bag';
   minQuantity: number; // 数量スライド用の最小数量
   lotType: 'above' | 'below'; // ロット区分 (以上/以下)
   unit?: 'm' | 'pcs' | '枚'; // 数量の単位 (m or 枚)
@@ -150,5 +150,5 @@ export type IndividualManualSetting = {
 export type DecodedProductCode = {
   catalogNo: string;
   weight: number;
-  shape: 'R' | '単袋';
+  shape: 'Roll' | 'Single Bag';
 };

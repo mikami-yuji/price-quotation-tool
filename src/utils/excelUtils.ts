@@ -267,7 +267,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
 
       // 5. データの登録（既存データへのマージ）
       // 材質、重量、数量、単位、形状がすべて一致するものを探す
-      const currentShape = currentUnit === 'm' ? 'R' : '単袋';
+      const currentShape: 'Roll' | 'Single Bag' = currentUnit === 'm' ? 'Roll' : 'Single Bag';
       
       const existing = spMaster.find(ex => 
         ex.materialHint === finalKeyword && 
