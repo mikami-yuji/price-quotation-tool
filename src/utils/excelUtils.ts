@@ -110,6 +110,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
             weight,
             shape: '単袋',
             minQuantity: qty,
+            lotType: 'above',
             unit,
             colorPrices: {},
             materialHint: material
