@@ -296,18 +296,7 @@ export const calculateNewPrices = (
       return null;
     };
 
-    // 6. 各種マスターとのマッチング
-    if (isSP) {
-      const spMatch = findSPMatch();
-      if (spMatch && spMatch.price > 0) {
-        masterPrice = spMatch.price;
-        newPrice = spMatch.price;
-        matchMethod = 'spec';
-        spMasterMatched = true;
-        matchSource = spMatch.matchSource;
-      }
-    } else if (isReadymade) {
-      // --- 既製品マッチング ---
+    const findReadymadeMatch = () => {
       const orderAbs = (order.absCode || '').normalize('NFKC').trim();
       const orderProd = (order.productCode || '').normalize('NFKC').trim();
 
@@ -337,12 +326,43 @@ export const calculateNewPrices = (
           const segLabel = seg === 'uru' ? '売' : seg === 'junD' ? '準D' : seg === 'd' ? 'D' : '';
           const typeLabel = type === 'campaign' ? 'CP' : '通常';
           const qtyLabel = bestMatch.minQuantity ? `(${bestMatch.minQuantity}～)` : '';
-          masterPrice = baseP;
-          newPrice = baseP + (safeOptions?.readymadePriceIncrease || 0);
-          matchMethod = 'code';
-          spMasterMatched = true;
-          matchSource = `${bestMatch.absCode || bestMatch.productCode}:${segLabel}:${typeLabel}${qtyLabel}`;
+          return {
+            price: baseP,
+            matchSource: `${bestMatch.productCode}:${bestMatch.productName}:${typeLabel}:${segLabel}${qtyLabel}:[¥${baseP}]`
+          };
         }
+      }
+      return null;
+    };
+
+    // 6. 各種マスターとのマッチング
+    if (isSP) {
+      const spMatch = findSPMatch();
+      if (spMatch && spMatch.price > 0) {
+        masterPrice = spMatch.price;
+        newPrice = spMatch.price;
+        matchMethod = 'spec';
+        spMasterMatched = true;
+        matchSource = spMatch.matchSource;
+      } else {
+        // SPマスターでヒットしなかった場合、既製品マスターから探す
+        const rmMatch = findReadymadeMatch();
+        if (rmMatch && rmMatch.price > 0) {
+          masterPrice = rmMatch.price;
+          newPrice = rmMatch.price;
+          matchMethod = 'readymade_fallback';
+          spMasterMatched = true;
+          matchSource = rmMatch.matchSource || '';
+        }
+      }
+    } else if (isReadymade) {
+      // --- 既製品マッチング ---
+      const rmMatch = findReadymadeMatch();
+      if (rmMatch && rmMatch.price > 0) {
+        masterPrice = rmMatch.price;
+        newPrice = rmMatch.price;
+        matchMethod = 'code';
+        matchSource = rmMatch.matchSource || '';
       }
     } else if (isCustom) {
       // --- 別注マッチング ---
