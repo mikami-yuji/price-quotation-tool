@@ -112,12 +112,14 @@ export const calculateNewPrices = (
       const searchTarget = (normalizedCode + (order.productName || '') + (order.title || '') + (order.materialName || '')).normalize('NFKC').toLowerCase();
       
       // カタログNoの抽出 (品番の先頭00に続く3桁、または最初の3桁を候補にする)
+      // ユーザー要望: 先頭が6, 7の場合は0とみなす
+      const codeForCatalog = normalizedCode.replace(/^[67]/, '0');
       const orderCatalogs: string[] = [];
-      const mainMatch = normalizedCode.match(/^00(\d{3})/);
+      const mainMatch = codeForCatalog.match(/^00(\d{3})/);
       if (mainMatch) {
         orderCatalogs.push(parseInt(mainMatch[1], 10).toString());
       } else {
-        const first3 = normalizedCode.match(/\d{3}/);
+        const first3 = codeForCatalog.match(/\d{3}/);
         if (first3) orderCatalogs.push(parseInt(first3[0], 10).toString());
       }
 
@@ -159,13 +161,35 @@ export const calculateNewPrices = (
         : initialCandidates;
 
       if (candidates.length > 0) {
-        // カタログNo一致があるものを最優先、次にキーワードの長さを優先、次に重量の正確さを優先
+        // 材質スコアリング関数
+        const getMaterialScore = (hint: string): number => {
+          let score = 0;
+          const normalizedHint = hint.normalize('NFKC').toLowerCase();
+          const normalizedOrderMat = order.materialName.normalize('NFKC').toLowerCase();
+          
+          const keywords = ['マット', '和紙', '雲竜', 'クラフト', '金銀', 'アルミ', '蒸着', '透明', '乳白', '窓'];
+          keywords.forEach(word => {
+            const inOrder = normalizedOrderMat.includes(word);
+            const inHint = normalizedHint.includes(word);
+            if (inOrder && inHint) score += 10; // 両方にある (一致)
+            if (!inOrder && inHint) score -= 20; // 受注にないのにマスターにある (マットポリポリ問題対策)
+            if (inOrder && !inHint) score -= 5; // 受注にあるのにマスターにない
+          });
+          return score;
+        };
+
+        // カタログNo一致があるものを最優先、次に材質スコア、次に重量の正確さを優先
         candidates.sort((a, b) => {
           const aCat = a.catalogNos && a.catalogNos.some(c => orderCatalogs.includes(c.replace(/\D/g, '')));
           const bCat = b.catalogNos && b.catalogNos.some(c => orderCatalogs.includes(c.replace(/\D/g, '')));
           if (aCat && !bCat) return -1;
           if (!aCat && bCat) return 1;
           
+          // 材質スコアによる判定
+          const aScore = getMaterialScore(a.materialHint || '');
+          const bScore = getMaterialScore(b.materialHint || '');
+          if (aScore !== bScore) return bScore - aScore;
+
           const aW = Math.abs(Number(a.weight || 0) - Number(order.weight || 0));
           const bW = Math.abs(Number(b.weight || 0) - Number(order.weight || 0));
           if (aW !== bW) return aW - bW;
