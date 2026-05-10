@@ -204,7 +204,7 @@ export const calculateNewPrices = (
           newPrice = baseP + (safeOptions?.readymadePriceIncrease || 0);
           matchMethod = 'code';
           spMasterMatched = true;
-          matchSource = `既製品マスタ: ${matchedRow.absCode || matchedRow.productCode}`;
+          matchSource = `既製品マスタ: ${bestMatch.absCode || bestMatch.productCode}`;
         }
       }
     } else if (isCustom) {
