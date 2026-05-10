@@ -110,15 +110,19 @@ export const calculateNewPrices = (
     const findSPMatch = () => {
       const normalizedCode = order.productCode.normalize('NFKC').replace(/\s+/g, '');
       const searchTarget = (normalizedCode + (order.productName || '') + (order.title || '') + (order.materialName || '')).normalize('NFKC').toLowerCase();
-      const catalogMatch_RE = normalizedCode.match(/(?:00|^)(\d{3})/);
-      const orderCatalog = catalogMatch_RE ? parseInt(catalogMatch_RE[1], 10).toString() : '';
+      
+      // カタログNoの抽出 (品番の中にある3桁の数字を候補にする)
+      const catalogMatches = normalizedCode.match(/\d{3}/g) || [];
+      const orderCatalogs = catalogMatches.map(m => parseInt(m, 10).toString());
 
       const shapeStr = order.shape.trim().toUpperCase();
       const isRollShape = shapeStr.startsWith('R') || displayProductName.includes('ロール') || displayProductName.includes('【R】');
       const orderShape = isRollShape ? 'R' : '単袋';
 
       const candidates = (safeMasters.sp || []).filter((m: SPMasterRow): boolean => {
-        const catalogMatch = orderCatalog && m.catalogNos && m.catalogNos.includes(orderCatalog);
+        // 品番マッチング: マスターのカタログNoが受注の候補に含まれているか
+        const catalogMatch = m.catalogNos && m.catalogNos.some(c => orderCatalogs.includes(c.replace(/\D/g, '')));
+        
         const kw = (m.materialHint || '').normalize('NFKC').toLowerCase().replace(/[（）() \t【】[\]]/g, '');
         const target = searchTarget.replace(/[（）() \t【】[\]]/g, '');
         const fix = (s: string): string => s.replace(/窓付|窓有り/g, '窓').replace(/単袋|単/g, '').replace(/オフセット/g, '');
@@ -134,7 +138,8 @@ export const calculateNewPrices = (
         const weightMatch = mWeight === 0 || oWeight === 0 || Math.abs(mWeight - oWeight) < 0.1;
         const shapeMatch = !orderShape || m.shape === orderShape;
         
-        return !!((catalogMatch && weightMatch && shapeMatch) || (keywordMatch && weightMatch && shapeMatch));
+        // 品番またはキーワードが一致し、かつ重量が一致すれば候補とする
+        return !!((catalogMatch || keywordMatch) && weightMatch);
       });
 
       if (candidates.length > 0) {
