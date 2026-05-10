@@ -499,7 +499,7 @@ const mapRowArrayToOrderRecord = (row: unknown[], header: unknown[]): OrderRecor
   // SPの場合、重量が0なら品番から抽出を試みる
   if (isSP && record.weight === 0) {
     const codeMatch = (record.absCode || '').match(/^00\d{3}(\d{2})01$/);
-    if (codeMatch) {
+    if (codeMatch && codeMatch[1]) {
       record.weight = parseInt(codeMatch[1], 10);
     }
   }
