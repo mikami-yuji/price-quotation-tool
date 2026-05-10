@@ -328,7 +328,8 @@ describe('Calculator Logic (Multilevel Precedence)', () => {
         shape: '単袋',
         minQuantity: 1000,
         colorPrices: { 1: { uru: 125, junD: 119, d: 113.5 } },
-        materialHint: 'クラフト（単）'
+        materialHint: 'クラフト（単）',
+        sourceSheet: '05_SP和紙・ソフトクラフト'
       }];
       
       const craftOrder: OrderRecord[] = [{
@@ -356,7 +357,8 @@ describe('Calculator Logic (Multilevel Precedence)', () => {
           shape: '単袋',
           minQuantity: 500,
           colorPrices: { 2: { uru: 154, junD: 146.5, d: 141 } },
-          materialHint: '和紙窓付雲竜'
+          materialHint: '和紙窓付雲竜',
+          sourceSheet: '10_SP金銀和紙・和紙雲竜'
         },
         {
           catalogNos: ['810'],
@@ -364,7 +366,8 @@ describe('Calculator Logic (Multilevel Precedence)', () => {
           shape: '単袋',
           minQuantity: 1000,
           colorPrices: { 2: { uru: 143, junD: 136, d: 130 } },
-          materialHint: '和紙窓付雲竜'
+          materialHint: '和紙窓付雲竜',
+          sourceSheet: '10_SP金銀和紙・和紙雲竜'
         }
       ];
       

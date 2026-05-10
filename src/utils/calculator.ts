@@ -111,9 +111,15 @@ export const calculateNewPrices = (
       const normalizedCode = order.productCode.normalize('NFKC').replace(/\s+/g, '');
       const searchTarget = (normalizedCode + (order.productName || '') + (order.title || '') + (order.materialName || '')).normalize('NFKC').toLowerCase();
       
-      // カタログNoの抽出 (品番の中にある3桁の数字を候補にする)
-      const catalogMatches = normalizedCode.match(/\d{3}/g) || [];
-      const orderCatalogs = catalogMatches.map(m => parseInt(m, 10).toString());
+      // カタログNoの抽出 (品番の先頭00に続く3桁、または最初の3桁を候補にする)
+      const orderCatalogs: string[] = [];
+      const mainMatch = normalizedCode.match(/^00(\d{3})/);
+      if (mainMatch) {
+        orderCatalogs.push(parseInt(mainMatch[1], 10).toString());
+      } else {
+        const first3 = normalizedCode.match(/\d{3}/);
+        if (first3) orderCatalogs.push(parseInt(first3[0], 10).toString());
+      }
 
       const shapeStr = order.shape.trim().toUpperCase();
       const isRollShape = shapeStr.startsWith('R') || displayProductName.includes('ロール') || displayProductName.includes('【R】');
