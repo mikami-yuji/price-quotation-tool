@@ -122,9 +122,9 @@ export const calculateNewPrices = (
         const kw = (m.materialHint || '').normalize('NFKC').toLowerCase().replace(/[（）() \t【】[\]]/g, '');
         const target = searchTarget.replace(/[（）() \t【】[\]]/g, '');
         const fix = (s: string): string => s.replace(/窓付|窓有り/g, '窓').replace(/単袋|単/g, '').replace(/オフセット/g, '');
+        const keywordMatch = fix(kw) ? (fix(target).includes(fix(kw)) || fix(kw).includes(fix(target))) : true;
         
         const orderShape = (order.shape || '').normalize('NFKC').trim();
-        const orderUnit = (order.unit || '').normalize('NFKC').trim();
         const majorMaterials = ['ポリ', 'バリア', 'ラミ', '和紙', 'クラフト', 'ナイロン'];
         const mMat = majorMaterials.find((mm: string): boolean => kw.includes(mm));
         const oMat = majorMaterials.find((mm: string): boolean => target.includes(mm));
@@ -135,29 +135,7 @@ export const calculateNewPrices = (
         const weightMatch = (mWeight > 0 && Math.abs(mWeight - oWeight) < 0.1);
         const shapeMatch = m.shape === orderShape;
         
-        // 単位の正規化 (m/M -> m, 枚/pcs/p -> pcs)
-        const normalizeU = (u: string) => {
-          const s = String(u || '').normalize('NFKC').trim().toLowerCase();
-          if (s.includes('m')) return 'm';
-          if (s.includes('枚') || s.includes('pcs') || s.includes('p')) return 'pcs';
-          return s;
-        };
-        const mUnit = normalizeU(m.unit || '');
-        const oUnit = normalizeU(orderUnit);
-        const unitMatch = !mUnit || mUnit === oUnit;
-        
-        // 隅付き括弧や「ポリ」プレフィックスを除去して比較しやすくする
-        const cleanOrderMaterial = order.materialName.replace(/[【】]/g, '').replace(/^ポリ/, '').trim();
-        const cleanMasterHint = (m.materialHint || '').replace(/[【】]/g, '').replace(/^ポリ/, '').trim();
-        
-        const keywordMatch = 
-          (m.materialHint && order.materialName.includes(m.materialHint)) || 
-          (m.materialHint && m.materialHint.includes(order.materialName)) ||
-          (cleanMasterHint && cleanOrderMaterial.includes(cleanMasterHint)) ||
-          (cleanOrderMaterial && cleanMasterHint.includes(cleanOrderMaterial)) ||
-          (fix(kw) && (fix(target).includes(fix(kw)) || fix(kw).includes(fix(target))));
-        
-        return !!((catalogMatch || keywordMatch) && weightMatch && shapeMatch && unitMatch);
+        return !!((catalogMatch && weightMatch && shapeMatch) || (keywordMatch && weightMatch && shapeMatch));
       });
 
       if (candidates.length > 0) {
