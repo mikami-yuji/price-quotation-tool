@@ -195,9 +195,18 @@ export const calculateNewPrices = (
         };
 
         // カタログNo一致があるものを最優先、次に形状一致、次に材質スコア、次に重量の正確さを優先
+        // カタログNo一致があるものを最優先、次に形状一致、次に材質スコア、次に重量の正確さを優先
+        const isCatalogMatch = (masterCats: string[] | undefined): boolean => {
+          if (!masterCats) return false;
+          return masterCats.some(cn => {
+            const mNum = cn.replace(/\D/g, '');
+            return orderCatalogs.includes(mNum) || orderCatalogs.some(oc => oc.includes(mNum) || mNum.includes(oc));
+          });
+        };
+
         candidates.sort((a, b) => {
-          const aCat = a.catalogNos && a.catalogNos.some(c => orderCatalogs.includes(c.replace(/\D/g, '')));
-          const bCat = b.catalogNos && b.catalogNos.some(c => orderCatalogs.includes(c.replace(/\D/g, '')));
+          const aCat = isCatalogMatch(a.catalogNos);
+          const bCat = isCatalogMatch(b.catalogNos);
           if (aCat && !bCat) return -1;
           if (!aCat && bCat) return 1;
           
@@ -209,7 +218,7 @@ export const calculateNewPrices = (
           const aScore = getMaterialScore(a.materialHint || '');
           const bScore = getMaterialScore(b.materialHint || '');
           if (aScore !== bScore) return bScore - aScore;
-
+          
           const aW = Math.abs(Number(a.weight || 0) - Number(order.weight || 0));
           const bW = Math.abs(Number(b.weight || 0) - Number(order.weight || 0));
           if (aW !== bW) return aW - bW;
@@ -219,10 +228,10 @@ export const calculateNewPrices = (
         
         // 1. 最も関連性の高いカタログ/材質のグループを特定する
         const top = candidates[0];
-        const isTopCat = top.catalogNos && top.catalogNos.some(c => orderCatalogs.includes(c.replace(/\D/g, '')));
+        const isTopCat = isCatalogMatch(top.catalogNos);
         
         const bestGroup = candidates.filter(c => {
-          const cCat = c.catalogNos && c.catalogNos.some(cn => orderCatalogs.includes(cn.replace(/\D/g, '')));
+          const cCat = isCatalogMatch(c.catalogNos);
           return cCat === isTopCat && c.shape === top.shape && c.materialHint === top.materialHint;
         });
 
