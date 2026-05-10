@@ -200,9 +200,10 @@ export const calculateNewPrices = (
             const targetPrice = seg === 'uru' ? prices.uru : seg === 'junD' ? prices.junD : seg === 'd' ? prices.d : 0;
             const segLabel = seg === 'uru' ? '売' : seg === 'junD' ? '準D' : seg === 'd' ? 'D' : '';
             const catLabel = bestMatch.catalogNos?.[0] || 'No.';
+            const unitLabel = bestMatch.unit || '枚';
             return { 
               price: targetPrice, 
-              matchSource: `${catLabel}:${bestMatch.materialHint}:¥${targetPrice}:${segLabel}(${bestMatch.minQuantity}${bestMatch.unit})` 
+              matchSource: `${catLabel}:${bestMatch.materialHint}:¥${targetPrice}:${segLabel}(${bestMatch.minQuantity}${unitLabel})` 
             };
           }
         }
