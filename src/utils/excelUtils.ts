@@ -500,7 +500,7 @@ const mapRowArrayToOrderRecord = (row: unknown[], header: unknown[]): OrderRecor
   if (isSP && record.weight === 0) {
     const codeMatch = (record.absCode || '').match(/^00\d{3}(\d{2})01$/);
     const weightStr = codeMatch?.[1];
-    if (weightStr) {
+    if (typeof weightStr === 'string') {
       record.weight = parseInt(weightStr, 10);
     }
   }
