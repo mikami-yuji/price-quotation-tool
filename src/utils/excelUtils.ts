@@ -240,7 +240,7 @@ const parseReadymadeMaster = (rows: unknown[]): ReadymadeMasterRow[] => {
   let headerRowIdx = -1;
   for (let i = 0; i < Math.min(rows.length, 20); i++) {
     const r = rows[i];
-    if (Array.isArray(r) && (r.includes('商品コード') || r.includes('商品CD') || r.includes('ABS-CD'))) {
+    if (Array.isArray(r) && (r.includes('ABSコード') || r.includes('商品コード') || r.includes('商品CD') || r.includes('ABS-CD'))) {
       headerRowIdx = i;
       break;
     }
