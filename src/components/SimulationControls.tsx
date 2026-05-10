@@ -144,7 +144,7 @@ export default function SimulationControls({
 
           {(activeTab === 'readymade' || activeTab === 'sp') && (
             <>
-              {activeTab === 'readymade' && (
+              {(activeTab === 'readymade' || activeTab === 'sp') && (
                 <div className={styles.controlGroup}>
                   <span className={styles.controlLabel}>価格タイプ:</span>
                   <div className={styles.segmentedControl}>

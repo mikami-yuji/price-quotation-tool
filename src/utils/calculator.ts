@@ -186,8 +186,13 @@ export const calculateNewPrices = (
           ? validLots.reduce((p: ReadymadeMasterRow, c: ReadymadeMasterRow): ReadymadeMasterRow => (c.minQuantity || 0) > (p.minQuantity || 0) ? c : p)
           : candidates[0];
 
-        const seg = safeOptions.segment;
-        const p = (bestMatch.normal || {}) as { uru?: number; junD?: number; d?: number };
+        const seg = safeOptions.segment || 'uru';
+        const type = safeOptions.type || 'normal';
+        
+        // 価格タイプ（通常/CP）に応じて価格オブジェクトを選択
+        const pObj = (type === 'campaign' ? (bestMatch.campaign || bestMatch.normal) : bestMatch.normal) || {};
+        const p = pObj as { uru?: number; junD?: number; d?: number };
+        
         const baseP = seg === 'uru' ? (p.uru || bestMatch.normalPrice) : 
                      seg === 'junD' ? (p.junD || bestMatch.normalPrice) : 
                      seg === 'd' ? (p.d || bestMatch.normalPrice) : 
