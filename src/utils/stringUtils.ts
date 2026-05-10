@@ -10,8 +10,11 @@ export const isSPCategory = (category: string): boolean => {
 };
 
 /**
- * SP・シルク等の長い商品名（タイトル）から管理用コードや技術スペックを除去し、
- * ブランド核心部のみを抽出して短縮するユーティリティ
+ * 【重要・変更禁止】
+ * SP・シルク・別注等の複雑な商品名から、管理用コードやスペック（重量・材質等）を剥ぎ取り、
+ * ブランド核心部（銘柄名）のみを抽出するピーリング・ループ。
+ * このロジックは実業務のデータに基づき細かく調整されており、簡略化すると表示が崩れます。
+ * 修正時は必ず 'stringUtils.test.ts' を実行し、全テストをパスさせること。
  */
 export const shortenProductName = (name: string): string => {
   if (!name) return '';
