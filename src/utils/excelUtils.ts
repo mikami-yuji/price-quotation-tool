@@ -213,7 +213,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
       if (colIdx.unit !== -1) {
         const u = String(row[colIdx.unit] || '');
         if (u.includes('m') || u.includes('ｍ')) currentUnit = 'm';
-        else if (u.includes('枚')) currentUnit = '枚';
+        else if (u.includes('枚')) currentUnit = 'pcs';
       }
 
       // 3. 価格区分の判定 (どうしても不明な場合は 'uru' をデフォルトにする)
