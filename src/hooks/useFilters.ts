@@ -75,11 +75,21 @@ export const useFilters = (orders: OrderRecord[]) => {
     return orders
       .filter(order => matchesFilters(order))
       .sort((a, b) => {
+        // 1. 材質の比較 (昇順)
         if (a.materialName !== b.materialName) return a.materialName.localeCompare(b.materialName, 'ja');
+        
+        // 2. 重量の比較 (昇順)
         const weightA = typeof a.weight === 'string' ? parseFloat(a.weight.replace(/[^\d.]/g, '')) : a.weight;
         const weightB = typeof b.weight === 'string' ? parseFloat(b.weight.replace(/[^\d.]/g, '')) : b.weight;
         if (weightA !== weightB) return (weightA || 0) - (weightB || 0);
-        return (a.totalColorCount || 0) - (b.totalColorCount || 0);
+        
+        // 3. 色数の比較 (昇順)
+        const colorA = a.totalColorCount || 0;
+        const colorB = b.totalColorCount || 0;
+        if (colorA !== colorB) return colorA - colorB;
+        
+        // 4. 受注数 (数量) の比較 (昇順)
+        return (a.quantity || 0) - (b.quantity || 0);
       });
   }, [orders, matchesFilters]);
 
