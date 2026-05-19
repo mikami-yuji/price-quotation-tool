@@ -325,7 +325,23 @@ const parseReadymadeMaster = (rows: unknown[]): ReadymadeMasterRow[] => {
   if (headerRowIdx === -1) headerRowIdx = 0;
 
   const headerRow = rows[headerRowIdx] as unknown[];
-  const getIdx = (keywords: string[]) => headerRow.findIndex(c => keywords.some(k => String(c || '').includes(k)));
+  const getIdx = (keywords: string[], excludeKeywords?: string[]) => {
+    // 改行コードや空白を無視して比較するためのクリーンアップ関数
+    const cleanStr = (s: unknown) => String(s || '').replace(/[\r\n\s]+/g, '');
+    
+    // 1. 完全一致を最優先
+    const exactIdx = headerRow.findIndex(c => keywords.some(k => cleanStr(c) === cleanStr(k)));
+    if (exactIdx !== -1) return exactIdx;
+    
+    // 2. 部分一致（除外キーワードが指定されている場合は除外）
+    return headerRow.findIndex(c => {
+      const s = cleanStr(c);
+      const hasKeyword = keywords.some(k => s.includes(cleanStr(k)));
+      if (!hasKeyword) return false;
+      if (excludeKeywords && excludeKeywords.some(ek => s.includes(cleanStr(ek)))) return false;
+      return true;
+    });
+  };
   
   const idxMap = {
     code: getIdx(['ABSコード', '商品コード', '商品CD', 'コード', 'ABS-CD']),
@@ -333,11 +349,11 @@ const parseReadymadeMaster = (rows: unknown[]): ReadymadeMasterRow[] => {
     // 客層別価格の列特定
     uru: getIdx(['改定後 売', '売', '通常', '現行', '販売単価']),
     junD: getIdx(['改定後 準D', '準D', '準']),
-    d: getIdx(['改定後 D', 'D', 'ｄ', '小口']),
+    d: getIdx(['改定後 D', 'D', 'ｄ', '小口'], ['準']),
     // キャンペーン価格の列特定
     cpUru: getIdx(['CP売', '特売', 'キャンペーン']),
     cpJunD: getIdx(['CP準D']),
-    cpD: getIdx(['CP D']),
+    cpD: getIdx(['CP D'], ['準']),
     // スライド・仕様
     slideQty: getIdx(['スライド数量', 'ケース']),
     slidePrice: getIdx(['スライド単価']),

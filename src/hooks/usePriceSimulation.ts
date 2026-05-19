@@ -93,9 +93,10 @@ export const usePriceSimulation = () => {
         spPriceIncrease: 0, 
         readymadePriceIncrease: (conditions.customIncreaseType as string) === 'fixed' || conditions.customIncreaseType === 'amount' ? conditions.customIncreaseValue : 0,
         segment: readymadeSegment,
+        type: readymadePriceType,
       }
     );
-  }, [orders, conditions, manualSettings, individualSettings, customMaster, spMaster, readymadeMaster, stickerMaster, readymadeSegment]);
+  }, [orders, conditions, manualSettings, individualSettings, customMaster, spMaster, readymadeMaster, stickerMaster, readymadeSegment, readymadePriceType]);
 
   const counts = useMemo(() => ({
     custom: getTabOrders('custom', simulatedOrders).length,
