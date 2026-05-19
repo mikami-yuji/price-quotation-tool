@@ -309,7 +309,7 @@ export const parseSPMasterFile = (arrayBuffer: ArrayBuffer): SPParseResult => {
   return { data: spMaster, diagnostics };
 };
 
-const parseReadymadeMaster = (rows: unknown[]): ReadymadeMasterRow[] => {
+export const parseReadymadeMaster = (rows: unknown[]): ReadymadeMasterRow[] => {
   const master: ReadymadeMasterRow[] = [];
   if (rows.length < 2) return master;
 
