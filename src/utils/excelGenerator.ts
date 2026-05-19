@@ -44,7 +44,7 @@ export const generateQuoteExcel = async (
     }
   };
 
-  const showPrintingInfo = isSPCategory(category) || category === 'シルク' || category === 'シール';
+  const showPrintingInfo = isSPCategory(category) || category === 'シルク' || category === 'シール' || category === '既製';
 
   // 列の定義と幅の設定
   const baseCols = [
@@ -66,9 +66,9 @@ export const generateQuoteExcel = async (
     { header: '改定後 営G', key: 'newSalesGroup', width: 12 },
     { header: '営G改定率', key: 'salesGroupRate', width: 12 },
     ...(showPrintingInfo ? [
-      { header: '現行印刷代', key: 'printingCost', width: 12 },
+      { header: '印刷代', key: 'printingCost', width: 12 },
       { header: '改定印刷代単価', key: 'newPrintingCost', width: 14 },
-      { header: '現行印刷営G', key: 'printingSalesGroup', width: 12 },
+      { header: '印刷営G', key: 'printingSalesGroup', width: 12 },
       { header: '改定印刷代営G', key: 'newPrintingSalesGroup', width: 15 }
     ] : []),
     { header: '改定率', key: 'rate', width: 10 },
