@@ -388,4 +388,69 @@ describe('Calculator Logic (Multilevel Precedence)', () => {
       expect(results[0].newPrice).toBe(143);
     });
   });
+
+  describe('個別設定の一意識別子（id）の検証', () => {
+    it('同じ受注Noまたは空の受注Noを持つ複数商品において、idに紐づいた個別設定が対象の商品のみに適用され、他の商品に影響しないこと', () => {
+      const duplicateOrders: OrderRecord[] = [
+        {
+          id: 'sheet1-1',
+          orderNumber: '',
+          category: '既製品',
+          weight: 0,
+          productCode: 'PROD-A',
+          productName: '商品A',
+          shape: '',
+          quantity: 10,
+          currentPrice: 100,
+          printingCost: 0,
+          salesGroup: 50,
+          printingSalesGroup: 0,
+          materialName: '【ポリ】',
+          printCode: '',
+          frontColorCount: 0,
+          backColorCount: 0,
+          totalColorCount: 0,
+          janCode: '',
+          directDeliveryCode: '',
+          directDeliveryName: '',
+          lastOrderDate: ''
+        },
+        {
+          id: 'sheet1-2',
+          orderNumber: '',
+          category: '既製品',
+          weight: 0,
+          productCode: 'PROD-B',
+          productName: '商品B',
+          shape: '',
+          quantity: 20,
+          currentPrice: 200,
+          printingCost: 0,
+          salesGroup: 100,
+          printingSalesGroup: 0,
+          materialName: '【ポリ】',
+          printCode: '',
+          frontColorCount: 0,
+          backColorCount: 0,
+          totalColorCount: 0,
+          janCode: '',
+          directDeliveryCode: '',
+          directDeliveryName: '',
+          lastOrderDate: ''
+        }
+      ];
+
+      const individualSettings = {
+        'sheet1-1': { price: 150 }
+      };
+
+      const results = calculateNewPrices(duplicateOrders, defaultConditions, {}, individualSettings);
+
+      // sheet1-1 (商品A) は個別設定 150 が適用される
+      expect(results[0].newPrice).toBe(150);
+
+      // sheet1-2 (商品B) は受注Noが空であるものの、個別設定の影響を受けず元の単価 200 (価格改定増分0) を維持する
+      expect(results[1].newPrice).toBe(200);
+    });
+  });
 });

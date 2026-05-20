@@ -1,3 +1,14 @@
+## [Unreleased] - 2026-05-20
+
+### Fixed
+- **個別編集における価格同期バグの修正**:
+    - `excelUtils.ts`: Excelファイルのパース時に、シート名と行のインデックスを組み合わせた一意なID（`sheetName-i`）を各 `OrderRecord` の `id` プロパティとして自動付与するように修正。
+    - `calculator.ts`: 計算処理 `calculateNewPrices` において、`individualSettings` から個別設定を参照する際、最優先キーとして `order.id` をチェックするルックアップロジックに変更。
+    - `usePriceSimulation.ts`: 個別設定の更新関数 `updateIndividualField` および `updateIndividualPriceByRate` のキー引数を `orderNumber` から `rowKey` に変更し、個別行を一意に更新可能に修正。
+    - `OrderDataTable.tsx`: テーブル行の `rowKey` に `order.id || order.orderNumber` を採用し、手動入力時のキーを一意に識別できるよう改善。これにより、受注Noが空や重複している場合でも、編集した行だけが独立して値上げ・変更されるよう修正。
+    - `types/index.ts`: `OrderRecord` 型にオプションの `id?: string` フィールドを追加。
+    - `calculator.test.ts`: 受注Noが空の複数行で個別価格が混同しないことを確認する新規ユニットテストを追加。
+
 ## [Unreleased] - 2026-05-19
 ### Added
 - **既製品のExcel出力への印刷関連列の追加**:

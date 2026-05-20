@@ -27,7 +27,10 @@ export const parseExcelFile = (arrayBuffer: ArrayBuffer): {
         const headerIdx = rows.indexOf(headerRow);
         for (let i = headerIdx + 1; i < rows.length; i++) {
           const order = mapRowArrayToOrderRecord(rows[i] as unknown[], headerRow);
-          if (order.orderNumber || order.productCode || order.productName) orders.push(order);
+          if (order.orderNumber || order.productCode || order.productName) {
+            order.id = `${sheetName}-${i}`;
+            orders.push(order);
+          }
         }
       }
     }

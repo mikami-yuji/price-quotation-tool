@@ -371,22 +371,22 @@ export const usePriceSimulation = () => {
   };
 
   const updateIndividualField = (
-    orderNumber: string, 
+    rowKey: string, 
     field: 'price' | 'salesGroup' | 'printingPrice' | 'printingSalesGroup' | 'thickness', 
     value: number | string
   ) => {
     setIndividualSettings(prev => ({
       ...prev,
-      [orderNumber]: { 
-        ...prev[orderNumber], 
+      [rowKey]: { 
+        ...prev[rowKey], 
         [field]: field === 'thickness' ? (value || undefined) : (value !== 0 ? value : undefined) 
       }
     }));
   };
 
-  const updateIndividualPriceByRate = (orderNumber: string, currentPrice: number, printingCost: number, rate: number) => {
+  const updateIndividualPriceByRate = (rowKey: string, currentPrice: number, printingCost: number, rate: number) => {
     const newPrice = (1 + rate / 100) * (currentPrice + (printingCost || 0)) - (printingCost || 0);
-    updateIndividualField(orderNumber, 'price', Number(newPrice.toFixed(4)));
+    updateIndividualField(rowKey, 'price', Number(newPrice.toFixed(4)));
   };
 
   const resetAllIndividualSettings = () => {

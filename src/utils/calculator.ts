@@ -57,7 +57,7 @@ export const calculateNewPrices = (
     let spMasterMatched = false;
 
     // 3. 個別設定のチェック (最優先)
-    const individual = individualSettings[order.productCode] || individualSettings[order.orderNumber];
+    const individual = (order.id && individualSettings[order.id]) || individualSettings[order.productCode] || individualSettings[order.orderNumber];
     if (individual && individual.price !== undefined) {
       const p = individual.price;
       return {

@@ -14,8 +14,8 @@ type OrderDataTableProps = {
   columnFilters: Record<string, string[]>;
   filterOptions: { [key: string]: string[] };
   handleColumnFilterChange: (columnKey: string, values: string[]) => void;
-  updateIndividualField: (orderNumber: string, field: 'price' | 'salesGroup' | 'printingPrice' | 'printingSalesGroup' | 'thickness', value: number | string) => void;
-  updateIndividualPriceByRate: (orderNumber: string, currentPrice: number, printingCost: number, rate: number) => void;
+  updateIndividualField: (rowKey: string, field: 'price' | 'salesGroup' | 'printingPrice' | 'printingSalesGroup' | 'thickness', value: number | string) => void;
+  updateIndividualPriceByRate: (rowKey: string, currentPrice: number, printingCost: number, rate: number) => void;
   handleKeyDown: (e: React.KeyboardEvent<HTMLInputElement>, rowIndex: number, colKey: string) => void;
   lastIncreaseDate: string;
 };
@@ -100,10 +100,11 @@ export default function OrderDataTable({
           </thead>
           <tbody>
             {filteredOrders.map((order, i) => {
-              const price = individualSettings[order.orderNumber]?.price ?? order.newPrice ?? order.currentPrice;
-              const salesGroup = individualSettings[order.orderNumber]?.salesGroup ?? order.newSalesGroup ?? order.salesGroup;
-              const pCost = individualSettings[order.orderNumber]?.printingPrice ?? order.newPrintingCost ?? order.printingCost ?? 0;
-              const pSalesGroup = individualSettings[order.orderNumber]?.printingSalesGroup ?? order.newPrintingSalesGroup ?? order.printingSalesGroup ?? 0;
+              const rowKey = order.id || order.orderNumber;
+              const price = individualSettings[rowKey]?.price ?? order.newPrice ?? order.currentPrice;
+              const salesGroup = individualSettings[rowKey]?.salesGroup ?? order.newSalesGroup ?? order.salesGroup;
+              const pCost = individualSettings[rowKey]?.printingPrice ?? order.newPrintingCost ?? order.printingCost ?? 0;
+              const pSalesGroup = individualSettings[rowKey]?.printingSalesGroup ?? order.newPrintingSalesGroup ?? order.printingSalesGroup ?? 0;
               
               const currentTotal = order.currentPrice + (order.printingCost || 0);
               const newTotal = price + pCost;
@@ -161,8 +162,8 @@ export default function OrderDataTable({
                   {(activeTab === 'custom') && (
                     <td className={styles.highlightCell}>
                       <InlineTextInput 
-                        value={individualSettings[order.orderNumber]?.thickness || ''} 
-                        onCommit={(val) => updateIndividualField(order.orderNumber, 'thickness', val)} 
+                        value={individualSettings[rowKey]?.thickness || ''} 
+                        onCommit={(val) => updateIndividualField(rowKey, 'thickness', val)} 
                         onKeyDown={(e) => handleKeyDown(e, i, 'thickness')} 
                         className={styles.manualInput} 
                         rowIndex={i} 
@@ -173,13 +174,13 @@ export default function OrderDataTable({
                   )}
                   <td>¥{order.currentPrice.toFixed(2)}</td>
                   <td className={styles.highlightCell}>
-                    <InlineNumericInput value={price} onCommit={(val) => updateIndividualField(order.orderNumber, 'price', val)} onKeyDown={(e) => handleKeyDown(e, i, 'price')} className={styles.manualInput} rowIndex={i} colKey="price" decimals={2} />
+                    <InlineNumericInput value={price} onCommit={(val) => updateIndividualField(rowKey, 'price', val)} onKeyDown={(e) => handleKeyDown(e, i, 'price')} className={styles.manualInput} rowIndex={i} colKey="price" decimals={2} />
                   </td>
                   {showMarginCols && (
                     <>
                       <td style={{ fontSize: '0.85rem' }}>¥{order.salesGroup.toFixed(2)}</td>
                       <td className={styles.highlightCell}>
-                        <InlineNumericInput value={salesGroup} onCommit={(val) => updateIndividualField(order.orderNumber, 'salesGroup', val)} onKeyDown={(e) => handleKeyDown(e, i, 'salesGroup')} className={styles.manualInput} rowIndex={i} colKey="salesGroup" decimals={2} />
+                        <InlineNumericInput value={salesGroup} onCommit={(val) => updateIndividualField(rowKey, 'salesGroup', val)} onKeyDown={(e) => handleKeyDown(e, i, 'salesGroup')} className={styles.manualInput} rowIndex={i} colKey="salesGroup" decimals={2} />
                       </td>
                     </>
                   )}
@@ -188,7 +189,7 @@ export default function OrderDataTable({
                     <td className={`${styles.highlightCell} ${styles.compactCell}`}>
                       <InlineNumericInput 
                         value={pCost} 
-                        onCommit={(val) => updateIndividualField(order.orderNumber, 'printingPrice', val)} 
+                        onCommit={(val) => updateIndividualField(rowKey, 'printingPrice', val)} 
                         onKeyDown={(e) => handleKeyDown(e, i, 'printingPrice')} 
                         className={styles.manualInput} 
                         rowIndex={i} 
@@ -202,7 +203,7 @@ export default function OrderDataTable({
                     <td className={`${styles.highlightCell} ${styles.compactCell}`}>
                       <InlineNumericInput 
                         value={pSalesGroup} 
-                        onCommit={(val) => updateIndividualField(order.orderNumber, 'printingSalesGroup', val)} 
+                        onCommit={(val) => updateIndividualField(rowKey, 'printingSalesGroup', val)} 
                         onKeyDown={(e) => handleKeyDown(e, i, 'printingSalesGroup')} 
                         className={styles.manualInput} 
                         rowIndex={i} 
@@ -214,7 +215,7 @@ export default function OrderDataTable({
                   <td className={`${styles.highlightRateCell} ${styles.compactCell}`}>
                     <InlineNumericInput 
                       value={diff} 
-                      onCommit={(val) => updateIndividualPriceByRate(order.orderNumber, order.currentPrice, order.printingCost, val)} 
+                      onCommit={(val) => updateIndividualPriceByRate(rowKey, order.currentPrice, order.printingCost, val)} 
                       onKeyDown={(e) => handleKeyDown(e, i, 'diff')} 
                       className={styles.manualInput} 
                       rowIndex={i} 

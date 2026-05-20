@@ -2,6 +2,7 @@ export type OrderCategory = '別注' | '既製品' | 'SP' | string;
 export type TabType = 'custom' | 'sp' | 'readymade' | 'sticker';
 
 export type OrderRecord = {
+  id?: string; // 行の一意識別キー
   orderNumber: string; // 受注№
   category: OrderCategory; // 種別
   absCode?: string; // ABSコード
